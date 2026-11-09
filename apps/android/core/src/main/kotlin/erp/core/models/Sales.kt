@@ -299,6 +299,8 @@ data class Order(
     val shopifyOrderNumber: Int?,
     val shopifyDraftOrderId: String?,
     val shopifyDraftOrderName: String?,
+    /** House of Mina's Shopify orders are ERP orders (2026-11-09): where the customer's WhatsApp confirmation stands. */
+    val whatsappOrder: WhatsAppOrder? = null,
 ) {
     companion object : Decodable<Order> {
         override fun fromMap(m: Map<String, Any?>): Order {
@@ -338,6 +340,7 @@ data class Order(
                 shopifyOrderNumber = c.int("shopifyOrderNumber"),
                 shopifyDraftOrderId = c.string("shopifyDraftOrderId"),
                 shopifyDraftOrderName = c.string("shopifyDraftOrderName"),
+                whatsappOrder = c.obj("whatsappOrder", WhatsAppOrder),
             )
         }
     }

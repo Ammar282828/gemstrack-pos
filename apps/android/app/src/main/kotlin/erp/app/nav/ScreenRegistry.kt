@@ -93,7 +93,7 @@ object ScreenRegistry {
     fun readableWidth(path: String): Dp? {
         val bare = ScreenRoute.bare(path)
         val fills = setOf(
-            "/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
+            "/", "/orders", "/invoices", "/shopify", "/workshop", "/karigars", "/products", "/calendar",
             "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add",
             "/products/bulk-add", "/settings/printer", "/app/widgets", "/design",
         )

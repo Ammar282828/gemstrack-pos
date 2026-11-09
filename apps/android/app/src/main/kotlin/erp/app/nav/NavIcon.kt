@@ -22,7 +22,7 @@ object NavIcon {
         "Palette" to { Symbols.Palette }, "PenLine" to { Symbols.Edit }, "PiggyBank" to { Symbols.Paid }, "Plug" to { Symbols.Power },
         "Receipt" to { Symbols.Receipt }, "Rocket" to { Symbols.RocketLaunch }, "Rows3" to { Symbols.ViewAgenda }, "RotateCcw" to { Symbols.Undo },
         "Scale" to { Symbols.Scale }, "ScanLine" to { Symbols.QrCodeScanner }, "Send" to { Symbols.Send },
-        "Settings" to { Symbols.Settings }, "SlidersHorizontal" to { Symbols.Tune }, "Tag" to { Symbols.Sell },
+        "Settings" to { Symbols.Settings }, "ShoppingBag" to { Symbols.ShoppingBag }, "SlidersHorizontal" to { Symbols.Tune }, "Tag" to { Symbols.Sell },
         "Target" to { Symbols.Adjust }, "TrendingUp" to { Symbols.TrendingUp }, "Users" to { Symbols.People },
         "UsersRound" to { Symbols.Groups }, "Wallet" to { Symbols.AccountBalanceWallet }, "Weight" to { Symbols.Scale }, "Wrench" to { Symbols.Build },
     )
@@ -43,7 +43,7 @@ object NavIcon {
         "Palette" to { Symbols.Fill.Palette }, "PenLine" to { Symbols.Fill.Edit }, "PiggyBank" to { Symbols.Fill.Paid }, "Plug" to { Symbols.Fill.Power },
         "Receipt" to { Symbols.Fill.Receipt }, "Rocket" to { Symbols.Fill.RocketLaunch }, "Rows3" to { Symbols.Fill.ViewAgenda }, "RotateCcw" to { Symbols.Fill.Undo },
         "Scale" to { Symbols.Fill.Scale }, "ScanLine" to { Symbols.Fill.QrCodeScanner }, "Send" to { Symbols.Fill.Send },
-        "Settings" to { Symbols.Fill.Settings }, "SlidersHorizontal" to { Symbols.Fill.Tune }, "Tag" to { Symbols.Fill.Sell },
+        "Settings" to { Symbols.Fill.Settings }, "ShoppingBag" to { Symbols.ShoppingBag }, "SlidersHorizontal" to { Symbols.Fill.Tune }, "Tag" to { Symbols.Fill.Sell },
         "Target" to { Symbols.Fill.Adjust }, "TrendingUp" to { Symbols.Fill.TrendingUp }, "Users" to { Symbols.Fill.People },
         "UsersRound" to { Symbols.Fill.Groups }, "Wallet" to { Symbols.Fill.AccountBalanceWallet }, "Weight" to { Symbols.Fill.Scale }, "Wrench" to { Symbols.Fill.Build },
     )

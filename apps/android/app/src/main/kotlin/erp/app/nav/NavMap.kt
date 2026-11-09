@@ -68,6 +68,9 @@ data class NavMap(
 ) {
     data class Group(val key: String, val label: String)
 
+    /** House of Mina's Shopify section (owner, 2026-11-09): the map lists a "shopify" entry (nav.ts, STORE_SHOPIFY_SECTION); Taheri's has none. */
+    val hasShopify: Boolean get() = entries.any { it.id == erp.core.logic.ShopifyOrders.NAV_ID }
+
     /**
      * The map as a person sees it (src/lib/nav.ts forRole): owners everything; staff only the places marked for
      * them; a marketing account the Marketing group whole and nothing else.

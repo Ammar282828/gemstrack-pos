@@ -212,10 +212,13 @@ fun OrderCardHead(order: Order, stage: OrderStage, owed: Double, now: Instant, g
                         color = if (greyed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                         maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
                         Text(order.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (mine) MineTag()
                         if (OrdersLogic.isOnline(order)) OrdersOnlineBadge()
+                        // A Shopify order's WhatsApp state (nothing for any other order).
+                        erp.app.screens.invoices.WhatsAppStatePill(order.whatsappOrder?.state)
                     }
                 }
             }

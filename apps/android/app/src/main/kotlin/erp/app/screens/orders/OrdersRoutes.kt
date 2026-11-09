@@ -10,6 +10,8 @@ import erp.app.nav.ScreenRoute
  */
 val OrdersRoutes: List<ScreenRoute> = listOf(
     ScreenRoute.exact("/orders") { OrdersHub() },
+    // House of Mina's Shopify section: the Orders hub for its Shopify orders (2026-11-09).
+    ScreenRoute.exact("/shopify") { OrdersHub(shopify = true) },
     // Before the item route, which would take "online" for an order's id.
     ScreenRoute.exact("/orders/online") { OnlineOrdersScreen() },
     // "/orders/<id>/finalize": Finalize & invoice (the web's ?do=finalize dialog), native.

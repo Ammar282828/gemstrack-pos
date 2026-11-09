@@ -87,6 +87,9 @@ import erp.app.ui.NoteHost
 /** The phone's four most-used places, before Search. */
 private val PRIMARY = listOf("home", "orders", "invoices", "customers")
 
+/** With House of Mina's Shopify section the last tab is Shopify, in Customers' place (still in Search and the rail). */
+internal fun primaryTabs(hasShopify: Boolean): List<String> = if (hasShopify) listOf("home", "orders", "invoices", "shopify") else PRIMARY
+
 /**
  * The app: the shop's four most-used places as tabs, the ERP's whole map under Search, and New sale / New order /
  * Scan always one tap away. A marketing account gets its own first four (Posts, Website, Ads …) and no create menu:
@@ -109,7 +112,7 @@ fun RootScaffold() {
             wide -> map.entries
             // Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
             role == "marketing" -> map.entries.take(4)
-            else -> PRIMARY.mapNotNull { id -> map.entries.firstOrNull { it.id == id } }
+            else -> primaryTabs(map.hasShopify).mapNotNull { id -> map.entries.firstOrNull { it.id == id } }
         }
     }
     val ids = tabs.map { it.id } + SEARCH_TAB

@@ -91,6 +91,14 @@ import erp.app.ui.rememberHaptics
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.toWhatsAppNumber
 import erp.core.logic.OrderStage
+import erp.core.logic.ShopifyOrders
+import erp.app.screens.invoices.InvoiceFacts
+import erp.app.screens.invoices.InvoiceGrouping
+import erp.app.screens.invoices.InvoiceListRow
+import erp.app.screens.invoices.InvoicesListRules
+import erp.app.screens.invoices.SectionHeader
+import androidx.compose.ui.draw.clip
+import erp.app.ui.Radius
 import erp.core.logic.Money
 import erp.core.logic.stageOf
 import erp.core.models.Order
@@ -109,8 +117,8 @@ import java.time.Instant
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun OrdersHub() {
-    ScreenTitle("Orders")
+fun OrdersHub(shopify: Boolean = false) {
+    ScreenTitle(if (shopify) "Shopify" else "Orders")
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
@@ -144,6 +152,10 @@ fun OrdersHub() {
     var cancelling by remember { mutableStateOf<Order?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var filtering by remember { mutableStateOf(false) }
+    // House of Mina's Shopify section (2026-11-09): its orders live in /shopify, not here (the nav map says the house has it).
+    val hasSection = remember { erp.app.nav.NavMap.current.hasShopify }
+    var sFilter by rememberSaveable { mutableStateOf(ShopifyOrders.Filter.all) }
+    val earlierMode = shopify && sFilter == ShopifyOrders.Filter.earlier
 
     val grouping = OrdersGrouping.of(groupingRaw)
     fun choose(g: OrdersGrouping) {
@@ -165,14 +177,18 @@ fun OrdersHub() {
 
     // The hub's sums, once per change of the books or of what narrows them.
     // Worked out off the main thread; the last view stays up while the next is computed.
-    val viewNow by rememberOffMain(orders.revision, invoices.revision, appliedQuery, statusFilter, month, takenBy, payment, grouping, localStatus.entries) {
+    val viewNow by rememberOffMain(orders.revision, invoices.revision, appliedQuery, statusFilter, month, takenBy, payment, grouping, localStatus.entries, sFilter) {
         val now = AppClock.now()
         val owedOn = OrdersLogic.owedOnInvoices(invoices.items)
-        val scoped = OrdersLogic.scope(orders.items, appliedQuery, month, takenBy, payment)
+        val scoped = OrdersLogic.scope(ShopifyOrders.hubOrders(orders.items, hasSection, shopify), appliedQuery, month, takenBy, payment)
+            .let { if (shopify && sFilter == ShopifyOrders.Filter.toConfirm) it.filter(ShopifyOrders::toConfirm) else it }
         val shown = if (statusFilter == "All") scoped else scoped.filter { it.status.rawValue == statusFilter }
         HubView(now, owedOn, shown, OrdersLogic.sections(shown, grouping, owedOn, now) { o -> OrdersLocal.stage(stageOf(o, OrdersLogic.owed(o, owedOn)), OrdersLogic.hasInvoice(o), localStatus[o.id]) })
     }
     val view = viewNow
+    // What the hub lists (the filter sheet's counts) and the section's earlier invoices.
+    val shopifyOrders = remember(orders.revision) { ShopifyOrders.hubOrders(orders.items, hasSection, shopify) }
+    val earlierInvoices = remember(invoices.revision, orders.revision, shopify) { if (shopify) ShopifyOrders.earlier(invoices.items, orders.items) else emptyList() }
     // Drop what the books now agree with.
     LaunchedEffect(orders.revision) { localStatus.reconcile { id, s -> orders.items.firstOrNull { it.id == id }?.let { OrdersLocal.statusAgrees(it, s) } ?: true } }
     val note = LocalNoteState.current
@@ -223,6 +239,12 @@ fun OrdersHub() {
     }
 
     ScreenActions {
+        if (shopify) {
+            // Analytics › Website › Visitors, which for House of Mina is Shopify's.
+            IconButton(onClick = { navigator.open("/website/interest") }) { Icon(Symbols.BarChart, "Shopify analytics", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            // Import Shopify CSV is the ERP's own page (owners only, as on the web).
+            if (isOwner) IconButton(onClick = { navigator.open("/shopify?web=1") }) { Icon(Symbols.Download, "Import Shopify CSV", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
         IconButton(onClick = { filtering = true }) {
             Icon(
                 if (narrowed) Symbols.FilterList else Symbols.FilterListOff, "Filter",
@@ -273,15 +295,47 @@ fun OrdersHub() {
                             trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Symbols.Clear, "Clear the search") } },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         )
-                        GroupingPicker(grouping, ::choose)
+                        if (shopify) {
+                            ChipRow {
+                                for (f in ShopifyOrders.Filter.values()) {
+                                    val count = when (f) {
+                                        ShopifyOrders.Filter.all -> shopifyOrders.size
+                                        ShopifyOrders.Filter.toConfirm -> shopifyOrders.count(ShopifyOrders::toConfirm)
+                                        ShopifyOrders.Filter.earlier -> earlierInvoices.size
+                                    }
+                                    // The Earlier chip only while there is something earlier; To confirm only while something waits.
+                                    if (f == ShopifyOrders.Filter.all || f == sFilter || count > 0) FilterChip(f.title, sFilter == f, { sFilter = f }, count = count)
+                                }
+                            }
+                        }
+                        if (!earlierMode) GroupingPicker(grouping, ::choose)
                         if (narrowed) {
                             FilterSummary(statusFilter, month, takenBy, payment) { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
                         }
                     }
                 }
                 // Orders taken with no line, kept on this phone until the ERP has them: "Waiting to send" at the top.
-                pendingRecords(pendingOrders)
-                for (g in sections) {
+                if (!shopify) pendingRecords(pendingOrders)
+                if (earlierMode) {
+                    // Shopify sales from before the orders: invoices, opening their invoice pages.
+                    val q = appliedQuery.trim()
+                    val digits = q.filter { it in '0'..'9' }.trimStart('0')
+                    val rows = earlierInvoices.filter { q.isEmpty() || InvoicesListRules.matches(it, q, digits, emptyMap()) }
+                    val days = InvoicesListRules.sections(rows, InvoiceGrouping.day, view.now)
+                    for (g in days) {
+                        animatedItem(key = "eh-" + g.id, contentType = "header", span = { GridItemSpan(maxLineSpan) }) { SectionHeader(g) }
+                        items(g.rows.size, key = { "ei-${g.id}-${g.rows[it].id}" }, contentType = { "invoice" }) { i ->
+                            val inv = g.rows[i]
+                            Column(Modifier.animateItem().clip(Radius.cardShape).clickable { navigator.open(InvoiceFacts.path(inv.id)) }) {
+                                InvoiceListRow(inv, mine = false, dated = false, onPrint = {}, printing = { false })
+                            }
+                        }
+                    }
+                    if (days.isEmpty()) animatedItem(key = "eempty", contentType = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                        NotAvailableState("No earlier invoices", why = "Shopify sales from before orders were used are here.", icon = Symbols.Description)
+                    }
+                }
+                for (g in if (earlierMode) emptyList() else sections) {
                     animatedItem(key = "h-" + g.id, contentType = "header", span = { GridItemSpan(maxLineSpan) }) { OrdersSectionHeader(g) }
                     if (g.folds) {
                         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
@@ -303,9 +357,10 @@ fun OrdersHub() {
                         itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }, contentType = { _, _ -> "order" }) { i, order -> Card(order, view, isOwner, person, localStatus[order.id], actions, grouping, i, Modifier.animateItem()) }
                     }
                 }
-                if (sections.isEmpty() && pendingOrders.isEmpty()) {
+                if (!earlierMode && sections.isEmpty() && (shopify || pendingOrders.isEmpty())) {
                     animatedItem(key = "empty", contentType = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                        EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter, onClear = ::clearFilters) {
+                        if (shopify && !anyFilter && sFilter == ShopifyOrders.Filter.all) NotAvailableState("No Shopify orders yet", why = "Orders from the online store will be here.", icon = Symbols.ShoppingBag)
+                        else EmptyState(nothingOpen = grouping == OrdersGrouping.due && view.shown.isNotEmpty(), filtering = anyFilter || sFilter != ShopifyOrders.Filter.all, onClear = { clearFilters(); sFilter = ShopifyOrders.Filter.all }) {
                             navigator.open("/orders/add")
                         }
                     }
@@ -316,7 +371,7 @@ fun OrdersHub() {
 
     if (filtering) {
         HubFilterSheet(
-            all = orders.items,
+            all = shopifyOrders,
             statusFilter = statusFilter, onStatus = { statusFilter = it },
             grouping = grouping, onGrouping = ::choose,
             month = month, onMonth = { month = it },

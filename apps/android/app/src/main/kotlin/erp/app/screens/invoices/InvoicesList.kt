@@ -122,8 +122,8 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 // The whole row, whatever the columns (an Int.MAX_VALUE span laid nothing out in the grid).
-private val FULL_WIDTH: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
-private val SECTION_GAP = 24.dp
+internal val FULL_WIDTH: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
+internal val SECTION_GAP = 24.dp
 
 /**
  * Every invoice, and what is still owed on it (src/app/invoices/page.tsx), as the ledger: the chips and the three
@@ -163,7 +163,9 @@ fun InvoicesList() {
     LaunchedEffect(search) { if (search.isNotEmpty()) delay(200); appliedSearch = search }
     val filter = InvoiceFilter(appliedSearch, takenBy, month, rangeFrom, rangeTo)
     val now = remember(status.revision) { AppClock.now() }
-    val all = status.items
+    // House of Mina's Shopify orders have their own section (the nav map says so): they are not listed here, nor counted in its chips.
+    val hasShopifySection = remember { erp.app.nav.NavMap.current.hasShopify }
+    val all = remember(status.items, hasShopifySection) { erp.core.logic.ShopifyOrders.listedInvoices(status.items, hasShopifySection) }
     // The whole-book passes (search, chips, day sections) run off the main thread; the last answer stays up while the next is worked out.
     val scopedNow by rememberOffMain(all, filter, customers, now) {
         InvoicesListRules.scope(all, filter, phones = {
@@ -372,7 +374,7 @@ private fun EmptyState(filtering: Boolean, onClear: () -> Unit, onNewSale: () ->
 
 /** A section's heading: its day, how many, what it billed; under it what is still owed on it. */
 @Composable
-private fun SectionHeader(section: InvoiceSection) {
+internal fun SectionHeader(section: InvoiceSection) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         LedgerHeading(section.title, count = section.rows.size, trailing = erp.core.logic.Money.pkr(section.billed))
         if (section.owed >= 1) {
@@ -407,7 +409,7 @@ fun InvoiceBalancePill(invoice: Invoice, modifier: Modifier = Modifier) {
 
 /** One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it; the printer at the end. */
 @Composable
-private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean, modifier: Modifier = Modifier) {
+internal fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean, modifier: Modifier = Modifier) {
     val stacked = isLargeText()
     Row(
         modifier
@@ -442,7 +444,7 @@ private fun InvoiceListRow(invoice: Invoice, mine: Boolean, dated: Boolean, onPr
 
 /** One tap to the printer (owner, 2026-11-03): the invoice's PDF, named as Print saves it, straight to the share sheet. */
 @Composable
-private fun InvoicePrint(invoice: Invoice, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean) {
+internal fun InvoicePrint(invoice: Invoice, onPrint: (Invoice) -> Unit, printing: (Invoice) -> Boolean) {
     QuickPrintButton("Print ${invoice.id}", busy = { printing(invoice) }, onPrint = { onPrint(invoice) })
 }
 
@@ -484,8 +486,12 @@ private fun Reference(invoice: Invoice, mine: Boolean, dated: Boolean) {
  * show it (`whatsappOrderChip`): nothing for an invoice with no known state.
  */
 @Composable
-internal fun WhatsAppOrderPill(invoice: Invoice, modifier: Modifier = Modifier) {
-    val chip = WhatsAppOrderChip.chip(invoice.whatsappOrder?.state) ?: return
+internal fun WhatsAppOrderPill(invoice: Invoice, modifier: Modifier = Modifier) = WhatsAppStatePill(invoice.whatsappOrder?.state, modifier)
+
+/** The same pill from a state alone: an order carries it too (House of Mina's Shopify orders, 2026-11-09). */
+@Composable
+internal fun WhatsAppStatePill(state: String?, modifier: Modifier = Modifier) {
+    val chip = WhatsAppOrderChip.chip(state) ?: return
     Pill(chip.label, modifier, tone = when (chip.tone) {
         WhatsAppOrderChip.Tone.late -> Tone.late
         WhatsAppOrderChip.Tone.owed -> Tone.owed
@@ -593,7 +599,7 @@ private fun InvoiceFilterSheet(
             }
             if (filter.rangeFrom != null) TextButton(onClick = onClearRange) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear the date range") }
             if (narrowed) TextButton(onClick = onClear) { Icon(Symbols.Close, null); Spacer(Modifier.size(8.dp)); Text("Clear filters") }
-            // Import Shopify CSV and the payment links are the ERP's own page.
+            // The payment links are the ERP's own page (Import Shopify CSV is in the Shopify section where a house has one).
             TextButton(onClick = onWeb) { Icon(Symbols.Language, null); Spacer(Modifier.size(8.dp)); Text("Open in the ERP") }
         }
     }

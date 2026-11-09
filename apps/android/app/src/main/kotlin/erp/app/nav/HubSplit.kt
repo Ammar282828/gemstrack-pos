@@ -40,6 +40,7 @@ object HubSplitKind {
     fun prompt(path: String): HubPrompt? = when (ScreenRoute.bare(path)) {
         "/orders" -> HubPrompt("Choose an order", Symbols.Assignment)
         "/invoices" -> HubPrompt("Choose an invoice", Symbols.Description)
+        "/shopify" -> HubPrompt("Choose a Shopify order", Symbols.ShoppingBag)
         "/customers" -> HubPrompt("Choose a customer", Symbols.People)
         "/products" -> HubPrompt("Choose a piece", Symbols.Diamond)
         "/repairs" -> HubPrompt("Choose a repair", Symbols.Build)
