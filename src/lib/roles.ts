@@ -154,9 +154,9 @@ export const STAFF_HIDDEN_FIELDS: Record<string, readonly string[]> = {
   // assumption the customer and the shop floor will not read it.
   '*': ['adminNote'],
   // What a piece cost to make, as opposed to what it sells for. Staff quote
-  // and take payment from the totals, which stay.
-  orders: ['ratesApplied'],
-  invoices: ['ratesApplied'],
+  // and take payment from the totals, which stay. A parcel's courier cost (shipment-costs.ts) is the owners' too.
+  orders: ['ratesApplied', 'shippingCost'],
+  invoices: ['ratesApplied', 'shippingCost'],
   // A karigar's own rates and running balance.
   karigars: ['ratePerGram', 'openingBalance', 'notes', 'email'],
   // Aggregates no page writes today; named so one added later never reaches the shop floor
