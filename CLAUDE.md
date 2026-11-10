@@ -186,7 +186,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **The website and copy**
 - [Customer copy](docs/decisions.md#customer-copy) — never "Najmi Market" or "Saddar"; the hours
-- [Weight preview](docs/decisions.md#weight-preview) — the overlay tool's Futura geometry; diamond carats under the weight, smaller (Photo weights → site)
+- [Weight preview](docs/decisions.md#weight-preview) — the overlay tool's Futura geometry; diamond carats under the weight, smaller (Photo weights → site); white or dark by the photo behind it
 - [Shop outage](docs/decisions.md#shop-outage) — the hosted.app address still works
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
 - [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them

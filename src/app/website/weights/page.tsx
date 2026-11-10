@@ -87,6 +87,8 @@ function PhotoWeightsPage() {
   const [carats, setCarats] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const caratsRef = useRef<HTMLInputElement>(null);
+  // White or dark, as the website will draw it on this photo (api/website/pieces/ink, lib/website/label-ink.ts).
+  const [ink, setInk] = useState('#ffffff');
 
   const load = useCallback(async () => {
     const res = await fetch('/api/website/pieces', { headers: await authed(), cache: 'no-store' });
@@ -115,6 +117,18 @@ function PhotoWeightsPage() {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [current?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!current?.thumb) return;
+    let gone = false;
+    setInk('#ffffff');
+    (async () => {
+      const res = await fetch(`/api/website/pieces/ink?src=${encodeURIComponent(current.thumb)}`, { headers: await authed() }).catch(() => null);
+      const data = res?.ok ? await res.json().catch(() => null) : null;
+      if (!gone && data?.ink) setInk(data.ink);
+    })();
+    return () => { gone = true; };
+  }, [current?.thumb]);
 
   const counts = useMemo(() => {
     const all = pieces || [];
@@ -220,12 +234,12 @@ function PhotoWeightsPage() {
               // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1; the carats under it, smaller.
               <svg aria-hidden="true" viewBox="0 0 3000 3000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full pointer-events-none select-none">
                 {(value || current.weightGrams) && current.source !== 'label' && (
-                  <text x="120" y={100 + 143 * 1.1} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
+                  <text x="120" y={100 + 143 * 1.1} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize="143" letterSpacing="2" fill={ink}>
                     {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
                   </text>
                 )}
                 {Number(carats) > 0 && (
-                  <text x="120" y={CT_BASELINE} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize={CT_SIZE} letterSpacing="2" fill="#fff">
+                  <text x="120" y={CT_BASELINE} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize={CT_SIZE} letterSpacing="2" fill={ink}>
                     {caratsText(Number(carats))}
                   </text>
                 )}

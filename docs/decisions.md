@@ -1219,6 +1219,11 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
   first"): `/api/website/pieces` lists by the site's `added`, and with them the uploads the site hasn't listed yet (its drop
   folder, `listDrops`), whose weight is saved under the key each keeps once listed; the site draws it until its next rebuild.
 
+- **White or dark, by the photo** (2026-11-10, the owner: "make sure it's either black or white based on the contrast behind
+  it"): the weight and carats are drawn white or in the overlay tool's dark #1a1a1a, whichever contrasts more with the mean
+  luminance of the label's corner (3000-reference box 80,40 900×400; white below L ≈ 0.20). The site reads its own photo in a
+  canvas (`WeightLabel.jsx` `inkFor`); Photo weights' preview asks the server (`/api/website/pieces/ink`, `lib/website/label-ink.ts`,
+  the same rule), since a browser cannot read the site's pixels from the ERP.
 - **Diamonds in carats, under the weight** (2026-11-10, the owner: "for diamond products, give me the option to add the
   diamond weight in carats as well, and that will go right below the weight in a smaller sized font. The same font, just
   smaller size"). Photo weights shows a Diamonds (ct) field under Weight for a diamond piece (a diamond read on the photo, or a
