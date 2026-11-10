@@ -195,6 +195,32 @@ describe('orders', () => {
     expect(cancelled.body.followUps!.map((f) => f.path)).toEqual(['/api/notifications/alert', '/api/shopify/sync/order']);
   });
 
+  it('an invoiced order is not reopened by hand: 409 with the machine, the reason and what is allowed; nothing changes', async () => {
+    const r = await call({ op: 'setOrderStatus', orderId: 'ORD-000002', status: 'Pending' });
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ error: expect.stringMatching(/undo the invoice first/), machine: 'Order', from: 'Completed', to: 'Pending' });
+    expect(Array.isArray(r.body.allowed)).toBe(true);
+    expect(data.orders['ORD-000002'].status).toBe('Completed');
+    // Setting the same status is a quiet success, the invoiced order untouched.
+    expect((await call({ op: 'setOrderStatus', orderId: 'ORD-000002', status: 'Completed' })).status).toBe(200);
+  });
+
+  it('a Cancelled order can be set back to Pending by hand, as before', async () => {
+    put('orders', 'ORD-000003', { status: 'Cancelled', items: [{ description: 'A' }] });
+    expect((await call({ op: 'setOrderStatus', orderId: 'ORD-000003', status: 'Pending' })).status).toBe(200);
+    expect(data.orders['ORD-000003'].status).toBe('Pending');
+  });
+
+  it('a repair is not collected with money owing (409, the amount), and is when nothing is owed', async () => {
+    put('repairs', 'REP-000001', { status: 'ready', pieces: [{ item: 'Ring', work: 'polish', price: 1_500 }], payments: [] });
+    const refused = await call({ op: 'setRepairStatus', repairId: 'REP-000001', status: 'collected' });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ machine: 'Repair', from: 'ready', to: 'collected', error: expect.stringMatching(/1,500 is still owed/) });
+    expect(data.repairs['REP-000001'].status).toBe('ready');
+    put('repairs', 'REP-000001', { payments: [{ amount: 1_500, date: '2026-11-01T00:00:00.000Z' }] }, true);
+    expect((await call({ op: 'setRepairStatus', repairId: 'REP-000001', status: 'collected' })).status).toBe(200);
+  });
+
   it('the last piece ticked finishes the order and raises its alert; a piece that is not there is refused', async () => {
     expect((await call({ op: 'setPieceDone', orderId: 'ORD-000001', index: 7, done: true })).status).toBe(409);
     expect((await call({ op: 'setPieceDone', orderId: 'ORD-000001', index: 1.5, done: true })).status).toBe(400);

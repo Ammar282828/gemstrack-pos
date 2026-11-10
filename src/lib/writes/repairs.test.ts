@@ -74,3 +74,56 @@ describe('repair tickets', () => {
     expect(Object.keys(data.additional_revenue)).toEqual(['r1']);
   });
 });
+
+describe('repair status follows the repair machine', () => {
+  const seedRepair = (extra: Record<string, unknown> = {}) => ({ repairs: { 'REP-000001': { ...ticket, payments: [], status: 'received', ...extra } } });
+
+  it('is not collected with money owing: refused with the amount, nothing written', async () => {
+    const { db, data } = fakeDb(seedRepair({ status: 'ready' }));
+    await expect(setRepairStatus(db, 'REP-000001', 'collected', { now: NOW })).rejects.toMatchObject({ name: 'MoveRefused', status: 409, machine: 'Repair', message: expect.stringMatching(/2,800 is still owed/) });
+    expect(data.repairs['REP-000001']).toMatchObject({ status: 'ready' });
+    expect(data.repairs['REP-000001'].collectedAt).toBeUndefined();
+  });
+
+  it('collected with nothing owed works, straight from In the shop, and the hand-back order (payment, then status) sees the payment', async () => {
+    const free = fakeDb({ repairs: { 'REP-000002': { customerName: 'x', pieces: [{ item: 'Ring', work: 'polish', price: 0 }], payments: [], status: 'received' } } });
+    await setRepairStatus(free.db, 'REP-000002', 'collected', { now: NOW });
+    expect(free.data.repairs['REP-000002']).toMatchObject({ status: 'collected', collectedAt: NOW });
+    const { db, data } = fakeDb(seedRepair());
+    await recordRepairPayment(db, 'REP-000001', { id: 'hb-1', amount: 2_800, date: NOW, method: 'Cash', note: 'On collection' });
+    await setRepairStatus(db, 'REP-000001', 'collected', { now: NOW });
+    expect(data.repairs['REP-000001']).toMatchObject({ status: 'collected' });
+  });
+
+  it('a retried hand-back with the same payment id takes the money once', async () => {
+    const { db, data } = fakeDb(seedRepair());
+    await recordRepairPayment(db, 'REP-000001', { id: 'hb-7', amount: 2_800, date: NOW });
+    await recordRepairPayment(db, 'REP-000001', { id: 'hb-7', amount: 2_800, date: NOW });
+    expect(data.repairs['REP-000001'].payments).toHaveLength(1);
+    expect(Object.keys(data.additional_revenue)).toHaveLength(1);
+  });
+
+  it('undo and the other hand moves still work, and the same status writes nothing', async () => {
+    const { db, data } = fakeDb(seedRepair({ status: 'collected', collectedAt: 'then', payments: [{ amount: 2_800, date: NOW }] }));
+    await setRepairStatus(db, 'REP-000001', 'received', { now: NOW });
+    expect(data.repairs['REP-000001'].status).toBe('received');
+    await setRepairStatus(db, 'REP-000001', 'cancelled', { now: NOW });
+    expect(data.repairs['REP-000001'].status).toBe('cancelled');
+    await setRepairStatus(db, 'REP-000001', 'received', { now: NOW });
+    await setRepairStatus(db, 'REP-000001', 'ready', { now: '2026-10-09T00:00:00.000Z' });
+    await setRepairStatus(db, 'REP-000001', 'ready', { now: '2026-10-10T00:00:00.000Z' });
+    expect(data.repairs['REP-000001'].readyAt).toBe('2026-10-09T00:00:00.000Z');
+  });
+
+  it('a repair that is not there is an error, not a document made by a merge', async () => {
+    const { db, data } = fakeDb({});
+    await expect(setRepairStatus(db, 'REP-000404', 'ready', { now: NOW })).rejects.toThrow('Repair REP-000404 not found.');
+    expect(data.repairs?.['REP-000404']).toBeUndefined();
+  });
+
+  it('a cancelled ticket cannot be called ready except by putting it back in the shop first', async () => {
+    const { db } = fakeDb(seedRepair({ status: 'cancelled' }));
+    await expect(setRepairStatus(db, 'REP-000001', 'ready', { now: NOW })).rejects.toMatchObject({ machine: 'Repair', allowed: [{ to: 'received', event: 'set' }] });
+  });
+});
+

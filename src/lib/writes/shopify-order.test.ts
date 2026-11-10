@@ -180,6 +180,31 @@ describe('Shopify money and state onto the order', () => {
     expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'In Progress', shopifyDelivery: 'delivered' });
   });
 
+  it('a Cancelled order the shop set stays Cancelled when Shopify ships it; the parcel facts still mirror (machine: shipped refused)', async () => {
+    const { db, data } = await seeded();
+    Object.assign(data.orders['SHOPIFY-1440'], { status: 'Cancelled' });
+    const r = await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('delivered')] }), []);
+    expect(r?.completed).toBeFalsy();
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Cancelled', shopifyDelivery: 'delivered', tcsConsignmentNo: '173019676104' });
+  });
+
+  it('delivered takes the delivered event, shipped the shipped one: both finish a Pending order and tick its pieces', async () => {
+    const a = await seeded();
+    await mirrorShopifyToOrder(a.db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('delivered')] }), []);
+    expect(a.data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Completed' });
+    expect((a.data.orders['SHOPIFY-1440'].items as { isCompleted: boolean }[]).every(i => i.isCompleted)).toBe(true);
+  });
+
+  it('a booking cancelled from the ERP (tcsCancelledCns) is never brought back from Shopify\'s tracking', async () => {
+    const { db, data } = await seeded();
+    Object.assign(data.orders['SHOPIFY-1440'], { tcsCancelledCns: ['173019676104'] });
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('in_transit')] }), []);
+    expect(data.orders['SHOPIFY-1440'].tcsConsignmentNo).toBeUndefined();
+    // Another number is not blocked.
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', order({ fulfillment_status: 'fulfilled', fulfillments: [parcel('in_transit', { tracking_number: '999' })] }), []);
+    expect(data.orders['SHOPIFY-1440'].tcsConsignmentNo).toBe('999');
+  });
+
   it('delivered cash on delivery is paid: one advance for what is left, by bank, once; a later Shopify payment adds nothing', async () => {
     const { withDeliveredCod } = await import('@/lib/shopify-mirror');
     const { db, data } = await seeded();

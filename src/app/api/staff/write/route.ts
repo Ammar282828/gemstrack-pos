@@ -49,6 +49,7 @@ function previewAsStaff(req: NextRequest, role: string): boolean {
 
 
 import { ORDER_STATUSES } from '@/lib/writes/order-status';
+import { moveRefusedResponse } from '@/lib/machines/http';
 
 type Body = { op?: string; [k: string]: unknown };
 
@@ -184,6 +185,8 @@ export async function POST(req: NextRequest) {
         );
     }
   } catch (e) {
+    const refused = moveRefusedResponse(e);
+    if (refused) return refused;
     console.error('[/api/staff/write]', body.op, e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Write failed' },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import { orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch, setOrderPieceDone, setOrderPieceGiven, setOrderPieceKarigar, setOrderStatus } from './order-status';
+import { MoveRefused } from '@/lib/machines/machine';
 import { recordOrderAdvance } from './order-advance';
 import { deleteOrderAdvance } from './order-pieces';
 import { invoiceFromOrder } from './finalize-order';
@@ -77,6 +78,44 @@ describe('order status', () => {
 
     await setOrderStatus(db, { orderId: 'ORD-1', status: 'In Progress' }, { notify: id => alerted.push(id) });
     expect(alerted).toEqual(['ORD-1']);
+  });
+
+  it('by hand the order machine decides: the shop\'s own moves still work, the bug moves are refused with its reason', async () => {
+    const { db, data } = fakeDb({ orders: {
+      cancelled: { status: 'Cancelled', items: pieces(false) },
+      refunded: { status: 'Refunded', items: pieces(true) },
+      invoiced: { status: 'Completed', invoiceId: 'INV-1', items: pieces(true) },
+      open: { status: 'Pending', items: pieces(false) },
+    } });
+    // Cancelled -> Pending by hand: unchanged.
+    await setOrderStatus(db, { orderId: 'cancelled', status: 'Pending' });
+    expect(data.orders.cancelled.status).toBe('Pending');
+    // Refunded -> anything: refused, nothing written.
+    await expect(setOrderStatus(db, { orderId: 'refunded', status: 'Pending' })).rejects.toMatchObject({ name: 'MoveRefused', status: 409, machine: 'Order', from: 'Refunded', to: 'Pending', message: expect.stringMatching(/final/) });
+    expect(data.orders.refunded.status).toBe('Refunded');
+    // Refunded as a label: refused (Refund order is the only way).
+    await expect(setOrderStatus(db, { orderId: 'open', status: 'Refunded' })).rejects.toBeInstanceOf(MoveRefused);
+    expect(data.orders.open.status).toBe('Pending');
+    // An invoiced order is not reopened or cancelled over its invoice; the reason says what to do.
+    await expect(setOrderStatus(db, { orderId: 'invoiced', status: 'Pending' })).rejects.toThrow(/undo the invoice first/);
+    await expect(setOrderStatus(db, { orderId: 'invoiced', status: 'Cancelled' })).rejects.toBeInstanceOf(MoveRefused);
+    expect(data.orders.invoiced.status).toBe('Completed');
+  });
+
+  it('the same status again writes nothing and alerts nobody, even on an invoiced order', async () => {
+    const { db, data } = fakeDb({ orders: { 'ORD-9': { status: 'Completed', invoiceId: 'INV-1', items: pieces(false), marker: 1 } } });
+    const alerted: string[] = [];
+    const out = await setOrderStatus(db, { orderId: 'ORD-9', status: 'Completed' }, { notify: id => alerted.push(id) });
+    expect(out).toEqual({ orderId: 'ORD-9', status: 'Completed', ticked: 0 });
+    expect(alerted).toEqual([]);
+    expect((data.orders['ORD-9'].items as { isCompleted: boolean }[])[0].isCompleted).toBe(false);
+  });
+
+  it('the last piece ticked still finishes an open order, and unticking sends a finished one back (pieces event, unchanged)', async () => {
+    const { db, data } = fakeDb({ orders: { 'ORD-P': { status: 'In Progress', items: pieces(true, false) } } });
+    expect((await setOrderPieceDone(db, { orderId: 'ORD-P', index: 1, done: true })).status).toBe('Completed');
+    expect(data.orders['ORD-P'].status).toBe('Completed');
+    expect((await setOrderPieceDone(db, { orderId: 'ORD-P', index: 1, done: false })).status).toBe('In Progress');
   });
 
   it('a piece that is no longer there is refused, not written', async () => {

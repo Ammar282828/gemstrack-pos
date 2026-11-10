@@ -10,7 +10,7 @@
  * same write (see the store), so the day's takings include it.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLingering } from '@/hooks/use-lingering';
 import { format, parseISO, addDays, differenceInCalendarDays } from 'date-fns';
 import QRCode from 'qrcode.react';
@@ -264,12 +264,17 @@ function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boole
   const [amount, setAmount] = useState<number | undefined>(balance || undefined);
   const [method, setMethod] = useState<PaymentType>('Cash');
   const [busy, setBusy] = useState(false);
+  // One name for this hand-back's payment: if marking it collected fails and the owner taps again, the payment is not taken twice.
+  const payId = useRef('');
   // It stays mounted while it closes (so it can leave, not vanish); each opening starts from the balance.
-  useEffect(() => { if (open) { setAmount(repairBalance(repair) || undefined); setMethod('Cash'); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setAmount(repairBalance(repair) || undefined); setMethod('Cash'); payId.current = `hb-${crypto.randomUUID()}`; } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A ticket is collected only when nothing is owed (lib/machines REPAIR): said here, before any money is taken.
+  const short = Math.round(balance - (amount || 0));
   const go = async () => {
+    if (short >= 1) return;
     setBusy(true);
     try {
-      if (amount && amount > 0) await recordRepairPayment(repair.id, { amount, date: new Date().toISOString(), method, note: 'On collection' });
+      if (amount && amount > 0) await recordRepairPayment(repair.id, { id: payId.current || undefined, amount, date: new Date().toISOString(), method, note: 'On collection' });
       await setRepairStatus(repair.id, 'collected');
       toast({ title: `${repair.id} handed back`, description: amount ? `${pkr(amount)} received.` : undefined });
       onClose();
@@ -289,11 +294,12 @@ function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boole
             <p className="text-sm">Balance due <span className="font-semibold tabular-nums">{pkr(balance)}</span></p>
             <div className="w-40"><AmountInput maxDecimals={0} value={amount} zeroAsEmpty placeholder="Received" aria-label="Amount received" onValueChange={(v) => setAmount(v === undefined ? undefined : Number(v))} /></div>
             <MethodChips value={method} onChange={setMethod} />
+            {short >= 1 && <p className="text-sm text-destructive">{pkr(short)} more is owed: take the whole balance to hand it back.</p>}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Nothing is due{repairPaid(repair) > 0 ? ` — ${pkr(repairPaid(repair))} was paid` : ''}.</p>
         )}
-        <DialogFooter><Button onClick={go} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Handed back</Button></DialogFooter>
+        <DialogFooter><Button onClick={go} disabled={busy || short >= 1}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Handed back</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

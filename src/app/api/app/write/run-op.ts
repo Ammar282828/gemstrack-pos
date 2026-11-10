@@ -24,6 +24,7 @@ import { cleanRates, setRates } from '@/lib/writes/rates';
 import { cleanSettingsPatch } from '@/lib/writes/settings';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
+import { moveRefusedResponse } from '@/lib/machines/http';
 import { InputError, checkIsoDate, checkMoney } from '@/lib/writes/validate';
 import { updateOrder } from '@/lib/writes/update-order';
 import { finalizeOrder } from '@/lib/writes/finalize-order';
@@ -608,6 +609,8 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
       }
       return NextResponse.json({ error: 'Unknown operation', op }, { status: 400 });
     } catch (e) {
+      const refused = moveRefusedResponse(e);
+      if (refused) return refused;
       const message = e instanceof Error ? e.message : 'Not saved.';
       console.error('[/api/app/write]', op, message);
       if (e instanceof InputError) return NextResponse.json({ error: message }, { status: 400 });

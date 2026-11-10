@@ -72,3 +72,68 @@ describe('Safepay payment links', () => {
     expect(r.expired).toEqual([TOKEN]);
   });
 });
+
+describe('payment links and the closed records (Link machine)', () => {
+  const paidNow = { read: async () => ({ token: TOKEN, amount: 4350, currency: 'PKR', state: 'TRACKER_ENDED', transaction: { state: 'PAID' } }), now: new Date('2026-11-09T21:10:00Z') };
+  const link = (extra: Record<string, unknown> = {}) => ({ [TOKEN]: { id: TOKEN, target: 'order', targetId: 'ORD-1', amount: 4350, url: 'u', state: 'open', createdAt: '2026-11-09T21:00:00Z', ...extra } });
+  const logs: { action: string; title: string; detail: string; id?: string }[] = [];
+  const fx = { log: (action: string, title: string, detail: string, id?: string) => { logs.push({ action, title, detail, id }); } };
+
+  it('an order that was invoiced since takes the money on its INVOICE, once, with the same request id; the link is paid', async () => {
+    const { db, data } = fakeDb({
+      orders: { 'ORD-1': { status: 'Completed', invoiceId: 'INV-1', subtotal: 4350, advancePayment: 0, advances: [] } },
+      invoices: { 'INV-1': { customerName: 'Sara', grandTotal: 4350, amountPaid: 0, balanceDue: 4350, paymentHistory: [] } },
+      payment_links: link(),
+    });
+    expect((await settleOpenLinks(db, paidNow, fx)).paid).toEqual(['order ORD-1']);
+    expect(data.invoices['INV-1']).toMatchObject({ amountPaid: 4350, balanceDue: 0 });
+    expect((data.invoices['INV-1'].paymentHistory as { id?: string; method?: string }[])[0]).toMatchObject({ id: `pay-safepay-${TOKEN}`, method: 'Card' });
+    expect(data.orders['ORD-1']).toMatchObject({ advancePayment: 0, advances: [] });
+    expect(data.payment_links[TOKEN]).toMatchObject({ state: 'paid' });
+    expect((await settleOpenLinks(db, paidNow, fx)).checked).toBe(0);
+  });
+
+  it('a Cancelled or Refunded order, or a Refunded invoice, records nothing: the link needs the owner, with a reason and a log line, and is not retried', async () => {
+    for (const [seed, kind, id] of [
+      [{ orders: { 'ORD-1': { status: 'Cancelled', subtotal: 4350, advances: [] } } }, 'order', 'ORD-1'],
+      [{ orders: { 'ORD-1': { status: 'Refunded', subtotal: 4350, advances: [] } } }, 'order', 'ORD-1'],
+      [{ invoices: { 'INV-9': { status: 'Refunded', grandTotal: 4350, amountPaid: 0, balanceDue: 4350, paymentHistory: [] } } }, 'invoice', 'INV-9'],
+    ] as const) {
+      logs.length = 0;
+      const { db, data } = fakeDb({ ...seed, payment_links: link({ target: kind, targetId: id }) });
+      const r = await settleOpenLinks(db, paidNow, fx);
+      expect(r.paid).toEqual([]);
+      expect(r.errors).toEqual([]);
+      expect(data.payment_links[TOKEN]).toMatchObject({ state: 'attention', attentionReason: expect.stringMatching(/4,350.*Safepay/) });
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({ action: `${kind}.update`, id });
+      if (data.orders) expect(data.orders['ORD-1'].advances).toEqual([]);
+      if (data.invoices) expect(data.invoices['INV-9'].paymentHistory).toEqual([]);
+      expect((await settleOpenLinks(db, paidNow, fx)).checked).toBe(0);
+    }
+  });
+
+  it('an expired link is still read for a late payment for 90 days, then left alone', async () => {
+    const { db, data } = fakeDb({
+      orders: { 'ORD-1': { status: 'Pending', subtotal: 4350, advancePayment: 0, advances: [] } },
+      payment_links: link({ state: 'expired', createdAt: '2026-10-01T00:00:00Z' }),
+    });
+    const r = await settleOpenLinks(db, paidNow, fx);
+    expect(r.paid).toEqual(['order ORD-1']);
+    expect(data.orders['ORD-1']).toMatchObject({ advancePayment: 4350 });
+    expect(data.payment_links[TOKEN]).toMatchObject({ state: 'paid' });
+
+    const old = fakeDb({ orders: { 'ORD-1': { status: 'Pending', subtotal: 4350, advancePayment: 0, advances: [] } }, payment_links: link({ state: 'expired', createdAt: '2026-06-01T00:00:00Z' }) });
+    const r2 = await settleOpenLinks(old.db, paidNow, fx);
+    expect(r2.checked).toBe(0);
+    expect(old.data.orders['ORD-1']).toMatchObject({ advancePayment: 0 });
+  });
+
+  it('an expired link that is still unpaid stays expired and is not closed twice', async () => {
+    const { db, data } = fakeDb({ orders: { 'ORD-1': { status: 'Pending' } }, payment_links: link({ state: 'expired', createdAt: '2026-10-01T00:00:00Z' }) });
+    const r = await settleOpenLinks(db, { read: async () => ({ token: TOKEN, amount: 1, currency: 'PKR', state: 'TRACKER_STARTED', transaction: null }), now: new Date('2026-11-09T00:00:00Z') }, fx);
+    expect(r).toMatchObject({ checked: 1, paid: [], expired: [] });
+    expect(data.payment_links[TOKEN].state).toBe('expired');
+  });
+});
+

@@ -42,7 +42,7 @@ are named actions (Finalize, Refund, Book with TCS) or the server's own runs (Sh
 
 ## Payment link
 
-`payment_links/<token>.status` · states: `open` (Waiting for payment), `paid` (Paid), `expired` (Expired), `attention` (Paid, needs you) · final: `paid`
+`payment_links/<token>.state` · states: `open` (Waiting for payment), `paid` (Paid), `expired` (Expired), `attention` (Paid, needs you) · final: `paid`
 
 | From | To | Event | Only when | Note |
 |---|---|---|---|---|

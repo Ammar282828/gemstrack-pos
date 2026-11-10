@@ -29,7 +29,10 @@ export function askOf(doc: Record<string, unknown>): TrackingAsk {
   const booking = doc.tcsBooking as { cn?: string; cancelledAt?: string; bookedAt?: string } | undefined;
   const live = booking?.cn && !booking.cancelledAt ? booking : undefined;
   const st = doc.shopifyTracking as { company?: string; number?: string } | undefined;
-  const cn = (typeof doc.tcsConsignmentNo === 'string' && doc.tcsConsignmentNo) || live?.cn || (st?.number && /tcs/i.test(st.company || '') ? st.number : '') || null;
+  // A booking the shop cancelled (tcsCancelledCns) is never asked about again, whichever field still carries its number.
+  const cancelled = new Set((Array.isArray(doc.tcsCancelledCns) ? doc.tcsCancelledCns : []).map(c => String(c).trim()));
+  const notCancelled = (c: string | undefined | null) => (c && !cancelled.has(String(c).trim()) ? c : '');
+  const cn = (typeof doc.tcsConsignmentNo === 'string' && notCancelled(doc.tcsConsignmentNo)) || notCancelled(live?.cn) || (st?.number && /tcs/i.test(st.company || '') ? notCancelled(st.number) : '') || null;
   return {
     cn,
     shopifyOrderId: typeof doc.shopifyOrderId === 'string' ? doc.shopifyOrderId : doc.shopifyOrderId ? String(doc.shopifyOrderId) : null,

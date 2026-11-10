@@ -22,6 +22,8 @@ import { createOrder, type CreateOrderDeps, type CreatedOrder } from './create-o
 import { orderBalance } from './order-pieces';
 import { orderStatusPatch } from './order-status';
 import { isShippedOut } from '@/lib/shopify-delivery';
+import { ORDER } from '@/lib/machines';
+import { check } from '@/lib/machines/machine';
 
 const ORDERS = 'orders';
 /** Most pieces one web order makes (a unit each): a runaway quantity must not make a thousand pieces. */
@@ -172,13 +174,17 @@ export async function mirrorShopifyToOrder(
       }
     }
     const plan = planShopifyMirror(state(), shopify, [], { voidWhenCancelled: true });
-    const cancels = !invoiced && plan.voids && o.status !== 'Cancelled' && o.status !== 'Refunded';
+    // The order machine decides which moves the mirror may make (lib/machines): a refused move leaves the status alone.
+    const moves = (to: 'Cancelled' | 'Completed', event: string) => { const v = check(ORDER, o.status as string, to, event, { invoiced }); return v.ok && !v.noop; };
+    const cancels = !invoiced && plan.voids && moves('Cancelled', 'shopifyCancel');
     // Shipped (TCS has it, or it is delivered) and not back: the piece was made, so the order is done. Never over a
     // cancel, an invoiced order (its invoice is the record) or a status the shop set to Cancelled/Refunded/Completed.
     const completes = !invoiced && !cancels && !plan.fields.shopifyCancelledAt && isShippedOut(plan.fields.shopifyDelivery)
-      && (o.status === 'Pending' || o.status === 'In Progress');
+      && moves('Completed', plan.fields.shopifyDelivery === 'delivered' ? 'delivered' : 'shipped');
     const tracking = plan.fields.shopifyTracking;
-    const tcsNo = tracking && /tcs/i.test(tracking.company) && !o.tcsConsignmentNo ? tracking.number : undefined;
+    // A booking the shop cancelled with TCS (tcsCancelledCns) never comes back from Shopify's tracking.
+    const cancelledCns = ((o.tcsCancelledCns as string[]) || []).map(c => String(c).trim());
+    const tcsNo = tracking && /tcs/i.test(tracking.company) && !o.tcsConsignmentNo && !cancelledCns.includes(String(tracking.number).trim()) ? tracking.number : undefined;
     // An order made before its delivery was named (2026-11-09) learns it from Shopify; one the shop has set is kept.
     const shipping = shopifyDeliveryCharge(shopify);
     const delivery = !invoiced && o.deliveryCharge === undefined && shipping !== undefined && shipping > 0 ? shipping : undefined;

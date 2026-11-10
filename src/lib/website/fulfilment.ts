@@ -23,6 +23,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { bookPacket, leopardsConfig, trackingUrlFor, trackPacket } from '@/lib/leopards';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { customerExpiredMessage, customerPaidMessage, customerShippedMessage, trySend } from './notify';
+import { ORDER } from '@/lib/machines';
+import { check } from '@/lib/machines/machine';
+import { orderStatusPatch } from '@/lib/writes/order-status';
 import type { LeopardsMeta, WebsiteOrderMeta } from './types';
 
 export class FulfilmentError extends Error {
@@ -97,17 +100,29 @@ export async function markTransferReceived(id: string, by: string): Promise<{ ok
 
 /** No money by the end of the hold, and the bank checked: close it and tell the customer. */
 export async function lapseOrder(id: string, by: string): Promise<{ ok: true; notified: string | null }> {
-  const o = await load(id);
-  const w = o.website!;
-  if (w.paymentStatus === 'expired') return { ok: true, notified: null };
-  if (w.paymentStatus === 'transfer_received') throw new FulfilmentError('The transfer is recorded: this order is paid.', 409);
-  if (o.status !== 'Pending' && o.status !== 'In Progress') throw new FulfilmentError(`The order is ${o.status}.`, 409);
-  await adminDb.collection('orders').doc(id).update({
-    status: 'Cancelled',
-    'website.paymentStatus': 'expired',
-    'website.expiredAt': new Date().toISOString(),
-    'website.lapsedBy': by,
+  // Read and write in one transaction: a transfer recorded a moment ago (or an order closed since) is not cancelled over.
+  const ref = adminDb.collection('orders').doc(id);
+  const out = await adminDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new FulfilmentError('Order not found', 404);
+    const o = { id: snap.id, ...(snap.data() as Omit<OrderDoc, 'id'>) } as OrderDoc;
+    const w = o.website;
+    if (!w) throw new FulfilmentError('Not a website order', 409);
+    if (w.paymentStatus === 'expired') return { done: false as const, o };
+    if (w.paymentStatus === 'transfer_received') throw new FulfilmentError('The transfer is recorded: this order is paid.', 409);
+    const v = check(ORDER, o.status, 'Cancelled', 'lapse', { invoiced: !!o.invoiceId });
+    if (!v.ok) throw new FulfilmentError(v.reason, 409);
+    if (v.noop) throw new FulfilmentError(`The order is ${o.status}.`, 409);
+    tx.update(ref, {
+      status: 'Cancelled',
+      'website.paymentStatus': 'expired',
+      'website.expiredAt': new Date().toISOString(),
+      'website.lapsedBy': by,
+    });
+    return { done: true as const, o };
   });
+  if (!out.done) return { ok: true, notified: null };
+  const o = out.o;
   const notified = await trySend(o.customerContact, customerExpiredMessage(refOf(o), o.customerName || 'there'));
   return { ok: true, notified };
 }
@@ -148,10 +163,27 @@ export async function shipOrder(id: string, by: string, manualCn?: string): Prom
   return { ok: true, leopards: meta, notified };
 }
 
+/**
+ * The parcel arrived: record when, and finish the order (its pieces ticked, as every path does) only if the order machine
+ * lets a delivery finish it from where it stands. A cancelled or invoiced order keeps its status; the delivery is still recorded.
+ */
+async function recordDelivered(id: string): Promise<void> {
+  const ref = adminDb.collection('orders').doc(id);
+  await adminDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new FulfilmentError('Order not found', 404);
+    const o = { id: snap.id, ...(snap.data() as Omit<OrderDoc, 'id'>) } as OrderDoc;
+    const patch: Record<string, unknown> = { 'leopards.deliveredAt': new Date().toISOString() };
+    const v = check(ORDER, o.status, 'Completed', 'delivered', { invoiced: !!o.invoiceId });
+    if (v.ok && !v.noop) Object.assign(patch, orderStatusPatch({ status: o.status || '', items: o.items as never, invoiceId: o.invoiceId }, 'Completed').patch);
+    tx.update(ref, patch as never);
+  });
+}
+
 export async function markDelivered(id: string): Promise<{ ok: true }> {
   const o = await load(id);
   if (!o.leopards?.cn) throw new FulfilmentError('Nothing has been shipped yet', 409);
-  await adminDb.collection('orders').doc(id).update({ 'leopards.deliveredAt': new Date().toISOString(), status: 'Completed' });
+  await recordDelivered(id);
   return { ok: true };
 }
 
@@ -160,8 +192,6 @@ export async function refreshTracking(id: string) {
   const o = await load(id);
   if (!o.leopards?.cn) throw new FulfilmentError('Nothing has been shipped yet', 409);
   const t = await trackPacket(o.leopards.cn);
-  if (t.delivered && !o.leopards.deliveredAt) {
-    await adminDb.collection('orders').doc(id).update({ 'leopards.deliveredAt': new Date().toISOString(), status: 'Completed' });
-  }
+  if (t.delivered && !o.leopards.deliveredAt) await recordDelivered(id);
   return t;
 }

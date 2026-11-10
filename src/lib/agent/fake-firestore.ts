@@ -1,7 +1,7 @@
 /**
  * Tests only: an in-memory stand-in for the Admin SDK's Firestore, enough of it for the AI keys, the post
  * queue and the activity log (docs, collections, where/orderBy/limit, transactions, batches, getAll, dotted
- * update paths, FieldValue.increment as `{ __inc }`). Mock '@/lib/firebase-admin' with `{ adminDb: fake.db }`.
+ * update paths, FieldValue.increment as `{ __inc }`, arrayUnion as `{ __union }`). Mock '@/lib/firebase-admin' with `{ adminDb: fake.db }`.
  */
 
 type Doc = Record<string, unknown>;
@@ -16,7 +16,9 @@ function applyPatch(cur: Doc, patch: Doc): Doc {
     for (const p of path.slice(0, -1)) at = (at[p] ??= {}) as Doc;
     const last = path[path.length - 1];
     const inc = v && typeof v === 'object' && '__inc' in (v as Doc) ? Number((v as Doc).__inc) : null;
-    at[last] = inc !== null ? (Number(at[last]) || 0) + inc : clone(v);
+    // FieldValue.arrayUnion as `{ __union: [...] }`.
+    const union = v && typeof v === 'object' && '__union' in (v as Doc) ? ((v as Doc).__union as unknown[]) : null;
+    at[last] = union ? [...new Set([...(Array.isArray(at[last]) ? (at[last] as unknown[]) : []), ...union])] : inc !== null ? (Number(at[last]) || 0) + inc : clone(v);
   }
   return out;
 }

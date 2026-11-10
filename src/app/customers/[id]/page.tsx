@@ -32,6 +32,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
+import { ORDER } from '@/lib/machines';
 import { PageBack } from '@/components/shared/page-back';
 import { deleteErrorText } from '@/lib/delete-code';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
@@ -39,9 +40,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
 
 /** An order's stage in its one tone (a.2); owed is amber, never red. */
-const STATUS_TONE: Record<Order['status'], Tone> = {
-  Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet',
-};
+const STATUS_TONE: Record<Order['status'], Tone> = ORDER.tones;
 
 const DetailItem: React.FC<{ label: string; value: string | undefined; icon?: React.ReactNode }> = ({ label, value, icon }) => (
   <div className="flex items-start gap-3 py-3">

@@ -16,7 +16,10 @@ import { SendToKarigarDialog } from '@/components/karigar/send-to-karigar';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
+import { ORDER } from '@/lib/machines';
+import { MoveRefused } from '@/lib/machines/machine';
+import { orderStatusChoices } from '@/lib/machines/order-choices';
+import { useAppStore, Order, OrderStatus, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { getOrderPaymentStatus, orderAdvanceLines, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -90,8 +93,7 @@ import { costBreakdown, type ShippingCost } from '@/lib/shipment-costs';
 import { adjustmentsLabel } from '@/lib/financials';
 
 
-const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
-const statusLook = (status: string) => { const t = toneClasses(STATUS_TONE[status] ?? 'quiet'); return cn(t.tint, t.ink); };
+const statusLook = (status: string) => { const t = toneClasses((ORDER.tones as Record<string, Tone>)[status] ?? 'quiet'); return cn(t.tint, t.ink); };
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -413,7 +415,7 @@ export default function OrderDetailPage() {
         // In Progress/Completed. Staff can still send a message manually via the
         // "Send to Customer" button.
     } catch (error) {
-        toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+        toast({ title: "Error", description: error instanceof MoveRefused ? error.message : "Failed to update order status.", variant: "destructive" });
     } finally {
         setIsUpdatingStatus(false);
     }
@@ -761,7 +763,7 @@ export default function OrderDetailPage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {ORDER_STATUSES.filter(st => st !== 'Refunded' || st === order.status).map(status => <SelectItem key={status} value={status} disabled={status === 'Refunded'}>{status}</SelectItem>)}
+                              {orderStatusChoices(order.status, !!order.invoiceId).map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
                             </SelectContent>
                           </Select>
 

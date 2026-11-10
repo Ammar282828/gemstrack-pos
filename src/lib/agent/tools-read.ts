@@ -19,6 +19,7 @@ import { _calculateProductCostsInternal } from '@/lib/pricing';
 import { loadRates } from '@/lib/website/config';
 import { REPAIR_STATUSES } from '@/lib/repairs';
 import { ORDER_STATUSES } from '@/lib/writes/order-status';
+import { machinesJson } from '@/lib/machines/export';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { tool, ToolError, type AgentTool } from './registry';
 
@@ -53,6 +54,12 @@ const orderRow = (o: Order, now: Date) => ({
 });
 
 export const READ_TOOLS: AgentTool[] = [
+  tool({
+    name: 'state_machines', title: 'The shop’s state machines', effect: 'read', scopes: [...READ],
+    description: 'Every status an order, repair, payment link, website order and TCS booking can have, and each move allowed (event, condition). A refused move answers 409 with these.',
+    input: z.object({}),
+    run: async () => ({ data: machinesJson() }),
+  }),
   tool({
     name: 'shop_summary', title: 'The day at a glance', effect: 'read', scopes: [...READ],
     description: 'The figures on the ERP’s Home and the phone widget: made today, this month, today’s gold (or silver) rate, the drawer, what is owed, orders and repairs due — and the team note.',

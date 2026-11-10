@@ -222,6 +222,8 @@ import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment,
 import { addProduct as writeAddProduct, updateProduct as writeUpdateProduct } from '@/lib/writes/products';
 import { deleteProduct as writeDeleteProduct, deleteProductWhat } from '@/lib/writes/product-delete';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
+import { ORDER } from '@/lib/machines';
+import { assertMove, MoveRefused } from '@/lib/machines/machine';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 import { owesMoney, rupees } from '@/lib/money';
@@ -603,6 +605,8 @@ export interface Invoice {
   /** A TCS booking made from the ERP for this sale (op bookTcs), as on an order. */
   tcsConsignmentNo?: string;
   tcsBooking?: import('@/lib/tcs-booking').TcsBooking;
+  /** Consignment numbers cancelled with TCS from the ERP: Shopify's tracking and the order never bring one back. */
+  tcsCancelledCns?: string[];
   shopifyTransactionIds?: string[];
   shopifySyncedAt?: string;
   shopifyOrderName?: string;
@@ -805,7 +809,7 @@ const INVOICE_PROVENANCE = [
   // Which of Shopify's payments are already on it: lose these and its next notice adds them again.
   'shopifyTransactionIds', 'shopifyCancelledAt', 'shopifySyncedAt', 'shopifyDelivery', 'shopifyTracking', 'shopifyDeliveryAt',
   // Its TCS booking from the ERP (op bookTcs): the slip and the tracking survive an edit.
-  'tcsConsignmentNo', 'tcsBooking', 'shippingCost',
+  'tcsConsignmentNo', 'tcsBooking', 'tcsCancelledCns', 'shippingCost',
   // A link already sent to the customer keeps working after the invoice is edited.
   'shareToken',
 ] as const;
@@ -1573,7 +1577,8 @@ export interface AppState {
   addRepair: (data: Omit<Repair, 'id' | 'payments' | 'status'> & { advance?: number; advanceMethod?: PaymentType }) => Promise<Repair>;
   updateRepair: (id: string, data: Partial<Omit<Repair, 'id' | 'payments'>>) => Promise<void>;
   setRepairStatus: (id: string, status: RepairStatus) => Promise<void>;
-  recordRepairPayment: (id: string, payment: Omit<RepairPayment, 'revenueId'>) => Promise<void>;
+  /** `id`: names the payment, so the same one sent twice (a retried hand-back) is taken once. */
+  recordRepairPayment: (id: string, payment: Omit<RepairPayment, 'revenueId'> & { id?: string }) => Promise<void>;
   /** Deletes the repair and the Extra Revenue rows its payments wrote. */
   deleteRepair: (id: string) => Promise<void>;
 
@@ -1753,6 +1758,8 @@ async function staffWrite(op: string, payload: Record<string, unknown>): Promise
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // A refused move (lib/machines) keeps its kind, so a screen can show the machine's reason.
+    if (res.status === 409 && body.machine) throw new MoveRefused(body.machine, body.from, body.to, body.allowed ?? [], body.error);
     throw new Error(body.error || `Could not save (HTTP ${res.status})`);
   }
   return true;
@@ -3141,6 +3148,12 @@ export const useAppStore = create<AppState>()(
       },
       updateOrderStatus: async (orderId, status) => {
         if(get().settings.databaseLocked) return;
+        // The order machine (lib/machines): a reopen over an invoice, a relabel as Refunded and a move out of Refunded are
+        // refused with its reason (the caller's toast shows it). The server asks again inside the write.
+        const cached = get().orders.find(o => o.id === orderId);
+        if (cached) {
+          assertMove(ORDER, cached.status, status, 'set', { invoiced: !!cached.invoiceId });
+        }
         // Staff cannot touch Firestore; the same rules are applied server-side.
         if (await staffWrite('updateOrderStatus', { orderId, status })) {
           set(state => ({

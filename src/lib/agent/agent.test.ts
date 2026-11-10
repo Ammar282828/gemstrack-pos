@@ -137,7 +137,7 @@ describe('the one registry', () => {
       expect(t.description.length).toBeGreaterThan(10);
       expect(schemaOf(t).type).toBe('object');
     }
-    expect(names).toEqual(expect.arrayContaining(['get_guide', 'find_photos', 'view_photo', 'make_post', 'view_post', 'list_queue', 'queue_post', 'send_post', 'schedule_post', 'whats_owed', 'todays_cash', 'create_invoice', 'record_payment', 'studio_get_board']));
+    expect(names).toEqual(expect.arrayContaining(['get_guide', 'find_photos', 'view_photo', 'make_post', 'view_post', 'list_queue', 'queue_post', 'send_post', 'schedule_post', 'whats_owed', 'todays_cash', 'state_machines', 'create_invoice', 'record_payment', 'studio_get_board']));
   });
 
   it('shows a key only its scopes’ tools', () => {

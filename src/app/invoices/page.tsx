@@ -21,7 +21,10 @@ import { takeRows, useGrowing, useWide } from '@/hooks/use-growing';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
-import { useAppStore, Order, Invoice, Customer, ORDER_STATUSES, OrderStatus } from '@/lib/store';
+import { useAppStore, Order, Invoice, Customer, OrderStatus } from '@/lib/store';
+import { ORDER } from '@/lib/machines';
+import { MoveRefused } from '@/lib/machines/machine';
+import { orderStatusChoices } from '@/lib/machines/order-choices';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -75,9 +78,7 @@ const pieceCount = (d: DocumentType): number => {
 
 
 /** An order's stage and an invoice's payment, each in its one tone (a.2): owed is amber, never red. */
-const STATUS_TONE: Record<string, Tone> = {
-  Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet', Paid: 'settled', Unpaid: 'owed',
-};
+const STATUS_TONE: Record<string, Tone> = { ...ORDER.tones, Paid: 'settled', Unpaid: 'owed' };
 const statusTone = (status: string): Tone => STATUS_TONE[status] ?? 'quiet';
 
 /** What the sale was of, in a line: the pieces' names. */
@@ -118,7 +119,7 @@ const OrderStatusSelect: React.FC<{ doc: Order; onStatusChange: (s: OrderStatus)
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {ORDER_STATUSES.map(s => (
+        {orderStatusChoices(doc.status, !!doc.invoiceId).map(s => (
           <SelectItem key={s} value={s}>{s}</SelectItem>
         ))}
       </SelectContent>
@@ -370,8 +371,8 @@ export default function DocumentsPage() {
     try {
       await updateOrderStatus(orderId, newStatus);
       toast({ title: 'Status Updated', description: `Order ${orderId} changed to "${newStatus}".` });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof MoveRefused ? e.message : 'Failed to update status.', variant: 'destructive' });
     }
   };
 

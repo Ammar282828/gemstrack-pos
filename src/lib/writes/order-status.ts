@@ -10,10 +10,12 @@
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { statusAfterUntick, statusFromPieces } from '@/lib/order-stage';
+import { ORDER, ORDER_STATES } from '@/lib/machines';
+import { assertMove } from '@/lib/machines/machine';
 
 const ORDERS = 'orders';
 
-export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
+export const ORDER_STATUSES = ORDER_STATES;
 export type SettableStatus = (typeof ORDER_STATUSES)[number];
 
 type Piece = { isCompleted?: boolean; description?: string; karigarId?: string | null };
@@ -48,13 +50,17 @@ export const alertsOnStatus = (s: string) => s === 'Completed' || s === 'Cancell
 
 export async function setOrderStatus(db: DbPort, input: { orderId: string; status: SettableStatus }, fx: SideEffects = {}) {
   const { orderId, status } = input;
-  const { ticked } = await db.runTransaction(async tx => {
+  const { ticked, noop } = await db.runTransaction(async tx => {
     const order = await tx.get<OrderLike>(ORDERS, orderId);
     if (!order) throw new Error('No such order');
+    // The machine (lib/machines): refuses a reopen over an invoice, a relabel as Refunded, a move out of Refunded.
+    const { noop } = assertMove(ORDER, order.status, status, 'set', { invoiced: !!order.invoiceId });
+    if (noop) return { patch: {}, ticked: 0, noop: true };
     const out = orderStatusPatch(order, status);
     tx.set(ORDERS, orderId, out.patch, true);
-    return out;
+    return { ...out, noop: false };
   });
+  if (noop) return { orderId, status, ticked: 0 };
   void Promise.resolve(fx.log?.('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId)).catch(() => undefined);
   if (ticked) void Promise.resolve(fx.log?.('order.update', `All items marked complete on ${orderId}`, `${ticked} item(s) auto-completed`, orderId)).catch(() => undefined);
   if (alertsOnStatus(status)) fx.notify?.(orderId);

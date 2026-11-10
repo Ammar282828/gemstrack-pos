@@ -15,6 +15,7 @@
  * and an advance can be recorded from any order still being made (dated today).
  */
 
+import { MoveRefused } from '@/lib/machines/machine';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Banknote, CheckCircle2, CreditCard, FileText, Loader2, UserPlus } from 'lucide-react';
@@ -40,8 +41,8 @@ export function NextStep({ order, owed, className, size = 'sm', compact = false 
     try {
       await updateOrderStatus(order.id, 'Completed');
       toast({ title: `${order.id} is ready`, description: 'Every piece ticked. Finalize & invoice when it is collected.' });
-    } catch {
-      toast({ title: 'Not changed', description: 'The order could not be marked ready.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Not changed', description: e instanceof MoveRefused ? e.message : 'The order could not be marked ready.', variant: 'destructive' });
     } finally {
       setBusy(false);
     }

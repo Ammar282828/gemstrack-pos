@@ -37,7 +37,8 @@ account's Studio key keeps only `studio`).
 - **Posting:** `find_photos`, `view_photo`, `list_destinations`, `make_post`, `view_post`, `list_posts`, `queue_post`, `list_queue`,
   `withdraw_post` (its own, while waiting); with `posts:publish`: `send_post`, `schedule_post`.
 - **Reading:** `shop_summary`, `todays_cash`, `whats_owed`, `find_orders`, `get_order`, `find_invoices`, `get_invoice`,
-  `find_customers`, `get_customer`, `find_repairs`, `find_stock`, `gold_rates`, `month_summary`.
+  `find_customers`, `get_customer`, `find_repairs`, `find_stock`, `gold_rates`, `month_summary`, `state_machines` (every status and
+  its allowed moves, docs/state-machines.md; a refused write answers 409 with `allowed`).
 - **The shop:** `add_customer`, `update_customer`, `set_order_status`, `add_repair`, `set_repair_status`, `add_given_item`,
   `mark_given_returned`, `set_team_note`, `delete_repair`, `delete_given_item`.
 - **Money:** `create_invoice`, `record_payment`, `record_order_advance`, `record_repair_payment`, `add_expense`, `set_rates`,

@@ -8,6 +8,9 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, Invoice, ORDER_STATUSES, OrderStatus } from '@/lib/store';
+import { ORDER } from '@/lib/machines';
+import { MoveRefused } from '@/lib/machines/machine';
+import { orderStatusChoices } from '@/lib/machines/order-choices';
 import { getOrderPaymentStatus, orderFullTotal, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -69,14 +72,7 @@ type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
 
 /** The app's tones for an order's status: nothing here picks a colour but the tone. */
-const STATUS_TONE: Record<string, Tone> = {
-  Pending: 'owed',
-  'In Progress': 'working',
-  Completed: 'settled',
-  Cancelled: 'quiet',
-  Refunded: 'quiet',
-};
-const statusTone = (s: string): Tone => STATUS_TONE[s] ?? 'quiet';
+const statusTone = (s: string): Tone => (ORDER.tones as Record<string, Tone>)[s] ?? 'quiet';
 
 const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late' };
 
@@ -152,8 +148,8 @@ function useStatusChange(order: Order) {
     try {
       await updateOrderStatus(order.id, newStatus);
       toast({ title, description });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update order status.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof MoveRefused ? e.message : 'Failed to update order status.', variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -286,7 +282,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger><RefreshCw className="mr-2 h-4 w-4" />Set status</DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {ORDER_STATUSES.filter(st => st !== 'Refunded').map(st => (
+                  {orderStatusChoices(order.status, !!order.invoiceId).map(st => (
                     <DropdownMenuItem key={st} onSelect={() => status.change(st)}>
                       {st}{st === order.status ? ' ✓' : ''}
                     </DropdownMenuItem>
@@ -410,8 +406,8 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ORDER_STATUSES.filter(st => st !== 'Refunded' || st === order.status).map(st => (
-                    <SelectItem key={st} value={st} disabled={st === 'Refunded'}>{st}</SelectItem>
+                  {orderStatusChoices(order.status, !!order.invoiceId).map(st => (
+                    <SelectItem key={st} value={st}>{st}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

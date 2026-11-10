@@ -3,7 +3,7 @@
  *
  * Order    orders/<id>.status             by hand, by its pieces, finalize/undo/refund, the website and Shopify
  * Repair   repairs/<id>.status            In the shop → Ready → Collected, or Cancelled
- * Link     payment_links/<token>.status   a Safepay link: open → paid / expired (a late payment still counts)
+ * Link     payment_links/<token>.state    a Safepay link: open → paid / expired (a late payment still counts)
  * Online   online_orders/<id>.state       a website order waiting for a person to confirm it
  * Booking  orders/<id>.tcsBooking         a TCS parcel booked from the ERP, cancelled
  */
@@ -76,7 +76,7 @@ export type LinkState = typeof LINK_STATES[number];
 
 export const LINK = defineMachine<LinkState, Record<string, never>>({
   name: 'Payment link',
-  field: 'payment_links/<token>.status',
+  field: 'payment_links/<token>.state',
   states: LINK_STATES,
   labels: { open: 'Waiting for payment', paid: 'Paid', expired: 'Expired', attention: 'Paid, needs you' },
   tones: { open: 'owed', paid: 'settled', expired: 'quiet', attention: 'late' },

@@ -237,7 +237,7 @@
     },
     {
       "name": "Payment link",
-      "field": "payment_links/<token>.status",
+      "field": "payment_links/<token>.state",
       "states": [
         "open",
         "paid",
