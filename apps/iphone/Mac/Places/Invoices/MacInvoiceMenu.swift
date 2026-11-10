@@ -16,7 +16,7 @@ enum MacInvoiceMenu {
             [takePayment(inv, cx), changeDiscount(inv, cx), giveBackCredit(inv, cx)],
             contact(inv, cx),
             [printBill(inv, cx), copyPaymentLink(inv, cx), safepayLink(inv, cx), copyCustomerLink(inv)],
-            [edit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
+            [edit(inv, cx), changeRate(inv, cx), customer(inv, cx)] + makeOrder(inv, cx),
             [refund(inv, cx), delete(inv, cx)],
         ]
     }
@@ -35,7 +35,7 @@ enum MacInvoiceMenu {
         [
             MacContact.actions(inv.map(cx.number) ?? "", document: [pdf(inv, cx)]),
             [copyPaymentLink(inv, cx), safepayLink(inv, cx), copyCustomerLink(inv)],
-            [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)],
+            [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)] + makeOrder(inv, cx),
             [refund(inv, cx), delete(inv, cx)],
         ]
     }
@@ -143,6 +143,17 @@ enum MacInvoiceMenu {
     }
 
     // MARK: Changing
+
+    /// An old Shopify sale not yet fulfilled made into an order for the workshop (the iPhone's invoice ⋯ "Make it an order";
+    /// the Orders hub's Shopify banner does them all). Only in the house with the Shopify section, so the other house's menu
+    /// carries no item that can never be used; an owner's (the server refuses staff), and only for an open Shopify sale.
+    static func makeOrder(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [MacAction] {
+        guard NavMap.hasShopifySection else { return [] }
+        let may = cx.isOwner && (inv?.isConvertibleShopifyInvoice ?? false)
+        return [MacAction("Make It an Order\u{2026}", symbol: "arrow.triangle.2.circlepath", enabled: may, id: "makeOrder") {
+            if let inv { cx.desk.converting = ShopifyConvertRequest(ids: [inv.id]) }
+        }]
+    }
 
     /// The sale document on this invoice.
     static func edit(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
