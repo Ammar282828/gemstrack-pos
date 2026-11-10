@@ -45,6 +45,21 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   batch (a karigar's), Extra revenue, Bank accounts, Design; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
   `POS Item`).
 
+### State machines
+
+- **Every status that changes over time is a declared machine** (owner, 2026-11-10: "find all of the implicit state
+  machines… elevate UX, DX and AX without breaking anything"). `src/lib/machines/` names each machine's states, labels,
+  tones, final states and every allowed move (from, to, event, guard): Order, Repair, Payment link, Website order, TCS
+  booking. The server checks the move inside the same transaction as the write and refuses anything else with **409**
+  `{ error, machine, from, to, allowed }`, so screens, apps and agents learn what they may do instead. Every move the shop
+  made before is still allowed; refused are only the bugs found: a Refunded label without a refund, leaving Refunded,
+  changing an invoiced order's status without undoing the invoice, a parcel's delivery reopening a cancelled order, a repair
+  collected with money owing, a booking on a closed order, a cancelled booking coming back from Shopify. A stored state the
+  machine doesn't know (old data) can still move, guards applied.
+- `npm run machines:export` writes `apps/iphone/App/Resources/machines.json` (the iPhone, Mac and Android read labels,
+  tones and moves from it; Android copies it as an asset) and `docs/state-machines.md`; `machines.test.ts` fails when
+  either is stale. `GET /api/app/machines` serves the same JSON. Add a machine there before writing a new status field.
+
 ### Parity
 
 Owner, 2026-10-24: "I want a way to keep the web app / android app / ios app aligned at all times." **`docs/parity.md` is the one

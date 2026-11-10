@@ -115,6 +115,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Navigation and the look**
 - [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry; grouped tabs: Analytics (Sales · Website · Social · Ads) and Settings in sections
 - [Parity](docs/decisions.md#parity) — `docs/parity.md` is the ledger of what web, iPhone and Android each have; ✓ / owed in the same commit; CI checks the exported nav
+- [State machines](docs/decisions.md#state-machines) — `src/lib/machines/`: every status's states and allowed moves, checked in the write's transaction (409 with `allowed`); `npm run machines:export` → `machines.json` for the apps and `docs/state-machines.md`
 - [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette, flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank

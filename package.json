@@ -15,7 +15,8 @@
     "dev:mina": "dotenv -e .env.mina.local -- next dev -p 3001",
     "env:taheri": "node scripts/env-for-house.mjs taheri",
     "env:mina": "node scripts/env-for-house.mjs mina",
-    "nav:export": "node scripts/nav-export.mjs"
+    "nav:export": "node scripts/nav-export.mjs",
+    "machines:export": "tsx scripts/machines-export.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

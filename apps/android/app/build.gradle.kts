@@ -293,7 +293,7 @@ androidComponents.onVariants { variant ->
             for (art in if (house == "taheri") listOf("taheri", "mina") else listOf(house)) {
                 files.from(File(iphoneRes, "Design/design-$art.js"), File(iphoneRes, "nav-$art.json"))
             }
-            files.from(File(iphoneRes, "demo.json"))
+            files.from(File(iphoneRes, "demo.json"), File(iphoneRes, "machines.json"))
             outDir.set(layout.buildDirectory.dir("generated/house/$house/assets"))
         }
     }
