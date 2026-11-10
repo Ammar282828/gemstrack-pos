@@ -50,7 +50,7 @@ export const orderSlipFileName = (order: Pick<Order, 'id'>) => `OrderSlip-${orde
  */
 export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
   // The printed card's shape where the house asks for it (Taheri); the detailed slip below stays as the backup.
-  if (STORE_ORDER_SLIP === 'card') return drawCardOrderSlip(order, { dates: opts.dates });
+  if (STORE_ORDER_SLIP === 'card') return drawCardOrderSlip(order, { dates: opts.dates, images: opts.images });
   return drawDetailedOrderSlip(order, opts);
 }
 
