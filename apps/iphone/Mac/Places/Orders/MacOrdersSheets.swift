@@ -9,6 +9,8 @@ import ERPCore
 enum MacOrdersSheet: Identifiable {
     case advance(Order)
     case courier(Order)
+    /// Book the parcel with TCS from the order (OrderTcsBookSheet).
+    case bookTcs(Order)
     case tracking(Order)
     case notify(Order)
     case sendKarigar(Order)
@@ -26,6 +28,7 @@ enum MacOrdersSheet: Identifiable {
         switch self {
         case .advance(let o): return "advance-" + o.id
         case .courier(let o): return "courier-" + o.id
+        case .bookTcs(let o): return "book-tcs-" + o.id
         case .tracking(let o): return "tracking-" + o.id
         case .notify(let o): return "notify-" + o.id
         case .sendKarigar(let o): return "send-karigar-" + o.id
@@ -75,6 +78,8 @@ struct MacOrdersSheetContent: View {
             MacOrdersAdvanceSheet(order: o, done: advanced)
         case .courier(let o):
             OrderCourierSheet(order: o)
+        case .bookTcs(let o):
+            OrderTcsBookSheet(order: o)
         case .tracking(let o):
             OrderTrackingSheet(order: o)
         case .notify(let o):

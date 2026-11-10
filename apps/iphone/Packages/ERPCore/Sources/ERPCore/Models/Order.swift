@@ -63,6 +63,10 @@ public struct Order: Decodable, Identifiable, Hashable {
     public let shopifyDelivery: String?
     public let shopifyTracking: ShopifyTracking?
     public let shopifyDeliveryAt: String?
+    /// A TCS booking made from the ERP (lib/tcs-booking.ts): its number, and when it was cancelled with TCS.
+    public let tcsBooking: TcsBookingMeta?
+    /// What TCS charged for the parcel; read by owners only (lib/shipment-costs.ts `ShippingCost`).
+    public let shippingCost: TcsShipping.ShippingCost?
 
     private enum K: String, CodingKey {
         case id, delivery, createdAt, promisedDate, status, items, ratesApplied, hideRates, costRate24k
@@ -70,7 +74,7 @@ public struct Order: Decodable, Identifiable, Hashable {
         case grandTotal, summary, customerId, customerName, customerContact, source
         case exchanges, advanceInExchangeDescription, advanceInExchangeValue, invoiceId, tcsConsignmentNo
         case website, leopards, notes, shopifyOrderId, shopifyOrderNumber, shopifyDraftOrderId, shopifyDraftOrderName, whatsappOrder
-        case shopifyDelivery, shopifyTracking, shopifyDeliveryAt
+        case shopifyDelivery, shopifyTracking, shopifyDeliveryAt, tcsBooking, shippingCost
     }
 
     public init(from decoder: Decoder) throws {
@@ -114,6 +118,8 @@ public struct Order: Decodable, Identifiable, Hashable {
         shopifyDelivery = c.string(.shopifyDelivery)
         shopifyTracking = c.object(.shopifyTracking)
         shopifyDeliveryAt = c.string(.shopifyDeliveryAt)
+        tcsBooking = c.object(.tcsBooking)
+        shippingCost = c.object(.shippingCost)
     }
 }
 
@@ -324,6 +330,20 @@ public struct WebsiteSlip: Decodable, Identifiable, Hashable {
         reference = c.string(.reference)
         amount = c.double(.amount)
         fromBank = c.string(.fromBank)
+    }
+}
+
+/// A TCS booking made from the ERP, under `Order.tcsBooking`: `cancelledAt` is set once it was cancelled with TCS.
+public struct TcsBookingMeta: Decodable, Hashable {
+    public let cn: String
+    public let cancelledAt: String?
+
+    private enum K: String, CodingKey { case cn, cancelledAt }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        cn = c.string(.cn, default: "")
+        cancelledAt = c.string(.cancelledAt)
     }
 }
 

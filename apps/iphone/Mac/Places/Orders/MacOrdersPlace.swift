@@ -42,6 +42,9 @@ struct MacOrdersPlace: View {
     @State private var localStatus: [String: String] = [:]
     @State private var sheet: MacOrdersSheet?
     @State private var cancelling: Order?
+    /// Cancel TCS booking: the order asked about, and what went wrong.
+    @State private var cancellingTcs: Order?
+    @State private var tcsFailure: String?
     @State private var undo: OrderUndoAsk?
     @State private var web: OrdersWebTarget?
     @State private var note: Note?
@@ -74,6 +77,10 @@ struct MacOrdersPlace: View {
         .ordersWebDestination($web)
         .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
                             message: OrdersLogic.cancelWords, action: "Cancel order", perform: cancelAction(cancelling))
+        .confirmDestructive(isPresented: Binding(get: { cancellingTcs != nil }, set: { if !$0 { cancellingTcs = nil } }),
+                            title: "Cancel TCS booking \(cancellingTcs?.tcsBooking?.cn ?? "")?",
+                            message: OrderActions.cancelTcsWords, action: "Cancel booking", perform: cancelTcsAction(cancellingTcs))
+        .failureAlert($tcsFailure)
         .noteToast($note)
         .onChange(of: book.orders.revision) { _, _ in reconcile() }
         .onChange(of: Outbox.shared.failure?.id) { _, _ in localStatus = [:] }
@@ -248,6 +255,8 @@ struct MacOrdersPlace: View {
         r.sendPDF = { sheet = .sendPDF(order) }
         r.orderPDF = { sheet = .orderPDF(order) }
         r.bookCourier = { sheet = .courier(order) }
+        r.bookTcs = { sheet = .bookTcs(order) }
+        r.cancelTcs = { cancellingTcs = order }
         r.track = { sheet = .tracking(order) }
         r.transfer = { sheet = .transfer(order) }
         r.lapse = { sheet = .lapse(order) }
@@ -355,6 +364,21 @@ struct MacOrdersPlace: View {
     /// `cancelling` as it closes).
     private func cancelAction(_ order: Order?) -> () -> Void {
         { if let order { setStatus(order, "Cancelled") } }
+    }
+
+    /// Cancelling the TCS booking of the order the dialog was raised for, fixed when the dialog is built.
+    private func cancelTcsAction(_ order: Order?) -> () -> Void {
+        {
+            guard let order else { return }
+            Task { @MainActor in
+                do {
+                    let cn = try await OrderActions.cancelTcs(order)
+                    Note.show(Note(title: "TCS booking cancelled", detail: cn), in: $note, reduce: reduceMotion)
+                } catch {
+                    tcsFailure = error.localizedDescription
+                }
+            }
+        }
     }
 
     /// Drop what the shelf now agrees with.

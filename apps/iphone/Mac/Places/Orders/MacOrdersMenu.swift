@@ -39,6 +39,8 @@ struct MacOrdersMenuRun {
     var sendPDF: () -> Void = {}
     var orderPDF: () -> Void = {}
     var bookCourier: () -> Void = {}
+    var bookTcs: () -> Void = {}
+    var cancelTcs: () -> Void = {}
     var track: () -> Void = {}
     var transfer: () -> Void = {}
     var lapse: () -> Void = {}
@@ -145,7 +147,12 @@ enum MacOrdersMenu {
             MacAction("Order PDF", symbol: "doc.richtext", enabled: o != nil, id: "orderPDF", perform: r.orderPDF),
         ]
         out.append(contentsOf: MacContact.actions(number, document: document))
-        out.append(MacAction("Book Courier\u{2026}", symbol: "truck.box", enabled: canBook, id: "courier", perform: r.bookCourier))
+        // TCS booked from the ERP (owners and the counter), and the Shopify way (owners; Universal Courier books it).
+        let canBookTcs = o.map { OrderActions.canBookTcs($0, role: i.role) } ?? false
+        let canCancelTcs = o.map { OrderActions.canCancelTcs($0, role: i.role, state: nil) } ?? false
+        out.append(MacAction("Book with TCS\u{2026}", symbol: "truck.box", enabled: canBookTcs, id: "bookTcs", perform: r.bookTcs))
+        out.append(MacAction("Book via Shopify\u{2026}", symbol: "shippingbox.and.arrow.backward", enabled: canBook, id: "courier", perform: r.bookCourier))
+        out.append(MacAction("Cancel TCS Booking\u{2026}", symbol: "xmark.circle", enabled: canCancelTcs, id: "cancelTcs", perform: r.cancelTcs))
         out.append(MacAction(cn.map { "Track " + $0 } ?? "Track", symbol: "shippingbox", enabled: cn != nil, id: "track", perform: r.track))
         return out
     }

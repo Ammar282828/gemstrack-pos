@@ -34,6 +34,11 @@ struct OrderScreen: View {
     @State private var undo: OrderUndoAsk?
     @State private var booking = false
     @State private var tracking = false
+    /// Book with TCS (OrderTcsBookSheet), Cancel booking, and the parcel's tracking (OrderShipment.swift).
+    @State private var bookingTcs = false
+    @State private var confirmCancelTcs = false
+    @State private var cancellingTcs = false
+    @State private var parcel = OrderParcelModel()
     @State private var leopardsOpen = false
     @State private var notifying = false
     /// Send to karigar: the pieces' photos and details to a karigar on WhatsApp (SendToKarigarSheet).
@@ -115,6 +120,8 @@ struct OrderScreen: View {
         return WideDetailList {
             heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
             noteSection(order)
+            Group { OrderShipmentSection(order: order, model: parcel, isOwner: session.isOwner) }
+                .houseRows()
             if OrdersLogic.isOnline(order) {
                 Group {
                     OrderOnlineSection(order: order, leopards: { leopardsOpen = true }) { kind, t in
@@ -137,9 +144,15 @@ struct OrderScreen: View {
         }
         .safeAreaBar(edge: .bottom, spacing: 0) { actionBar(order, stage: stage, owed: owed) }
         .toolbar { orderToolbar(order, stage: stage, owed: owed) }
+        .task(id: OrderParcelModel.key(order, reload: parcel.reload)) { await parcel.load(order, fresh: parcel.reload > 0) }
         .sheet(isPresented: $advancing) { advanceSheet(order).presentationSizing(.form) }
         .safepayLinkSheet($safepay)
         .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
+        .sheet(isPresented: $bookingTcs) { OrderTcsBookSheet(order: order) { parcel.reload += 1 } }
+        .confirmDestructive(isPresented: $confirmCancelTcs, title: "Cancel TCS booking \(order.tcsBooking?.cn ?? "")?",
+                            message: OrderActions.cancelTcsWords, action: "Cancel booking") {
+            cancelTcs(order)
+        }
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
         .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
         .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
@@ -154,6 +167,24 @@ struct OrderScreen: View {
         .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
                             message: OrdersLogic.cancelWords, action: "Cancel order") {
             setStatus(order, "Cancelled")
+        }
+    }
+
+    /// Cancel the TCS booking made from the ERP (op cancelTcs): TCS voids the number and the order's own is cleared. Needs the
+    /// line (TCS answers), never kept to send later.
+    private func cancelTcs(_ order: Order) {
+        guard !cancellingTcs else { return }
+        cancellingTcs = true
+        Task { @MainActor in
+            defer { cancellingTcs = false }
+            do {
+                let cn = try await OrderActions.cancelTcs(order)
+                parcel.reload += 1
+                Note.show(Note(title: "TCS booking cancelled", detail: cn), in: $note, reduce: reduceMotion)
+                savedTick += 1
+            } catch {
+                failure = error.localizedDescription
+            }
         }
     }
 
@@ -704,6 +735,8 @@ struct OrderScreen: View {
             && step != .finalize
         let tcs = OrderActions.tcsConsignment(order)
         let canBook = OrderActions.canBookCourier(order, isOwner: session.isOwner)
+        let canBookTcs = OrderActions.canBookTcs(order, role: session.role)
+        let canCancelTcs = OrderActions.canCancelTcs(order, role: session.role, state: parcel.tracking?.state)
         let canUndo = OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
         let canChangeRate = session.isOwner && !OrderActions.isClosed(order)
         let canRefund = OrderActions.canRefund(order, isOwner: session.isOwner)
@@ -742,13 +775,20 @@ struct OrderScreen: View {
                     Button { safepay = ask } label: { Label("Safepay link", systemImage: "creditcard") }
                 }
             }
-            if tcs != nil || canBook {
+            if tcs != nil || canBook || canBookTcs || canCancelTcs {
                 Section("Shipping") {
                     if let cn = tcs {
                         Button { tracking = true } label: { Label("Track \(cn)", systemImage: "shippingbox") }
                     }
+                    // TCS booked from the ERP (owners and the counter); the Shopify way (Universal Courier books it) is the owners' other.
+                    if canBookTcs {
+                        Button { bookingTcs = true } label: { Label("Book with TCS", systemImage: "truck.box") }
+                    }
                     if canBook {
-                        Button { booking = true } label: { Label("Book courier", systemImage: "truck.box") }
+                        Button { booking = true } label: { Label("Book via Shopify", systemImage: "shippingbox.and.arrow.backward") }
+                    }
+                    if canCancelTcs {
+                        Button(role: .destructive) { confirmCancelTcs = true } label: { Label("Cancel TCS booking", systemImage: "xmark.circle") }
                     }
                 }
             }
@@ -940,9 +980,14 @@ extension OrderScreen {
         .navigationSubtitle(OrdersLogic.customerName(order))
         .toolbar { macToolbar(groups) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: groups))
+        .task(id: OrderParcelModel.key(order, reload: parcel.reload)) { await parcel.load(order, fresh: parcel.reload > 0) }
         .macOrdersSheets($macSheet, advanced: { amount, exchanges in advanced(amount, exchanges) },
                          moved: { kind, told in onlineMoved(kind, told) },
                          sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) })
+        .confirmDestructive(isPresented: $confirmCancelTcs, title: "Cancel TCS booking \(order.tcsBooking?.cn ?? "")?",
+                            message: OrderActions.cancelTcsWords, action: "Cancel booking") {
+            cancelTcs(order)
+        }
         .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
                             message: OrdersLogic.cancelWords, action: "Cancel order") {
             setStatus(order, "Cancelled")
@@ -1064,7 +1109,21 @@ extension OrderScreen {
         VStack(alignment: .leading, spacing: 16) {
             macPieceDetail(order)
             macDetails(order, stage: stage)
+            macShipment(order)
             macOnline(order)
+        }
+    }
+
+    /// Where the parcel is, and for owners what TCS charged (OrderShipment.swift): a card only when there is something to say.
+    @ViewBuilder
+    private func macShipment(_ order: Order) -> some View {
+        let parcelShown = OrderShipmentRows.shows(order, parcel)
+        let cost = session.isOwner && TcsShipping.showsCost(order.shippingCost) ? order.shippingCost : nil
+        if parcelShown || cost != nil {
+            macCard("Shipment") {
+                if parcelShown { OrderShipmentRows(order: order, model: parcel) }
+                if let cost { OrderCourierCostRows(cost: cost) }
+            }
         }
     }
 
@@ -1282,6 +1341,8 @@ extension OrderScreen {
         r.sendPDF = { macSheet = .sendPDF(order) }
         r.orderPDF = { macSheet = .orderPDF(order) }
         r.bookCourier = { macSheet = .courier(order) }
+        r.bookTcs = { macSheet = .bookTcs(order) }
+        r.cancelTcs = { confirmCancelTcs = true }
         r.track = { macSheet = .tracking(order) }
         r.transfer = { macSheet = .transfer(order) }
         r.lapse = { macSheet = .lapse(order) }
