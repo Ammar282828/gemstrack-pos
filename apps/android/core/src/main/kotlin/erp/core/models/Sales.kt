@@ -327,6 +327,10 @@ data class Order(
     val shopifyDeliveryAt: String? = null,
     /** A Shopify order's delivery, whole rupees: part of `subtotal` and of the order's full amount, never a piece (src/lib/store.ts). */
     val deliveryCharge: Double? = null,
+    /** What a TCS booking made from the ERP left (src/lib/tcs-booking.ts); see [erp.core.logic.TcsCourier]. */
+    val tcsBooking: TcsBooking? = null,
+    /** What TCS charged to carry the parcel: a slice, never a total of the sale; shown to owners only ("Courier cost"). */
+    val shippingCost: ShippingCost? = null,
 ) {
     companion object : Decodable<Order> {
         override fun fromMap(m: Map<String, Any?>): Order {
@@ -371,6 +375,8 @@ data class Order(
                 shopifyTracking = c.obj("shopifyTracking", ShopifyTracking),
                 shopifyDeliveryAt = c.string("shopifyDeliveryAt"),
                 deliveryCharge = c.double("deliveryCharge"),
+                tcsBooking = c.obj("tcsBooking", TcsBooking),
+                shippingCost = c.obj("shippingCost", ShippingCost),
             )
         }
     }
