@@ -60,7 +60,8 @@ export async function GET(req: NextRequest) {
     enteredAt: pos[key]?.enteredAt ?? null,
     added: addedMs((a as { added?: unknown }).added),
     drop: false,
-    diamondCarats: carats[key]?.diamondCarats ?? null,
+    diamondCarats: carats[key]?.diamondCarats || null,
+    sideCarats: carats[key]?.sideCarats || null,
     diamond: isDiamond(key, a.stone),
   }));
   const fresh = drops.filter(d => !merged[d.key]).map(d => ({
@@ -75,7 +76,8 @@ export async function GET(req: NextRequest) {
     enteredAt: pos[d.key]?.enteredAt ?? null,
     added: d.added,
     drop: true,
-    diamondCarats: carats[d.key]?.diamondCarats ?? null,
+    diamondCarats: carats[d.key]?.diamondCarats || null,
+    sideCarats: carats[d.key]?.sideCarats || null,
     diamond: isDiamond(d.key),
   }));
   // Newest first (owner: "show me the newest stuff first"); the undated after, by name.
@@ -89,7 +91,8 @@ const Put = z.object({
   key: z.string().min(3).max(300),
   weightGrams: z.number().positive().max(5000).nullable().optional(),
   diamondCarats: z.number().positive().max(500).nullable().optional(),
-}).refine(b => b.weightGrams !== undefined || b.diamondCarats !== undefined);
+  sideCarats: z.number().positive().max(500).nullable().optional(),
+}).refine(b => b.weightGrams !== undefined || b.diamondCarats !== undefined || b.sideCarats !== undefined);
 
 /**
  * A diamond piece, where the carats field shows: a diamond read on the photo by the site's tagger, or a collection
@@ -114,7 +117,8 @@ export async function PUT(req: NextRequest) {
   }
   if (parsed.data.weightGrams !== undefined) await setPosWeight(key, parsed.data.weightGrams, who);
   if (parsed.data.diamondCarats !== undefined) await setPosCarats(key, parsed.data.diamondCarats, who);
-  return NextResponse.json({ ok: true, key, weightGrams: parsed.data.weightGrams, diamondCarats: parsed.data.diamondCarats });
+  if (parsed.data.sideCarats !== undefined) await setPosCarats(key, parsed.data.sideCarats, who, 'sideCarats');
+  return NextResponse.json({ ok: true, key, weightGrams: parsed.data.weightGrams, diamondCarats: parsed.data.diamondCarats, sideCarats: parsed.data.sideCarats });
 }
 
 let drops: { at: number; keys: Set<string> } | null = null;

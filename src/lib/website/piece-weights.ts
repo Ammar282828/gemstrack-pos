@@ -16,7 +16,7 @@ export async function getPieceWeights(fresh = false): Promise<Record<string, Pos
 }
 
 /** The counter's diamond carats, per piece (an angle's carats are its lead's), for the price book. */
-export async function getPieceCarats(fresh = false): Promise<Record<string, number>> {
+export async function getPieceCarats(fresh = false): Promise<Record<string, import('./weights').Carats>> {
   const [carats, overrides] = await Promise.all([getPosCarats(fresh), getSiteOverrides(site()).catch(() => ({}))]);
   return withAngleCarats(carats, overrides);
 }

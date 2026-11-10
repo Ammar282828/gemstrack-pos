@@ -23,6 +23,8 @@ export interface PosWeight {
   enteredAt: string;
   /** The diamonds' weight in carats, drawn under the weight on the photo (setPosCarats). */
   diamondCarats?: number;
+  /** The smaller diamonds' carats, beside a solitaire's (the owner, 2026-11-10). */
+  sideCarats?: number;
 }
 
 /**
@@ -31,7 +33,19 @@ export interface PosWeight {
  * in a smaller sized font"). In the same document as the photograph's weight; one may stand without the other (a
  * photo whose grams are burned in still takes its carats here).
  */
-export interface PosCarats { key: string; diamondCarats: number; enteredBy: string; enteredAt: string }
+export interface PosCarats {
+  key: string;
+  /** The diamond's, or the main stone's (a solitaire's); 0 when only the small ones were typed. */
+  diamondCarats: number;
+  /** The smaller diamonds around or beside it (the owner, 2026-11-10: "Some diamond rings have a solitaire and then smaller
+   *  diamonds as well. So give the option to add the carat weight for the smaller diamonds as well"). */
+  sideCarats?: number;
+  enteredBy: string;
+  enteredAt: string;
+}
+
+/** What the site draws: the main carats and the small ones (either may be 0). */
+export interface Carats { main: number; side: number }
 
 /** Piece keys carry slashes and spaces; a document id may not. Reversible. */
 export const docIdFor = (key: string) => Buffer.from(key, 'utf8').toString('base64url');
@@ -49,8 +63,10 @@ async function read(fresh: boolean) {
     const w = d.data() as Partial<PosWeight> & { caratsBy?: string; caratsAt?: string };
     if (!w.key) continue;
     if (typeof w.weightGrams === 'number' && w.weightGrams > 0) byKey[w.key] = w as PosWeight;
-    if (typeof w.diamondCarats === 'number' && w.diamondCarats > 0) {
-      carats[w.key] = { key: w.key, diamondCarats: w.diamondCarats, enteredBy: w.caratsBy ?? w.enteredBy ?? '', enteredAt: w.caratsAt ?? w.enteredAt ?? '' };
+    const main = typeof w.diamondCarats === 'number' && w.diamondCarats > 0 ? w.diamondCarats : 0;
+    const side = typeof w.sideCarats === 'number' && w.sideCarats > 0 ? w.sideCarats : 0;
+    if (main || side) {
+      carats[w.key] = { key: w.key, diamondCarats: main, ...(side && { sideCarats: side }), enteredBy: w.caratsBy ?? w.enteredBy ?? '', enteredAt: w.caratsAt ?? w.enteredAt ?? '' };
     }
   }
   cache = { at: Date.now(), byKey, carats };
@@ -68,7 +84,7 @@ export async function getPosCarats(fresh = false): Promise<Record<string, PosCar
 /** The document goes when it holds neither a weight nor carats. */
 async function dropIfEmpty(ref: FirebaseFirestore.DocumentReference) {
   const d = (await ref.get()).data();
-  if (d && !(Number(d.weightGrams) > 0) && !(Number(d.diamondCarats) > 0)) await ref.delete();
+  if (d && !(Number(d.weightGrams) > 0) && !(Number(d.diamondCarats) > 0) && !(Number(d.sideCarats) > 0)) await ref.delete();
 }
 
 export async function setPosWeight(key: string, weightGrams: number | null, by: string): Promise<void> {
@@ -83,24 +99,26 @@ export async function setPosWeight(key: string, weightGrams: number | null, by: 
   cache = null;
 }
 
-export async function setPosCarats(key: string, carats: number | null, by: string): Promise<void> {
+/** One carats field set (a positive number) or cleared (null), the other left as it is. */
+export async function setPosCarats(key: string, carats: number | null, by: string, field: 'diamondCarats' | 'sideCarats' = 'diamondCarats'): Promise<void> {
   const ref = adminDb.collection(PIECES).doc(docIdFor(key));
   if (!carats || carats <= 0) {
-    await ref.set({ key, diamondCarats: FieldValue.delete(), caratsBy: FieldValue.delete(), caratsAt: FieldValue.delete() }, { merge: true });
+    await ref.set({ key, [field]: FieldValue.delete() }, { merge: true });
     await dropIfEmpty(ref);
   } else {
-    await ref.set({ key, diamondCarats: Math.round(carats * 100) / 100, caratsBy: by, caratsAt: new Date().toISOString() }, { merge: true });
+    await ref.set({ key, [field]: Math.round(carats * 100) / 100, caratsBy: by, caratsAt: new Date().toISOString() }, { merge: true });
   }
   cache = null;
 }
 
 /** Carats as the site reads them: per piece, an extra angle's carats the lead's (as withAngleWeights does for grams). */
-export function withAngleCarats(carats: Record<string, PosCarats>, overrides: Record<string, { angleOf?: unknown }>): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [key, c] of Object.entries(carats)) out[key] = c.diamondCarats;
+export function withAngleCarats(carats: Record<string, PosCarats>, overrides: Record<string, { angleOf?: unknown }>): Record<string, Carats> {
+  const out: Record<string, Carats> = {};
+  const of = (c: PosCarats): Carats => ({ main: c.diamondCarats || 0, side: c.sideCarats || 0 });
+  for (const [key, c] of Object.entries(carats)) out[key] = of(c);
   for (const [key, c] of Object.entries(carats)) {
     const lead = overrides[key]?.angleOf;
-    if (typeof lead === 'string' && lead && lead !== key && !carats[lead]) out[lead] = c.diamondCarats;
+    if (typeof lead === 'string' && lead && lead !== key && !carats[lead]) out[lead] = of(c);
   }
   return out;
 }

@@ -40,6 +40,8 @@ interface Piece {
   drop?: boolean;
   /** The diamonds' weight in carats, drawn under the weight (the owner, 2026-11-10). */
   diamondCarats?: number | null;
+  /** The smaller diamonds' carats, beside a solitaire's: drawn "0.50ct + 0.24ct". */
+  sideCarats?: number | null;
   /** A diamond piece: the carats field shows (a diamond on the photo, or a diamond collection). */
   diamond?: boolean;
 }
@@ -52,6 +54,9 @@ interface Piece {
 const CT_SIZE = 90;
 const CT_BASELINE = 100 + 143 * 1.1 + CT_SIZE * 1.3;
 const caratsText = (n: number) => `${n.toFixed(2)}ct`;
+/** The line under the weight: the solitaire's carats, then the smaller diamonds' after a plus (taheri-site WeightLabel.jsx). */
+const caratsLine = (main: number, side: number) => [main > 0 ? caratsText(main) : '', side > 0 ? caratsText(side) : ''].filter(Boolean).join(' + ');
+const parseCt = (t: string) => (t.trim() === '' ? null : Number(t.replace(',', '.')));
 
 /** "Added today", "Added 7 Oct": when a photo reached the site. */
 function addedWords(ms?: number | null): string {
@@ -85,6 +90,7 @@ function PhotoWeightsPage() {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
   const [carats, setCarats] = useState('');
+  const [side, setSide] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const caratsRef = useRef<HTMLInputElement>(null);
   // White or dark, as the website will draw it on this photo (api/website/pieces/ink, lib/website/label-ink.ts).
@@ -114,6 +120,7 @@ function PhotoWeightsPage() {
   useEffect(() => {
     setValue(current?.source === 'pos' && current.weightGrams ? String(current.weightGrams) : '');
     setCarats(current?.diamondCarats ? String(current.diamondCarats) : '');
+    setSide(current?.sideCarats ? String(current.sideCarats) : '');
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [current?.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -144,14 +151,14 @@ function PhotoWeightsPage() {
     if (!current) return;
     const grams = value.trim() === '' ? null : Number(value.replace(',', '.'));
     if (grams !== null && !(grams > 0 && grams < 5000)) { toast({ title: 'Enter a weight in grams', variant: 'destructive' }); return; }
-    const ct = carats.trim() === '' ? null : Number(carats.replace(',', '.'));
-    if (ct !== null && !(ct > 0 && ct < 500)) { toast({ title: 'Enter the diamonds in carats', variant: 'destructive' }); return; }
+    const ct = parseCt(carats), sideCt = parseCt(side);
+    if ((ct !== null && !(ct > 0 && ct < 500)) || (sideCt !== null && !(sideCt > 0 && sideCt < 500))) { toast({ title: 'Enter the diamonds in carats', variant: 'destructive' }); return; }
     // Carats only travel for a diamond piece, or one that already has some (so clearing them works).
-    const sendCarats = !!(current.diamond || current.diamondCarats);
+    const sendCarats = !!(current.diamond || current.diamondCarats || current.sideCarats);
     const before = current;
     setPieces(ps => (ps || []).map(p => p.key === before.key
       ? { ...p, weightGrams: grams ?? p.labelWeightGrams, source: grams ? 'pos' : (p.labelWeightGrams ? 'label' : null), enteredBy: grams ? 'you' : null, enteredAt: grams ? new Date().toISOString() : null,
-          ...(sendCarats && { diamondCarats: ct }) }
+          ...(sendCarats && { diamondCarats: ct, sideCarats: sideCt }) }
       : p));
     // With "only missing" on, the piece leaves the queue and the next one slides
     // into this index; otherwise step forward.
@@ -159,21 +166,21 @@ function PhotoWeightsPage() {
     setPending(n => n + 1);
     saves.current = saves.current.then(async () => {
       try {
-        const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: before.key, weightGrams: grams, ...(sendCarats && { diamondCarats: ct }) }) });
+        const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: before.key, weightGrams: grams, ...(sendCarats && { diamondCarats: ct, sideCarats: sideCt }) }) });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Failed (${res.status})`);
       } catch (e) {
         setPieces(ps => (ps || []).map(p => (p.key === before.key ? before : p)));
         toast({ title: `${before.file}: not saved`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
       } finally { setPending(n => n - 1); }
     });
-  }, [current, value, carats, onlyMissing, queue.length, toast]);
+  }, [current, value, carats, side, onlyMissing, queue.length, toast]);
   const saving = pending > 0;
 
   // Arrow keys move between photos when the field is not focused (the field
   // handles its own keys above, so typing a number is never hijacked).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (document.activeElement === inputRef.current || document.activeElement === caratsRef.current) return;
+      if (document.activeElement instanceof HTMLInputElement) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); setIndex(i => Math.min(i + 1, queue.length - 1)); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); setIndex(i => Math.max(i - 1, 0)); }
     };
@@ -229,7 +236,7 @@ function PhotoWeightsPage() {
           <div className="relative rounded-xl overflow-hidden bg-muted aspect-square">
             <img loading="lazy" decoding="async" key={current.key} src={current.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
             {/* Where the site will draw it — so what you type appears where it will land. */}
-            {(((value || current.weightGrams) && current.source !== 'label') || Number(carats) > 0) && (
+            {(((value || current.weightGrams) && current.source !== 'label') || Number(carats) > 0 || Number(side) > 0) && (
               // The site's own geometry (WeightLabel.jsx): Futura LT Light at
               // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1; the carats under it, smaller.
               <svg aria-hidden="true" viewBox="0 0 3000 3000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full pointer-events-none select-none">
@@ -238,9 +245,9 @@ function PhotoWeightsPage() {
                     {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
                   </text>
                 )}
-                {Number(carats) > 0 && (
+                {(Number(carats) > 0 || Number(side) > 0) && (
                   <text x="120" y={CT_BASELINE} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize={CT_SIZE} letterSpacing="2" fill={ink}>
-                    {caratsText(Number(carats))}
+                    {caratsLine(Number(carats) || 0, Number(side) || 0)}
                   </text>
                 )}
               </svg>
@@ -276,19 +283,28 @@ function PhotoWeightsPage() {
                   className="h-16 text-4xl font-semibold tabular-nums pr-12" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-muted-foreground">g</span>
               </div>
-              {(current.diamond || current.diamondCarats) && (
+              {(current.diamond || current.diamondCarats || current.sideCarats) && (
                 <div className="mt-3">
-                  <Label htmlFor="carats" className="text-sm">Diamonds</Label>
-                  <div className="relative mt-1">
-                    <Input ref={caratsRef} id="carats" type="text" inputMode="decimal" autoComplete="off" placeholder="0.00" value={carats} onChange={e => setCarats(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(true); }
-                        else if (e.key === 'Escape') { e.preventDefault(); setCarats(''); }
-                      }}
-                      className="h-12 text-2xl font-semibold tabular-nums pr-12" />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">ct</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: 'carats', label: 'Main diamond', value: carats, set: setCarats, ref: caratsRef },
+                      { id: 'side-carats', label: 'Small diamonds', value: side, set: setSide, ref: undefined },
+                    ] as const).map(f => (
+                      <div key={f.id}>
+                        <Label htmlFor={f.id} className="text-sm">{f.label}</Label>
+                        <div className="relative mt-1">
+                          <Input ref={f.ref} id={f.id} type="text" inputMode="decimal" autoComplete="off" placeholder="0.00" value={f.value} onChange={e => f.set(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(true); }
+                              else if (e.key === 'Escape') { e.preventDefault(); f.set(''); }
+                            }}
+                            className="h-12 text-2xl font-semibold tabular-nums pr-10" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground">ct</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">Shown under the weight on the photo, smaller. Leave empty for none.</p>
+                  <p className="text-xs text-muted-foreground mt-1.5">Shown under the weight on the photo, smaller: the solitaire, then the small diamonds after a +. Leave either empty.</p>
                 </div>
               )}
               {current.source === 'label' && <p className="text-xs text-muted-foreground mt-1.5">The photo already shows {current.labelWeightGrams}g. A weight typed here is used for pricing instead; the photo keeps its own label.</p>}

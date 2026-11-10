@@ -42,8 +42,12 @@ describe('withAngleCarats', () => {
   it('carries an angle\'s carats to its lead, never over the lead\'s own', () => {
     const out = withAngleCarats({ 'R/a2.webp': c('R/a2.webp', 0.5), 'R/b2.webp': c('R/b2.webp', 1), 'R/b.webp': c('R/b.webp', 2) },
       { 'R/a2.webp': { angleOf: 'R/a.webp' }, 'R/b2.webp': { angleOf: 'R/b.webp' } });
-    expect(out['R/a.webp']).toBe(0.5);
-    expect(out['R/b.webp']).toBe(2);
-    expect(out['R/a2.webp']).toBe(0.5);
+    expect(out['R/a.webp']).toEqual({ main: 0.5, side: 0 });
+    expect(out['R/b.webp']).toEqual({ main: 2, side: 0 });
+    expect(out['R/a2.webp']).toEqual({ main: 0.5, side: 0 });
+  });
+  it('keeps the smaller diamonds beside the solitaire', () => {
+    expect(withAngleCarats({ 'R/c.webp': { key: 'R/c.webp', diamondCarats: 0.5, sideCarats: 0.24, enteredBy: 'x', enteredAt: 't' } }, {})['R/c.webp'])
+      .toEqual({ main: 0.5, side: 0.24 });
   });
 });

@@ -1231,6 +1231,9 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
   `setPosCarats`; either may stand alone), sent to the site as the price book's fifth figure, and drawn by taheri.shop's
   `WeightLabel.jsx` as "0.50ct" in Futura LT Light at 90/3000, baseline 1.3 of its size under the weight's; under a weight burned
   into the photo too. An extra angle's carats are its lead's (`withAngleCarats`).
+  **Small diamonds too** (same day, the owner: "Some diamond rings have a solitaire and then smaller diamonds as well. So
+  give the option to add the carat weight for the smaller diamonds as well"): two fields, Main diamond and Small diamonds
+  (`sideCarats`, the price book's sixth figure); the line reads "0.50ct + 0.24ct", either alone when the other is empty.
 
 ### Shop outage
 

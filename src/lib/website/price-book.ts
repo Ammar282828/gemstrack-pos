@@ -11,9 +11,10 @@
  * rate being set; the checkout re-prices on the server regardless (checkout.ts), so a book a minute
  * old can never sell at yesterday's rate.
  *
- * Each entry is [price | null, reason | null, weightGrams | null, weightSource | null, diamondCarats | null] — the
- * same things a quote carries, without the key repeated. The fifth, the diamonds' carats typed on Photo weights, is
- * drawn under the weight on the photo; a reader that knows only four never sees it.
+ * Each entry is [price | null, reason | null, weightGrams | null, weightSource | null, diamondCarats | null,
+ * sideCarats | null] — the same things a quote carries, without the key repeated. The fifth and sixth, the diamonds'
+ * carats typed on Photo weights (a solitaire's, then the smaller diamonds'), are drawn under the weight on the photo; a
+ * reader that knows only four never sees them.
  */
 
 import { configReadiness, loadRates, loadWebsiteConfig, ratesFresh, ratesUsable } from './config';
@@ -24,7 +25,7 @@ import { getPieceCarats, getPieceWeights } from './piece-weights';
 import type { QuoteRates } from './pricing';
 import type { WebsiteConfig } from './types';
 
-export type BookEntry = [number | null, string | null, number | null, string | null, (number | null)?];
+export type BookEntry = [number | null, string | null, number | null, string | null, (number | null)?, (number | null)?];
 
 export interface PriceBook {
   selling: boolean;
@@ -86,8 +87,9 @@ async function build(): Promise<PriceBook> {
   // The diamonds' carats, where the counter typed them: a fifth figure (a photo with only carats gets an entry of its own).
   for (const [key, ct] of Object.entries(carats)) {
     const e = prices[key];
-    if (e) prices[key] = [e[0], e[1], e[2], e[3], ct];
-    else prices[key] = [null, 'unknown_piece', null, null, ct];
+    const main = ct.main || null, side = ct.side || null;
+    if (e) prices[key] = [e[0], e[1], e[2], e[3], main, side];
+    else prices[key] = [null, 'unknown_piece', null, null, main, side];
   }
   return {
     selling,
