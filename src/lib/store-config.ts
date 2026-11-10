@@ -328,6 +328,13 @@ export const STORE_SITE_MARK_INK = process.env.NEXT_PUBLIC_STORE_SITE_MARK_INK?.
  * files in the POS (Website → Investments). Taheri's; a house without the
  * series sets "0".
  */
+/**
+ * Which order slip a house prints (lib/order-slip-pdf.ts): `card`, the printed card's shape (the owner, 2026-11-10, for
+ * Taheri: "Redesign the order slip to this format … Keep the old one as backup"), or the detailed slip (anything else).
+ * Back to the old one: set it to `classic` in apphosting.taheri.yaml.
+ */
+export const STORE_ORDER_SLIP: 'card' | 'classic' = process.env.NEXT_PUBLIC_STORE_ORDER_SLIP === 'card' ? 'card' : 'classic';
+
 export const STORE_INVESTMENTS = process.env.NEXT_PUBLIC_STORE_INVESTMENTS !== '0';
 
 /**

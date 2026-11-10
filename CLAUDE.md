@@ -140,6 +140,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Offline](docs/decisions.md#offline) — the iPad takes orders, sales and payments with no connection: queued on the phone, sent oldest first when back, dated by the tap (`clientAt`), never twice (request names kept 60 days); deletes/refunds need a connection
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — the bill and the workshop slip both (slip since 2026-10-28)
+- [Card order slip](docs/decisions.md#card-order-slip) — Taheri prints the shop's card on A5 (`lib/order-card-slip.ts`, Futura, `t` monogram); `NEXT_PUBLIC_STORE_ORDER_SLIP=classic` brings back the detailed slip
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's
 - [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece; Taheri: "Invoice - <customer>"; invoice and order PDFs to the customer from each house's own line (`/api/app/whatsapp/send-doc`, both houses)

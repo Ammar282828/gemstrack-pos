@@ -308,3 +308,10 @@ env:
   - variable: META_ADS_INSTAGRAM
     value: "collectionstaheri"
     availability: [RUNTIME]
+  # The order slip in the printed card's shape (lib/order-card-slip.ts; the owner, 2026-11-10). "classic" brings back the
+  # detailed slip, kept as the backup.
+  - variable: NEXT_PUBLIC_STORE_ORDER_SLIP
+    value: "card"
+    availability:
+      - BUILD
+      - RUNTIME

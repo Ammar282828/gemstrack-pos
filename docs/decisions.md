@@ -1235,6 +1235,20 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
   give the option to add the carat weight for the smaller diamonds as well"): two fields, Main diamond and Small diamonds
   (`sideCarats`, the price book's sixth figure); the line reads "0.50ct + 0.24ct", either alone when the other is empty.
 
+### Card order slip
+
+The owner, 2026-11-10, with a photo of the shop's printed card: "Redesign the order slip to this format for a5 paper size for
+taheri. Keep the old one as backup if we don't like this new one."
+
+- Taheri's order slip is the card, on A5 (`lib/order-card-slip.ts`): ORDER SLIP centred with the order number small under it,
+  the `t` monogram top right, then label and ruled line in Futura Light — Date, Name, Estimate (the full amount), Items (a line
+  per piece, wrapping, at most seven lines), Advance (cash, and gold taken in exchange), Rate (each karat's rate per gram, none
+  when the rates are hidden), Sample (YES / NO ticked, the sampled pieces on the line), Sales Rep (Taken by); "Ready by" small
+  at the foot. The face and the monogram travel as data (`lib/order-card-assets.ts`), so the browser and the server draw the
+  same page: the apps' Print slip (`/api/app/pdf/order-slip`) prints it too.
+- **The backup:** `NEXT_PUBLIC_STORE_ORDER_SLIP` — `card` in `apphosting.taheri.yaml`; `classic` (or anything else, Mina's
+  default) prints the detailed slip, unchanged (`drawDetailedOrderSlip`). Going back is that one value.
+
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).

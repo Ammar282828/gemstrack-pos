@@ -21,7 +21,8 @@ import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label } from '@
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { drawItemCell, itemCellHeight } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
-import { STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_LOGO_ASPECT, STORE_ORDER_SLIP } from '@/lib/store-config';
+import { drawCardOrderSlip } from '@/lib/order-card-slip';
 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
 const SLIP_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } } as const;
@@ -48,6 +49,13 @@ export const orderSlipFileName = (order: Pick<Order, 'id'>) => `OrderSlip-${orde
  * as their browser holds it.
  */
 export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
+  // The printed card's shape where the house asks for it (Taheri); the detailed slip below stays as the backup.
+  if (STORE_ORDER_SLIP === 'card') return drawCardOrderSlip(order, { dates: opts.dates });
+  return drawDetailedOrderSlip(order, opts);
+}
+
+/** The detailed slip: the estimate's header, every piece with its settings and bench notes, the totals, the codes. */
+export function drawDetailedOrderSlip(order: Order, opts: OrderSlipOptions): jsPDF {
   const { images, dates } = opts;
   const day = dates?.medium ?? ((iso: string) => format(parseISO(iso), 'PP'));
   const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
