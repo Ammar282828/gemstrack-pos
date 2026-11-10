@@ -5,7 +5,7 @@
  * page keeps showing what was entered on each photograph (getPosWeights).
  */
 
-import { getPosWeights, withAngleWeights, type PosWeight } from './weights';
+import { getPosCarats, getPosWeights, withAngleCarats, withAngleWeights, type PosWeight } from './weights';
 import { getSiteOverrides } from './site-edits';
 
 const site = () => (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
@@ -13,4 +13,10 @@ const site = () => (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace
 export async function getPieceWeights(fresh = false): Promise<Record<string, PosWeight>> {
   const [pos, overrides] = await Promise.all([getPosWeights(fresh), getSiteOverrides(site()).catch(() => ({}))]);
   return withAngleWeights(pos, overrides);
+}
+
+/** The counter's diamond carats, per piece (an angle's carats are its lead's), for the price book. */
+export async function getPieceCarats(fresh = false): Promise<Record<string, number>> {
+  const [carats, overrides] = await Promise.all([getPosCarats(fresh), getSiteOverrides(site()).catch(() => ({}))]);
+  return withAngleCarats(carats, overrides);
 }

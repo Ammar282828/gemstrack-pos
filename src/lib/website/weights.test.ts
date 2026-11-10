@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
 
-import { mergeWeights, posOnlyWeights, withAngleWeights } from './weights';
+import { mergeWeights, posOnlyWeights, withAngleWeights, withAngleCarats } from './weights';
 
 const pos = (key: string, weightGrams: number) => ({ [key]: { key, weightGrams, enteredBy: 'x', enteredAt: '2026-10-05T09:00:00Z' } });
 
@@ -34,5 +34,16 @@ describe('withAngleWeights', () => {
   it('never overrides a weight entered on the piece itself', () => {
     const out = withAngleWeights({ ...w('R/Rings/DSC09481.webp', 7, '2026-10-01'), ...w('R/Rings/DSC09463.webp', 6.07, '2026-10-05') }, angles);
     expect(out['R/Rings/DSC09481.webp'].weightGrams).toBe(7);
+  });
+});
+
+describe('withAngleCarats', () => {
+  const c = (key: string, diamondCarats: number) => ({ key, diamondCarats, enteredBy: 'x', enteredAt: 't' });
+  it('carries an angle\'s carats to its lead, never over the lead\'s own', () => {
+    const out = withAngleCarats({ 'R/a2.webp': c('R/a2.webp', 0.5), 'R/b2.webp': c('R/b2.webp', 1), 'R/b.webp': c('R/b.webp', 2) },
+      { 'R/a2.webp': { angleOf: 'R/a.webp' }, 'R/b2.webp': { angleOf: 'R/b.webp' } });
+    expect(out['R/a.webp']).toBe(0.5);
+    expect(out['R/b.webp']).toBe(2);
+    expect(out['R/a2.webp']).toBe(0.5);
   });
 });

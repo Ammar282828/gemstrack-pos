@@ -17,7 +17,10 @@ vi.mock('@/lib/website/weights', () => ({
   getPosWeights: vi.fn(async () => ({ 'Rings & Bands/Rings/DSC1.webp': { key: 'Rings & Bands/Rings/DSC1.webp', weightGrams: 3.2, enteredBy: 'x', enteredAt: 't' } })),
   mergeWeights: (catalog: Record<string, object>) => Object.fromEntries(Object.entries(catalog).map(([k, a]) => [k, { ...a, weightGrams: null, weightSource: null }])),
   setPosWeight: vi.fn(async (key: string, grams: number | null, by: string) => { saved.push({ key, grams, by }); }),
+  getPosCarats: vi.fn(async () => ({ 'Rings & Bands/Rings/DSC1.webp': { key: 'Rings & Bands/Rings/DSC1.webp', diamondCarats: 0.5, enteredBy: 'x', enteredAt: 't' } })),
+  setPosCarats: vi.fn(async (key: string, carats: number | null, by: string) => { savedCarats.push({ key, carats, by }); }),
 }));
+const savedCarats: { key: string; carats: number | null; by: string }[] = [];
 vi.mock('@/lib/website/site-pieces', () => ({
   listDrops: vi.fn(async () => [
     { key: 'Rings & Bands/Rings/DSC1.webp', name: 'DSC1', thumb: 'https://shop.example/t/DSC1.jpg', added: 1_791_000_000_000 },

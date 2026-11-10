@@ -1219,6 +1219,14 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
   first"): `/api/website/pieces` lists by the site's `added`, and with them the uploads the site hasn't listed yet (its drop
   folder, `listDrops`), whose weight is saved under the key each keeps once listed; the site draws it until its next rebuild.
 
+- **Diamonds in carats, under the weight** (2026-11-10, the owner: "for diamond products, give me the option to add the
+  diamond weight in carats as well, and that will go right below the weight in a smaller sized font. The same font, just
+  smaller size"). Photo weights shows a Diamonds (ct) field under Weight for a diamond piece (a diamond read on the photo, or a
+  collection named for diamonds) or one that has carats already. Saved beside the weight in `website_pieces` (`diamondCarats`,
+  `setPosCarats`; either may stand alone), sent to the site as the price book's fifth figure, and drawn by taheri.shop's
+  `WeightLabel.jsx` as "0.50ct" in Futura LT Light at 90/3000, baseline 1.3 of its size under the weight's; under a weight burned
+  into the photo too. An extra angle's carats are its lead's (`withAngleCarats`).
+
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).

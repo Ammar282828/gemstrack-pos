@@ -38,7 +38,20 @@ interface Piece {
   added?: number | null;
   /** Uploaded since the site last rebuilt its list: shown on the site, weight and all, until then. */
   drop?: boolean;
+  /** The diamonds' weight in carats, drawn under the weight (the owner, 2026-11-10). */
+  diamondCarats?: number | null;
+  /** A diamond piece: the carats field shows (a diamond on the photo, or a diamond collection). */
+  diamond?: boolean;
 }
+
+/**
+ * The carats line under the weight: the same face, smaller (the owner, 2026-11-10: "right below the weight in a
+ * smaller sized font. The same font, just smaller size"). Against the 3000px reference, as the weight is; the site
+ * draws it with the same numbers (taheri-site WeightLabel.jsx).
+ */
+const CT_SIZE = 90;
+const CT_BASELINE = 100 + 143 * 1.1 + CT_SIZE * 1.3;
+const caratsText = (n: number) => `${n.toFixed(2)}ct`;
 
 /** "Added today", "Added 7 Oct": when a photo reached the site. */
 function addedWords(ms?: number | null): string {
@@ -71,7 +84,9 @@ function PhotoWeightsPage() {
   const [search, setSearch] = useState('');
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
+  const [carats, setCarats] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const caratsRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const res = await fetch('/api/website/pieces', { headers: await authed(), cache: 'no-store' });
@@ -96,6 +111,7 @@ function PhotoWeightsPage() {
   const current = queue[index] || null;
   useEffect(() => {
     setValue(current?.source === 'pos' && current.weightGrams ? String(current.weightGrams) : '');
+    setCarats(current?.diamondCarats ? String(current.diamondCarats) : '');
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [current?.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -114,9 +130,14 @@ function PhotoWeightsPage() {
     if (!current) return;
     const grams = value.trim() === '' ? null : Number(value.replace(',', '.'));
     if (grams !== null && !(grams > 0 && grams < 5000)) { toast({ title: 'Enter a weight in grams', variant: 'destructive' }); return; }
+    const ct = carats.trim() === '' ? null : Number(carats.replace(',', '.'));
+    if (ct !== null && !(ct > 0 && ct < 500)) { toast({ title: 'Enter the diamonds in carats', variant: 'destructive' }); return; }
+    // Carats only travel for a diamond piece, or one that already has some (so clearing them works).
+    const sendCarats = !!(current.diamond || current.diamondCarats);
     const before = current;
     setPieces(ps => (ps || []).map(p => p.key === before.key
-      ? { ...p, weightGrams: grams ?? p.labelWeightGrams, source: grams ? 'pos' : (p.labelWeightGrams ? 'label' : null), enteredBy: grams ? 'you' : null, enteredAt: grams ? new Date().toISOString() : null }
+      ? { ...p, weightGrams: grams ?? p.labelWeightGrams, source: grams ? 'pos' : (p.labelWeightGrams ? 'label' : null), enteredBy: grams ? 'you' : null, enteredAt: grams ? new Date().toISOString() : null,
+          ...(sendCarats && { diamondCarats: ct }) }
       : p));
     // With "only missing" on, the piece leaves the queue and the next one slides
     // into this index; otherwise step forward.
@@ -124,21 +145,21 @@ function PhotoWeightsPage() {
     setPending(n => n + 1);
     saves.current = saves.current.then(async () => {
       try {
-        const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: before.key, weightGrams: grams }) });
+        const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: before.key, weightGrams: grams, ...(sendCarats && { diamondCarats: ct }) }) });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Failed (${res.status})`);
       } catch (e) {
         setPieces(ps => (ps || []).map(p => (p.key === before.key ? before : p)));
         toast({ title: `${before.file}: not saved`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
       } finally { setPending(n => n - 1); }
     });
-  }, [current, value, onlyMissing, queue.length, toast]);
+  }, [current, value, carats, onlyMissing, queue.length, toast]);
   const saving = pending > 0;
 
   // Arrow keys move between photos when the field is not focused (the field
   // handles its own keys above, so typing a number is never hijacked).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (document.activeElement === inputRef.current) return;
+      if (document.activeElement === inputRef.current || document.activeElement === caratsRef.current) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); setIndex(i => Math.min(i + 1, queue.length - 1)); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); setIndex(i => Math.max(i - 1, 0)); }
     };
@@ -194,13 +215,20 @@ function PhotoWeightsPage() {
           <div className="relative rounded-xl overflow-hidden bg-muted aspect-square">
             <img loading="lazy" decoding="async" key={current.key} src={current.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
             {/* Where the site will draw it — so what you type appears where it will land. */}
-            {(value || current.weightGrams) && current.source !== 'label' && (
+            {(((value || current.weightGrams) && current.source !== 'label') || Number(carats) > 0) && (
               // The site's own geometry (WeightLabel.jsx): Futura LT Light at
-              // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1.
+              // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1; the carats under it, smaller.
               <svg aria-hidden="true" viewBox="0 0 3000 3000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full pointer-events-none select-none">
-                <text x="120" y={100 + 143 * 1.1} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
-                  {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
-                </text>
+                {(value || current.weightGrams) && current.source !== 'label' && (
+                  <text x="120" y={100 + 143 * 1.1} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
+                    {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
+                  </text>
+                )}
+                {Number(carats) > 0 && (
+                  <text x="120" y={CT_BASELINE} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize={CT_SIZE} letterSpacing="2" fill="#fff">
+                    {caratsText(Number(carats))}
+                  </text>
+                )}
               </svg>
             )}
             {current.source === 'label' && <Badge className="absolute top-3 right-3 bg-black/55 text-white border-transparent">weight is on the photo: {current.labelWeightGrams}g</Badge>}
@@ -234,6 +262,21 @@ function PhotoWeightsPage() {
                   className="h-16 text-4xl font-semibold tabular-nums pr-12" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-muted-foreground">g</span>
               </div>
+              {(current.diamond || current.diamondCarats) && (
+                <div className="mt-3">
+                  <Label htmlFor="carats" className="text-sm">Diamonds</Label>
+                  <div className="relative mt-1">
+                    <Input ref={caratsRef} id="carats" type="text" inputMode="decimal" autoComplete="off" placeholder="0.00" value={carats} onChange={e => setCarats(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(true); }
+                        else if (e.key === 'Escape') { e.preventDefault(); setCarats(''); }
+                      }}
+                      className="h-12 text-2xl font-semibold tabular-nums pr-12" />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">ct</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">Shown under the weight on the photo, smaller. Leave empty for none.</p>
+                </div>
+              )}
               {current.source === 'label' && <p className="text-xs text-muted-foreground mt-1.5">The photo already shows {current.labelWeightGrams}g. A weight typed here is used for pricing instead; the photo keeps its own label.</p>}
               {current.source === 'pos' && current.enteredAt && <p className="text-xs text-muted-foreground mt-1.5">Recorded {new Date(current.enteredAt).toLocaleString('en-PK')}{current.enteredBy && current.enteredBy !== 'counter' ? ` by ${current.enteredBy}` : ''}. Clear the field and press Enter to remove it.</p>}
             </div>

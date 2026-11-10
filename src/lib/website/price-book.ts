@@ -11,19 +11,20 @@
  * rate being set; the checkout re-prices on the server regardless (checkout.ts), so a book a minute
  * old can never sell at yesterday's rate.
  *
- * Each entry is [price | null, reason | null, weightGrams | null, weightSource | null] — the same four
- * things a quote carries, without the key repeated.
+ * Each entry is [price | null, reason | null, weightGrams | null, weightSource | null, diamondCarats | null] — the
+ * same things a quote carries, without the key repeated. The fifth, the diamonds' carats typed on Photo weights, is
+ * drawn under the weight on the photo; a reader that knows only four never sees it.
  */
 
 import { configReadiness, loadRates, loadWebsiteConfig, ratesFresh, ratesUsable } from './config';
 import { getCatalogAttributes } from './catalog-source';
 import { quotePiece } from './pricing';
 import { mergeWeights, posOnlyWeights } from './weights';
-import { getPieceWeights } from './piece-weights';
+import { getPieceCarats, getPieceWeights } from './piece-weights';
 import type { QuoteRates } from './pricing';
 import type { WebsiteConfig } from './types';
 
-export type BookEntry = [number | null, string | null, number | null, string | null];
+export type BookEntry = [number | null, string | null, number | null, string | null, (number | null)?];
 
 export interface PriceBook {
   selling: boolean;
@@ -71,7 +72,7 @@ export function priceBook(): Promise<PriceBook> {
 }
 
 async function build(): Promise<PriceBook> {
-  const [{ config, rates }, published, pos] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPieceWeights()]);
+  const [{ config, rates }, published, pos, carats] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPieceWeights(), getPieceCarats()]);
   const catalog = mergeWeights(published, pos);
   const selling = isSelling(config, rates);
   const priced = selling ? config : { ...config, enabled: false };
@@ -82,6 +83,12 @@ async function build(): Promise<PriceBook> {
   }
   // Drops since the catalogue was built: their counter weight, never a price (weights.ts posOnlyWeights).
   for (const [key, grams] of Object.entries(posOnlyWeights(published, pos))) prices[key] = [null, 'unknown_piece', grams, 'pos'];
+  // The diamonds' carats, where the counter typed them: a fifth figure (a photo with only carats gets an entry of its own).
+  for (const [key, ct] of Object.entries(carats)) {
+    const e = prices[key];
+    if (e) prices[key] = [e[0], e[1], e[2], e[3], ct];
+    else prices[key] = [null, 'unknown_piece', null, null, ct];
+  }
   return {
     selling,
     pausedForRates: pausedForRates(config, rates),
