@@ -59,7 +59,7 @@ import erp.app.ui.OwnerDeletion
 import erp.app.ui.OwnerDeleteCodeSheet
 
 // The order page's sheets: the undoing moves behind the delete code (OrderUndoSheets.swift), Book courier
-// (OrderCourierSheet), Message the customer (OrderNotifySheet) and Track (OrderTrackingSheet).
+// (OrderCourierSheet) and Message the customer (OrderNotifySheet); TCS booking and tracking are OrderCourier.kt.
 
 // MARK: Undo, refund, delete
 
@@ -329,80 +329,6 @@ fun OrderNotifySheet(order: Order, onDismiss: () -> Unit, kind: OrderActions.Mes
         OrdersFormSection(title = "The message", footer = "WhatsApp opens with it written: press send there.") {
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Text(text, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-    }
-}
-
-// MARK: Track
-
-/**
- * Track (the order page's ⋯ menu, "Track <CN>", when the order has a TCS consignment): TCS asked where the parcel
- * is (/api/tcs, action track), read as the page reads it: the summary, the first five checkpoints and the full
- * tracking on TCS's own site. Asked as the sheet opens and again on Refresh; nothing is written.
- */
-@Composable
-fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val cn = OrderActions.tcsConsignment(order) ?: ""
-    var track by remember { mutableStateOf<OrderActions.TCSTrack?>(null) }
-    var failure by remember { mutableStateOf<String?>(null) }
-    var asking by remember { mutableStateOf(false) }
-    var attempt by remember { mutableStateOf(0) }
-
-    LaunchedEffect(attempt) {
-        if (asking || cn.isEmpty()) return@LaunchedEffect
-        asking = true
-        failure = null
-        try {
-            val out = ErpApi.shared.send("/api/tcs", body = mapOf("action" to "track", "consignmentNo" to cn))
-            val r = OrderActions.tcsTrack(out)
-            r.getOrNull()?.let { track = it }
-            r.exceptionOrNull()?.let { failure = it.message }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: ErpApi.Failure) {
-            // The ERP's own words: TCS not set up, or what TCS refused. No answer at all is the page's words.
-            failure = if (e.status == 0) "Could not reach TCS API." else e.message
-        } catch (e: Exception) {
-            failure = "Could not reach TCS API."
-        }
-        asking = false
-    }
-
-    OrdersSheet(
-        title = "Track $cn",
-        onDismiss = onDismiss,
-        trailing = {
-            IconButton(onClick = { attempt++ }, enabled = !asking) { Icon(Symbols.Refresh, "Refresh") }
-        },
-    ) {
-        if (asking && track == null && failure == null) {
-            OrdersFormSection {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Loading(Modifier.size(24.dp))
-                    Text("Asking TCS…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        failure?.let { OrdersFormSection(title = "Tracking failed") { OrdersStatusLine(Symbols.Warning, it, Tone.problem) } }
-        track?.let { t ->
-            OrdersFormSection(title = "TCS tracking — $cn") {
-                Text(t.summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                for (c in t.checkpoints) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                        Text(c.datetime, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(c.status, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        }
-        if (cn.isNotEmpty()) {
-            OrdersFormSection {
-                TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, OrderActions.tcsUrl(cn)) }) {
-                    Icon(Symbols.OpenInNew, null, Modifier.size(18.dp))
-                    Text("Full tracking on TCS website", Modifier.padding(start = 8.dp))
-                }
             }
         }
     }

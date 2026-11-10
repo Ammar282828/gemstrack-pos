@@ -19,6 +19,9 @@ import { drawInvoicePdf, invoicePdfFileName } from '@/lib/invoice-pdf';
 import { drawOrderSlipPdf, orderSlipFileName } from '@/lib/order-slip-pdf';
 import { drawOrderPdf, orderPdfFileName } from '@/lib/order-pdf';
 import { drawRepairPdf, repairPdfFileName } from '@/lib/repair-pdf';
+import { drawShippingSlipPdf, shippingSlipFileName } from '@/lib/shipping-slip-pdf';
+import { STORE_CONFIG } from '@/lib/store-config';
+import type { TcsBooking } from '@/lib/tcs-booking';
 import { KARACHI_DATES } from '@/lib/pdf-inputs';
 import { serverPdfImages } from '@/lib/pdf-inputs-server';
 import { serverReferenceImages } from '@/lib/pdf-references-server';
@@ -106,6 +109,21 @@ export async function repairPdf(id: string, viewer: PdfViewer): Promise<ServerPd
   if (!repair) return null;
   const doc = drawRepairPdf(repair, { images: await serverPdfImages(), dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: repairPdfFileName(repair) };
+}
+
+/**
+ * The TCS shipping slip (lib/shipping-slip-pdf.ts, the 4 × 6 label with the barcode) of the booking made from the ERP on an order or
+ * an invoice (op bookTcs). null when there is no such document or it has no live booking (none made here, or cancelled): the label
+ * is only drawn for a consignment the ERP holds. Staff get it as well as owners: they book the parcel and pack it.
+ */
+export async function shippingSlipPdf(kind: 'order' | 'invoice', id: string): Promise<ServerPdf | null> {
+  if (!isDocId(id)) return null;
+  const snap = await adminDb.collection(kind === 'order' ? 'orders' : 'invoices').doc(id).get();
+  if (!snap.exists) return null;
+  const booking = (snap.data() as { tcsBooking?: TcsBooking } | undefined)?.tcsBooking;
+  if (!booking?.cn || booking.cancelledAt) return null;
+  const doc = drawShippingSlipPdf(booking, { name: STORE_CONFIG.name, address: STORE_CONFIG.address, phone: STORE_CONFIG.contact1Number });
+  return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: shippingSlipFileName(booking) };
 }
 
 /**
