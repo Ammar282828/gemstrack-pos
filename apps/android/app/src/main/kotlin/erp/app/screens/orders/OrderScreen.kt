@@ -109,6 +109,8 @@ import erp.core.logic.pieceCounts
 import erp.core.logic.stageOf
 import erp.core.logic.PromiseState
 import erp.core.logic.Money
+import erp.core.logic.TcsCourier
+import erp.core.models.TcsBooking
 import erp.core.models.Invoice
 import erp.core.models.Order
 import erp.core.models.OrderStatus
@@ -120,7 +122,7 @@ import java.time.Instant
  * One order (src/app/orders/[id]/page.tsx): who it is for, where it stands, its pieces with their karigars, and the
  * money. Setting the status, ticking a piece done, recording an advance, editing, finalizing, the slip, cancelling
  * or unlocking the invoice, refunding, deleting (behind the delete code), booking and tracking the courier and
- * sending the customer an update are native (OrderUndoSheets, OrderCourierSheet, OrderTrackingSheet,
+ * sending the customer an update are native (OrderUndoSheets, OrderCourierSheet, BookTcsSheet, OrderTrackingCard,
  * OrderLeopardsSheet, OrderNotifySheet); giving a piece out is the Workshop's.
  *
  * The page reads as the ledger (reordered in the iPhone review of 2026-10-12): the hero card first (who it is for,
@@ -169,7 +171,11 @@ private fun Detail(shelfOrder: Order) {
     // What the person just did, until the books say so: a status or a tick leaves at once (Outbox).
     val localStatus = rememberLocalChanges<String, String>()
     val localDone = rememberLocalChanges<Int, Boolean>()
-    val order = OrdersLocal.shown(shelfOrder, localStatus["status"], localDone.entries.toMap())
+    // A TCS booking made or cancelled here shows at once; the books catch up (TcsCourier.withLocal drops each as the order carries it).
+    var bookedNow by remember { mutableStateOf<TcsBooking?>(null) }
+    var cancelledCn by remember { mutableStateOf<String?>(null) }
+    val shownAt = remember(bookedNow, cancelledCn) { Instant.now().toString() }
+    val order = TcsCourier.withLocal(OrdersLocal.shown(shelfOrder, localStatus["status"], localDone.entries.toMap()), bookedNow, cancelledCn, shownAt)
     LaunchedEffect(shelfOrder) {
         localStatus.reconcile { _, s -> OrdersLocal.statusAgrees(shelfOrder, s) }
         localDone.reconcile { i, d -> OrdersLocal.doneAgrees(shelfOrder, i, d) }
@@ -181,7 +187,12 @@ private fun Detail(shelfOrder: Order) {
     var failure by remember { mutableStateOf<String?>(null) }
     var undo by remember { mutableStateOf<OrderUndoAsk?>(null) }
     var booking by remember { mutableStateOf(false) }
-    var tracking by remember { mutableStateOf(false) }
+    /** The older way to book, through Shopify and Universal Courier (owners). */
+    var bookingViaShopify by remember { mutableStateOf(false) }
+    /** The menu's Track: the Tracking card asks again and the page scrolls to it. */
+    var trackRefresh by remember { mutableIntStateOf(0) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val mayBook = role == "owner" || role == "staff"
     var leopardsOpen by remember { mutableStateOf(false) }
     var notifying by remember { mutableStateOf(false) }
     var sendingToKarigar by remember { mutableStateOf(false) }
@@ -263,8 +274,13 @@ private fun Detail(shelfOrder: Order) {
                 order, order.status.rawValue, invoice?.balanceDue ?: 0.0, customer,
             ) else null,
             onSafepay = { safepay = it },
-            onTrack = { tracking = true },
+            onTrack = {
+                trackRefresh++
+                scope.launch { listState.animateScrollToItem(trackingIndex(order, told != null)) }
+            },
             onBook = { booking = true },
+            mayBook = mayBook,
+            onShippingSlip = TcsCourier.liveBooking(order)?.let { b -> { quick.share(TcsCourier.slipPath("order", order.id), TcsCourier.slipFileName(b.cn), "TCS ${b.cn}") } },
             onUndo = { undo = it },
             onWeb = { navigator.open(OrderPaths.orderPage(order.id)) },
             // Gold moves: Edit order (before an invoice) or Edit invoice (after), opened at the rates. Owners', as those are.
@@ -277,6 +293,7 @@ private fun Detail(shelfOrder: Order) {
     Column(Modifier.fillMaxSize()) {
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(), // the 820 column is PlaceScreen's (readableWidth)
+            state = listState,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -292,6 +309,12 @@ private fun Detail(shelfOrder: Order) {
             }
             if (OrdersLogic.isOnline(order)) item("online") { OrderOnlineSection(order, leopards = { leopardsOpen = true }) }
             item("pieces") { Pieces(order, null, isOwner, onGiveOut = { navigator.open(OrderPaths.giveOut(order.id)) }, onTick = ::tick) }
+            // Where the parcel is, once it has a number or Shopify has shipped it (owners and staff: the counter answers "where is my parcel").
+            if (mayBook && TcsCourier.hasParcel(order)) {
+                item("tracking") { OrderTrackingCard(order, trackRefresh, quick, onCancelled = { cancelledCn = it }) }
+            }
+            // What TCS charged to carry it: owners only.
+            if (TcsCourier.showsCost(order.shippingCost, isOwner)) item("courierCost") { CourierCostCard(order, isOwner) }
             item("money") {
                 if (OrdersLogic.hasInvoice(order)) InvoiceCard(order, invoice, owed, isOwner)
                 else MoneyCard(order)
@@ -321,8 +344,15 @@ private fun Detail(shelfOrder: Order) {
             } else null,
         )
     }
-    if (booking) OrderCourierSheet(order) { booking = false }
-    if (tracking) OrderTrackingSheet(order) { tracking = false }
+    if (booking) {
+        BookTcsSheet(
+            order, isOwner,
+            onDismiss = { booking = false },
+            onShopify = { booking = false; bookingViaShopify = true },
+            onBooked = { bookedNow = it },
+        )
+    }
+    if (bookingViaShopify) OrderCourierSheet(order) { bookingViaShopify = false }
     if (leopardsOpen) OrderLeopardsSheet(order) { leopardsOpen = false }
     if (notifying) OrderNotifySheet(order, onDismiss = { notifying = false })
     if (sendingToKarigar) SendToKarigarSheet(order, onDismiss = { sendingToKarigar = false })
@@ -345,6 +375,10 @@ private fun Detail(shelfOrder: Order) {
     }
     FailureAlert(failure, onDismiss = { failure = null }, title = "Not changed")
 }
+
+/** The Tracking card's place in the list: after the hero, the note, what was just told, the online section and the pieces. */
+private fun trackingIndex(order: Order, told: Boolean): Int =
+    1 + (if (noteText(order) != null) 1 else 0) + (if (told) 1 else 0) + (if (OrdersLogic.isOnline(order)) 1 else 0) + 1
 
 // MARK: Who, what is owed, when, how far
 
@@ -743,6 +777,8 @@ private fun MoreMenu(
     onSafepay: (erp.app.screens.invoices.SafepayRequest) -> Unit,
     onTrack: () -> Unit,
     onBook: () -> Unit,
+    mayBook: Boolean,
+    onShippingSlip: (() -> Unit)?,
     onUndo: (OrderUndoAsk) -> Unit,
     onWeb: () -> Unit,
     onChangeRate: (() -> Unit)? = null,
@@ -751,7 +787,7 @@ private fun MoreMenu(
     val showAdvance = isOwner && OrdersLogic.canAdvance(order) && !(stage != OrderStage.closed && barOffersAdvance)
     val showFinalize = !OrdersLogic.hasInvoice(order) && (order.status == OrderStatus.completed || order.status == OrderStatus.inProgress) && step != OrderNextStep.Finalize
     val tcs = OrderActions.tcsConsignment(order)
-    val canBook = OrderActions.canBookCourier(order, isOwner)
+    val canBook = OrderActions.canBookTcs(order, mayBook)
     val canUndo = OrderActions.canUndoInvoice(order, isOwner)
     val canRefund = OrderActions.canRefund(order, isOwner)
     val canDelete = OrderActions.canDelete(order, isOwner)
@@ -789,10 +825,11 @@ private fun MoreMenu(
         item("Send to karigar", Symbols.Send, onClick = onSendToKarigar)()
         // A card payment link for what is owed (owners and the counter); the ERP records the money when it is paid.
         if (safepayAsk != null) item("Safepay link", Symbols.CreditCard) { onSafepay(safepayAsk) }()
-        if (tcs != null || canBook) {
+        if ((tcs != null && mayBook) || onShippingSlip != null || canBook) {
             HorizontalDivider()
             MenuHeader("Shipping")
-            if (tcs != null) item("Track $tcs", Symbols.Inventory2, onClick = onTrack)()
+            if (tcs != null && mayBook) item("Track $tcs", Symbols.Inventory2, onClick = onTrack)()
+            if (onShippingSlip != null) item("Shipping slip", Symbols.Print, onClick = onShippingSlip)()
             if (canBook) item("Book courier", Symbols.LocalShipping, onClick = onBook)()
         }
         HorizontalDivider()

@@ -43,6 +43,7 @@ const { GET: invoiceGET } = await import('./invoice/[id]/route');
 const { GET: slipGET } = await import('./order-slip/[id]/route');
 const { POST: whatsappPOST } = await import('./invoice/[id]/whatsapp/route');
 const { GET: orderGET } = await import('./order/[id]/route');
+const { GET: shipGET } = await import('./shipping-slip/[id]/route');
 const { POST: sendDocPOST } = await import('../whatsapp/send-doc/route');
 
 const headers = (email: string | null): Record<string, string> => (email ? { authorization: `Bearer ${email}` } : {});
@@ -267,5 +268,51 @@ describe('/api/app/whatsapp/send-doc', () => {
     expect((await post({ kind: 'invoice', id: 'INV-1' }, null)).status).toBe(401);
     expect((await post({ kind: 'invoice', id: 'INV-1' }, 'mkt@example.com')).status).toBe(403);
     expect((await post({ kind: 'invoice', id: 'INV-1' }, 'staff@example.com')).status).toBe(200);
+  });
+});
+
+describe('/api/app/pdf/shipping-slip/[id]', () => {
+  const booking = {
+    cn: '779412345678', bookedAt: '2026-11-09T10:00:00Z', by: 'owner@example.com', codAmount: 12500, destinationCity: 'Lahore', weight: 0.5, pieces: 1,
+    reference: '#1460', consignee: { name: 'Ayesha Khan', address: 'House 12, Street 4, DHA Phase 5', mobile: '03001234567' }, originCity: 'Karachi',
+  };
+  const getShip = async (id: string, email: string | null = 'owner@example.com', kind = '') =>
+    shipGET(new NextRequest(`https://erp.example.com/api/app/pdf/shipping-slip/${encodeURIComponent(id)}${kind ? `?kind=${kind}` : ''}`, { headers: headers(email) }), { params: Promise.resolve({ id }) });
+
+  it("the 4 × 6 label of an order's booking, named by its number", async () => {
+    col('orders')['ORD-1'].tcsBooking = booking;
+    const res = await getShip('ORD-1');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    expect(res.headers.get('content-disposition')).toContain('filename="TCS-779412345678.pdf"');
+    const t = await text(res);
+    expect(t.startsWith('%PDF')).toBe(true);
+    expect(t).toContain('779412345678');
+    expect(t).toContain('PKR 12,500');
+    expect(t).toContain('LAHORE');
+  });
+
+  it('an invoice with ?kind=invoice, and staff may print it', async () => {
+    col('invoices')['INV-1'].tcsBooking = { ...booking, codAmount: 0 };
+    const res = await getShip('INV-1', 'staff@example.com', 'invoice');
+    expect(res.status).toBe(200);
+    expect(await text(res)).toContain('Nothing to collect');
+    // The same id read as an order is another document.
+    expect((await getShip('INV-1')).status).toBe(404);
+  });
+
+  it('nothing to print: no booking, a cancelled one, no such order, not an id', async () => {
+    expect((await getShip('ORD-1')).status).toBe(404);
+    col('orders')['ORD-1'].tcsBooking = { ...booking, cancelledAt: '2026-11-09T12:00:00Z' };
+    expect((await getShip('ORD-1')).status).toBe(404);
+    expect((await getShip('ORD-404')).status).toBe(404);
+    expect((await getShip('../customers/CUS-1')).status).toBe(404);
+  });
+
+  it('owners and staff only', async () => {
+    col('orders')['ORD-1'].tcsBooking = booking;
+    expect((await getShip('ORD-1', null)).status).toBe(401);
+    expect((await getShip('ORD-1', 'mkt@example.com')).status).toBe(403);
+    expect((await getShip('ORD-1', 'staff@example.com')).status).toBe(200);
   });
 });

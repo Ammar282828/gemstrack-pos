@@ -57,6 +57,12 @@ object OrderActions {
         return header || menu
     }
 
+    /**
+     * Book courier, as the page now offers it (TCS straight from the ERP: components/order/tcs-shipping.tsx): the same places as
+     * [canBookCourier], for owners and staff, who both book (op bookTcs). The sheet keeps the Shopify way beneath it for owners.
+     */
+    fun canBookTcs(o: Order, mayBook: Boolean): Boolean = canBookCourier(o, isOwner = true) && mayBook
+
     /** Online orders only (website-order-panel.tsx): booked once the transfer is in, followed once booked. */
     fun isOnline(o: Order): Boolean = o.source == erp.core.models.CustomerSource.website && o.website != null
 

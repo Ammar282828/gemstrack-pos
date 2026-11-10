@@ -39,6 +39,9 @@ final class MacInvoiceDesk {
     var paymentOutcome: InvoiceActionOutcome?
     /// Import Shopify orders (CSV): an owner's.
     var importing = false
+    /// An open Shopify sale on its way to becoming an order (`shopifyConvertFlow`: what it does, the delete code, then the
+    /// order opens): an owner's, in the house with the Shopify section.
+    var converting: ShopifyConvertRequest?
     /// A page to push where there is no window to open it in (a record window's Edit).
     var web: Route?
     /// What was done, said for a few seconds.
@@ -96,6 +99,15 @@ struct MacInvoiceSheetHost: ViewModifier {
             .invoiceWhatsAppSend(desk.binding(\.sending)) { sent in say(sent) }
             .invoicePaymentLink(desk.binding(\.linking)) { made in say(made) }
             .safepayLinkSheet(desk.binding(\.safepay))
+            // Made into an order: the order opens over the window, as the iPhone's invoice page pushes it; otherwise what
+            // was skipped and why.
+            .shopifyConvertFlow(desk.binding(\.converting)) { (r: ShopifyConvertResult) in
+                if let made = r.converted.first {
+                    desk.web = Route(path: "/orders/" + InvoiceFacts.encode(made.orderId))
+                } else {
+                    Note.show(r.note, in: desk.binding(\.note), reduce: reduceMotion)
+                }
+            }
             .navigationDestination(item: desk.binding(\.web)) { (r: Route) in
                 ScreenRegistry.view(for: r.path)
             }
