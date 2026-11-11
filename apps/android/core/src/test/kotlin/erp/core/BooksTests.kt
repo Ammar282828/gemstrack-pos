@@ -376,6 +376,9 @@ class BooksTests {
         assertEquals(40000.0, y.unpaid, 0.0)
         assertEquals(28000.0, y.profit, 1e-6)
         assertEquals(-2000.0, y.netProfit, 1e-6)
+        // Every invoice piece here is gold: the invoices' 190,000. ORD-1 has no pieces to say its metal, and the extra
+        // revenue's 10,000 is never gold (books.ts yearlySummary).
+        assertEquals(190000.0, y.goldRevenue, 1e-6)
     }
 
     // a house that records its goods (Mina) and sells silver

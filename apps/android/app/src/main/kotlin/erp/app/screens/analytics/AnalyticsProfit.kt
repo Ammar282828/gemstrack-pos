@@ -101,7 +101,7 @@ fun AnaProfitPage(l: AnaLedger, period: AnaPeriodState, pick: (String) -> Unit) 
 
         if (l.years.isNotEmpty()) {
             LedgerSection("Every year", footer = { Text("All of history, whatever period is chosen. Tap a year to look at it.") }) {
-                DividedColumn { for (y in l.years) YearRowView(y, profitWord) { pick("year-${y.year}") } }
+                DividedColumn { for (y in l.years) YearRowView(y, profitWord, goldApart = l.split != null) { pick("year-${y.year}") } }
             }
         }
     }
@@ -110,8 +110,10 @@ fun AnaProfitPage(l: AnaLedger, period: AnaPeriodState, pick: (String) -> Unit) 
 private fun pct(n: Double): String = AnaFormat.fixed(Math.round(n * 10) / 10.0, 1) + "%"
 
 @Composable
-private fun YearRowView(y: YearRow, profitWord: String, onClick: () -> Unit) {
+private fun YearRowView(y: YearRow, profitWord: String, goldApart: Boolean, onClick: () -> Unit) {
     val parts = ArrayList<String>()
+    // Gold apart (Mina): the web's Silver and Gold columns, silver being the rest of the revenue.
+    if (goldApart) parts.add("Silver ${Money.lacCrore(y.revenue - y.goldRevenue)} · Gold ${if (y.goldRevenue > 0) Money.lacCrore(y.goldRevenue) else "—"}")
     parts.add(if (y.unpaid > 0) "Unpaid ${Money.lacCrore(y.unpaid)}" else "Nothing unpaid")
     parts.add("Running costs ${Money.lacCrore(y.expenses)}")
     parts.add("$profitWord ${Money.lacCrore(y.profit)}")
