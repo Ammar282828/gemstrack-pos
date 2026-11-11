@@ -16,6 +16,7 @@
 import { creditDescription, isCreditRow } from '@/lib/invoice-credit';
 import { isWalkInName } from '@/lib/walk-in';
 import { owesMoney, rupees } from '@/lib/money';
+import { settlementOf } from '@/lib/machines/settlement';
 
 type Inv = { id: string; customerId?: string; customerName?: string; balanceDue?: number; status?: string; createdAt?: string };
 type Row = { id: string; linkedInvoiceId?: string; description?: string; cashDebit?: number; cashCredit?: number };
@@ -65,8 +66,8 @@ export function planHisaabSync(invoices: Inv[], rows: Row[], customers: Cust[]):
     const credits = linked.filter((h) => isCreditRow(h, inv.id));
     const customerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim() ?? '']?.id || '';
     // Whole rupees; under a rupee either way is settled (lib/money.ts).
-    const rawBalance = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
-    const balanceDue = Math.abs(rawBalance) < 1 ? 0 : rupees(rawBalance);
+    const settled = settlementOf(inv);
+    const balanceDue = settled.state === 'credit' ? -rupees(settled.credit) : rupees(settled.amountDue);
 
     if (balanceDue > 0) {
       credits.forEach((h) => plan.deletes.push(h.id));

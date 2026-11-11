@@ -105,7 +105,7 @@ describe('/api/app/backup', () => {
     col('customers').c2 = { name: 'B' };
     countFails = 'hisaab';
     const body = await (await backup.GET(req('/api/app/backup', OWNER))).json();
-    expect(body.collections).toHaveLength(13);
+    expect(body.collections).toHaveLength(14);
     expect(body.collections.find((c: { id: string }) => c.id === 'customers')).toEqual({ id: 'customers', label: 'Customers', description: 'Customer contact details', count: 2 });
     expect(body.collections.find((c: { id: string }) => c.id === 'hisaab').count).toBe(-1);
     expect(body.fileName).toMatch(/^gemstrack-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);

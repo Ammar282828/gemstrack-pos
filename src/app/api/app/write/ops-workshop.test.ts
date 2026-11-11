@@ -103,7 +103,8 @@ describe('pay batches', () => {
     expect(batch).toMatchObject({ karigarId: 'k1', label: 'October 2026' });
     // The moment is the server's, not the phone's.
     expect(batch.startDate).not.toBe('1999-01-01T00:00:00.000Z');
-    expect(await run('startPayBatch', { karigarId: 'k1', label: 'Again' })).toEqual({ status: 409, body: { error: 'Ustad Demo already has an open pay batch, "October 2026". Settle it first.' } });
+    // A machine refusal (lib/machines): 409 with the reason, and what is allowed instead.
+    expect(await run('startPayBatch', { karigarId: 'k1', label: 'Again' })).toMatchObject({ status: 409, body: { error: 'Ustad Demo already has an open pay batch, "October 2026". Settle it first.', machine: 'Pay batch' } });
   });
 
   it('refuses a body of the wrong shape', async () => {
@@ -124,7 +125,7 @@ describe('pay batches', () => {
     expect(r?.status).toBe(200);
     expect(r?.body).toMatchObject({ ok: true, batchId: 'b1', totalPaid: 6_000, next: { label: 'October 2026', karigarId: 'k1' } });
     expect(col('karigar_batches').b1).toMatchObject({ totalPaid: 6_000 });
-    expect(await run('settlePayBatch', { batchId: 'b1', expectedTotal: 6_000 })).toEqual({ status: 409, body: { error: '"September 2026" is settled already.' } });
+    expect(await run('settlePayBatch', { batchId: 'b1', expectedTotal: 6_000 })).toMatchObject({ status: 409, body: { error: '"September 2026" is settled already.', machine: 'Pay batch' } });
   });
 
   it('deletes a batch only with the code, after saying one that is gone', async () => {

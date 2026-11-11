@@ -1,8 +1,9 @@
 import type { Order, Payment } from '@/lib/store';
-import { rupees } from '@/lib/money';
+import { owesMoney, rupees } from '@/lib/money';
 import type { ExchangeEntry } from '@/lib/exchange';
 
-export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
+/** 'Nothing due': no balance and nothing ever paid (a 0-total order), which is not the same as paid. */
+export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Nothing due';
 
 /**
  * Whether an order has been paid, from the one number that already knows.
@@ -43,7 +44,9 @@ export function getOrderPaymentStatus(order: Order): PaymentStatus {
   const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
   const totalAdvance = advancePayment + advanceInExchangeValue;
 
-  if (balance <= 0) return 'Paid';
+  // Whole rupees, as everywhere: under 1 rupee either way is settled (lib/money.ts).
+  // An invoiced order's balance follows its invoice (payments taken there leave the advance at 0): settled, so Paid.
+  if (!owesMoney(balance)) return totalAdvance > 0 || balance < 0 || !!order.invoiceId ? 'Paid' : 'Nothing due';
   if (totalAdvance > 0) return 'Partial';
   return 'Unpaid';
 }

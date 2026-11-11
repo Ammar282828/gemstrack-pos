@@ -14,6 +14,7 @@
 import { format, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import type { Order, Invoice } from '@/lib/store';
 import type { RankedName } from './phonetics';
+import { settlementOf } from '@/lib/machines/settlement';
 
 export type DocKind = 'order' | 'invoice';
 
@@ -92,12 +93,13 @@ export function documentsFor(orders: Order[], invoices: Invoice[], now: Date = n
   }
 
   for (const i of invoices) {
-    const balance = typeof i.balanceDue === 'number' ? Math.max(0, i.balanceDue) : 0;
-    const open = balance > 0 && i.status !== 'Refunded';
+    const s = settlementOf(i);
+    const balance = s.amountDue;
+    const open = s.amountDue > 0;
     if (!open && !isRecent(i.createdAt, now)) continue;
     const bits = [
       shortDate(i.createdAt),
-      i.status === 'Refunded' ? 'refunded' : open ? `${rupees(balance)} due` : 'paid',
+      s.state === 'refunded' ? 'refunded' : open ? `${rupees(balance)} due` : 'paid',
     ].filter(Boolean);
     out.push({
       kind: 'invoice', id: i.id, customerId: i.customerId, customerName: i.customerName || 'Walk-in',

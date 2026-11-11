@@ -43,6 +43,8 @@ import { deleteErrorText } from '@/lib/delete-code';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
 import { formatDate } from '@/lib/safe-date';
+import { MoveRefused } from '@/lib/machines/machine';
+import { WorkshopRefusal } from '@/lib/writes/workshop-admin';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -313,11 +315,16 @@ export default function KarigarDetailPage() {
 
   const handleStartNewBatch = async () => {
     if (!newBatchLabel.trim()) return;
-    const result = await createKarigarBatch({ karigarId, label: newBatchLabel.trim(), startDate: new Date().toISOString() });
-    if (result) {
-      toast({ title: "New pay batch started", description: `"${newBatchLabel.trim()}" is now active.` });
-      setIsNewBatchOpen(false);
-      setNewBatchLabel('');
+    try {
+      const result = await createKarigarBatch({ karigarId, label: newBatchLabel.trim(), startDate: new Date().toISOString() });
+      if (result) {
+        toast({ title: "New pay batch started", description: `"${newBatchLabel.trim()}" is now active.` });
+        setIsNewBatchOpen(false);
+        setNewBatchLabel('');
+      }
+    } catch (e) {
+      // Refused: he already has an open batch (started on another phone).
+      toast({ title: 'Not started', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
   };
 
@@ -333,8 +340,8 @@ export default function KarigarDetailPage() {
       }
       setCarryOverLabel('');
       setIsCloseDialogOpen(false);
-    } catch {
-      toast({ title: "Error", description: "Failed to settle hisaab.", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof MoveRefused || e instanceof WorkshopRefusal ? e.message : "Failed to settle hisaab.", variant: "destructive" });
     }
   };
 

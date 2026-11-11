@@ -251,6 +251,7 @@ const shippedOut = (inv: { shopifyFulfillment?: string; shopifyDelivery?: string
   String(inv.shopifyFulfillment || '').toLowerCase() === 'fulfilled' || isShippedOut(inv.shopifyDelivery);
 
 /** What one old Shopify invoice becomes: an open order (workshop), a Completed or Cancelled order beside it, or left. */
+// An invoice's 'Cancelled' below is legacy-readable only: nothing writes it (machines/settlement.ts).
 export function conversionFor(inv: ConvertibleInvoice & { shopifyDelivery?: string }): 'open' | 'Completed' | 'Cancelled' | { skip: string } {
   if (inv.sourceOrderId || inv.orderId || inv.fromOrder) return { skip: 'made from an order already' };
   if (inv.status === 'Refunded' || inv.status === 'Cancelled' || inv.shopifyCancelledAt || inv.shopifyDelivery === 'returned') return 'Cancelled';

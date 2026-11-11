@@ -13,6 +13,7 @@ import type {
 import { rankNames, matchShape, type LearnedAlias, type RankedName, type RosterEntry } from './phonetics';
 import { isWalkInName } from '@/lib/walk-in';
 import { owesMoney } from '@/lib/money';
+import { settlementOf } from '@/lib/machines/settlement';
 
 export type ArgType =
   | 'customer' | 'karigar' | 'person'
@@ -145,7 +146,7 @@ const orderChoice = (o: Order): Choice => ({
 });
 const invoiceChoice = (i: Invoice): Choice => ({
   key: i.id, label: i.id, value: i,
-  detail: [i.customerName || 'Walk-in', i.status === 'Refunded' ? 'refunded' : owesMoney(i.balanceDue) ? `${rs(i.balanceDue)} due` : 'paid'].join(' · '),
+  detail: [i.customerName || 'Walk-in', settlementOf(i).state === 'refunded' ? 'refunded' : owesMoney(i.balanceDue) ? `${rs(i.balanceDue)} due` : 'paid'].join(' · '),
 });
 const repairChoice = (r: Repair): Choice => ({
   key: r.id, label: r.id, value: r,

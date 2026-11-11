@@ -5,6 +5,7 @@
  */
 import { MACHINES } from './index';
 import type { Machine } from './machine';
+import { SETTLEMENT_DERIVED } from './settlement';
 
 type AnyMachine = Machine<string, never>;
 
@@ -14,9 +15,17 @@ export interface MachineJson {
   moves: { from: string[] | '*'; to: string; event: string; when?: string; note?: string }[];
 }
 
-export function machinesJson(): { version: 1; machines: MachineJson[] } {
+/** A status the shop never stores but derives from other fields (labels and tones for the apps, the rule in words). */
+export interface DerivedJson { name: string; field: string; states: string[]; labels: Record<string, string>; tones: Record<string, string>; rule: string }
+
+const DERIVED: readonly DerivedJson[] = [SETTLEMENT_DERIVED].map(d => ({
+  name: d.name, field: d.field, states: [...d.states], labels: { ...d.labels }, tones: { ...d.tones }, rule: d.rule,
+}));
+
+export function machinesJson(): { version: 1; machines: MachineJson[]; derived: DerivedJson[] } {
   return {
     version: 1,
+    derived: DERIVED.map(d => ({ ...d, states: [...d.states], labels: { ...d.labels }, tones: { ...d.tones } })),
     machines: (MACHINES as unknown as AnyMachine[]).map(m => ({
       name: m.name, field: m.field, states: [...m.states], final: [...m.final], labels: { ...m.labels }, tones: { ...m.tones },
       moves: m.moves.map(mv => ({
@@ -48,6 +57,10 @@ export function machinesMarkdown(): string {
       out.push(`| ${mv.from === '*' ? 'any' : mv.from.map(s => `\`${s}\``).join(', ')} | \`${mv.to}\` | ${mv.event} | ${mv.guardNote ?? ''} | ${mv.note ?? ''} |`);
     }
     out.push('');
+  }
+  out.push('## Derived states', '', 'Not stored: worked out from other fields by one function each (`src/lib/machines/settlement.ts`), so every screen, PDF and message agrees.', '');
+  for (const d of DERIVED) {
+    out.push(`### ${d.name}`, '', `\`${d.field}\` · states: ${d.states.map(s => `\`${s}\` (${d.labels[s]}, ${d.tones[s]})`).join(', ')}`, '', d.rule, '');
   }
   return out.join('\n');
 }

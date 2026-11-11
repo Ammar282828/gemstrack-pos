@@ -258,7 +258,7 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
           if (!orderId || !(ORDER_STATUSES as readonly string[]).includes(status)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
           // A refund is "Refund order" (the invoice undone, stock back, the delete code), never a relabel.
           if (status === 'Refunded') return NextResponse.json({ error: 'Refund an order from its page (Refund order).' }, { status: 400 });
-          const out = await setOrderStatus(adminPort, { orderId, status }, { log, notify: id => alert({ event: 'order-status', id, status }) });
+          const out = await setOrderStatus(adminPort, { orderId, status, from: text(body.from) || undefined }, { log, notify: id => alert({ event: 'order-status', id, status }) });
           // Cancelled drops the order's Shopify draft, as the browser does.
           if (status === 'Cancelled') followUps.push({ path: '/api/shopify/sync/order', body: { orderId, action: 'cancel' } });
           return NextResponse.json({ ok: true, ...out, alerted: alertsOnStatus(status), followUps });
@@ -442,7 +442,7 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
           const id = text(body.repairId);
           const status = text(body.status) as RepairStatus;
           if (!id || !(REPAIR_STATUSES as readonly string[]).includes(status)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
-          await setRepairStatus(adminPort, id, status, {}, { log });
+          await setRepairStatus(adminPort, id, status, { from: text(body.from) || undefined }, { log });
           return NextResponse.json({ ok: true, repairId: id, status, followUps });
         }
 

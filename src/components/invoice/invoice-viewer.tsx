@@ -428,7 +428,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
               <div className="flex shrink-0 flex-col items-end gap-1 pb-1">
                 {owesMoney(invoice.balanceDue) ? (
                   <Pill tone="owed">PKR {(invoice.balanceDue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} due</Pill>
-                ) : balanceLine(invoice.balanceDue).state === 'credit' ? (
+                ) : balanceLine(invoice.balanceDue, invoice.status).state === 'credit' ? (
                   <Pill tone="credit">PKR {balanceLine(invoice.balanceDue).amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit</Pill>
                 ) : (
                   <Pill tone="settled">Paid in full</Pill>
@@ -638,7 +638,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                         {invoice.amountPaid > 0 && (
                           <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         )}
-                        <div className={cn('flex justify-end items-center gap-4 font-semibold', owesMoney(invoice.balanceDue) ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                        <div className={cn('flex justify-end items-center gap-4 font-semibold', owesMoney(invoice.balanceDue) && invoice.status !== 'Refunded' ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue, invoice.status).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue, invoice.status).state === 'credit' ? 'Credit to customer' : balanceLine(invoice.balanceDue, invoice.status).state === 'refunded' ? 'Refunded' : 'Balance due'}:</span> <span className="w-32">PKR {(invoice.status === 'Refunded' ? 0 : Math.abs(invoice.balanceDue)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                      </div>
                 </div>
 

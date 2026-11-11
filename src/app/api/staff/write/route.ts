@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         // The rule every path writes (lib/writes/order-status.ts): completing an order completes
         // every piece in it, so an order finished at the counter does not linger on the Workshop board.
         try {
-          await setOrderStatus(adminPort, { orderId, status: status as SettableStatus }, { log });
+          await setOrderStatus(adminPort, { orderId, status: status as SettableStatus, from: String(body.from || '').trim() || undefined }, { log });
         } catch (e) {
           if (e instanceof Error && e.message === 'No such order') return NextResponse.json({ error: 'No such order' }, { status: 404 });
           throw e;

@@ -17,12 +17,23 @@ export interface ShopifyInvoiceLike {
 export const isShopifyInvoice = (inv: { source?: string } | null | undefined): boolean =>
   !!inv && typeof inv.source === 'string' && inv.source.startsWith('shopify');
 
-export type ShopifyChip = 'all' | 'confirm' | 'unpaid' | 'paid' | 'cancelled';
+export type ShopifyChip = 'all' | 'confirm' | 'declined' | 'unpaid' | 'paid' | 'cancelled';
 
-/** Cancelled: the customer asked to cancel on WhatsApp, Shopify cancelled it, or the invoice was refunded. */
+/**
+ * Cancelled: Shopify cancelled it, or the order/invoice itself is Cancelled or Refunded (the ORDER machine's say, lib/machines).
+ * A customer's "2 / Cancel" on WhatsApp is only a request (`isCancelRequested`): nothing is cancelled until a person does it, so
+ * the order stays open, and stays under Unpaid/Paid, until then (2026-11-11; it was closed silently before).
+ */
+// 'Cancelled' is not an invoice status and nothing writes it (machines/settlement.ts): read here for old data only.
 export function isShopifyCancelled(inv: ShopifyInvoiceLike): boolean {
-  return inv.whatsappOrder?.state === 'declined' || !!inv.shopifyCancelledAt || inv.status === 'Refunded' || inv.status === 'Cancelled';
+  return !!inv.shopifyCancelledAt || inv.status === 'Refunded' || inv.status === 'Cancelled';
 }
+
+/** The customer declined on WhatsApp and the order is not cancelled yet: it asks the shop "customer declined — cancel it?". */
+export function isCancelRequested(inv: ShopifyInvoiceLike): boolean {
+  return inv.whatsappOrder?.state === 'declined' && !isShopifyCancelled(inv);
+}
+export const CANCEL_REQUESTED_NOTE = 'Customer declined on WhatsApp — cancel the order?';
 
 /** To confirm: the confirmation message went out and the customer has not answered (not confirmed, not cancelled). */
 export function isToConfirm(inv: ShopifyInvoiceLike): boolean {
@@ -34,6 +45,7 @@ export function shopifyChipsOf(inv: ShopifyInvoiceLike): ShopifyChip[] {
   if (isShopifyCancelled(inv)) return ['all', 'cancelled'];
   const out: ShopifyChip[] = ['all'];
   if (isToConfirm(inv)) out.push('confirm');
+  if (isCancelRequested(inv)) out.push('declined');
   out.push(owesMoney(inv.balanceDue ?? 0) ? 'unpaid' : 'paid');
   return out;
 }

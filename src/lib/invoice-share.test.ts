@@ -26,4 +26,12 @@ describe('what the customer sees of an invoice', () => {
     expect(invoiceWhatsAppCaption({ customerName: 'Fatima', grandTotal: 200000, exchanges: [{ description: 'chain', value: 50000 }], amountPaid: 200000, balanceDue: 0 }, 'Taheri')).toContain('*Total:* PKR 250,000');
     expect(invoiceWhatsAppCaption({ customerName: 'Walk-in Customer', grandTotal: 5000 }, 'Taheri')).not.toContain('Paid');
   });
+
+  it('a refunded or voided invoice says Refunded, never a balance due', () => {
+    // A Shopify-voided invoice used to keep its old balance beside status Refunded.
+    const c = invoiceWhatsAppCaption({ customerName: 'Fatima', grandTotal: 11850, amountPaid: 0, balanceDue: 11850, status: 'Refunded' }, 'Taheri');
+    expect(c).toContain('*Status:* Refunded');
+    expect(c).not.toMatch(/Balance due/i);
+    expect(invoiceWhatsAppCaption({ customerName: 'Fatima', grandTotal: 5000, amountPaid: 2000, balanceDue: 3000, status: 'Refunded' }, 'Taheri')).not.toMatch(/Balance due|Paid:/);
+  });
 });

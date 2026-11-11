@@ -279,7 +279,8 @@ export async function mirrorShopifyOrder(
       ...extra,
       shopifySyncedAt: new Date().toISOString(),
       ...(plan.added.length && { paymentHistory: plan.paymentHistory, amountPaid: plan.amountPaid, balanceDue: plan.balanceDue }),
-      ...(plan.voids && { status: 'Refunded', refundedAt: plan.fields.shopifyCancelledAt }),
+      // A voided invoice owes nothing: its balance goes to 0 with its status (it kept the old balance, so it read Refunded yet Balance due).
+      ...(plan.voids && { status: 'Refunded', refundedAt: plan.fields.shopifyCancelledAt, balanceDue: 0 }),
     });
     // Voided, it owes nothing: its ledger row goes as a paid one's does.
     if (plan.added.length || plan.voids) followBalance(db, tx, invoiceId, invoice, linked, plan.voids ? 0 : plan.balanceDue, false);

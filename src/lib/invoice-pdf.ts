@@ -309,6 +309,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     if (inv.exchangeAmount2) totalRows.push({ label: '', value: `- ${pkr(inv.exchangeAmount2)}` });
   }
   const history = inv.paymentHistory || [];
+  const settleLine = balanceLine(inv.balanceDue, inv.status);
   const totalsOpts = {
     pageWidth, pageHeight, margin, onNewPage: drawHeader,
     rows: totalRows,
@@ -318,7 +319,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
       : inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
     closing: inv.bill
       ? { label: inv.bill.balance < 0 ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.bill.balance)) }
-      : inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
+      : settleLine.state === 'refunded' ? { label: 'Balance', value: 'Refunded' }
+      : inv.amountPaid > 0 ? { label: settleLine.state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
     // Nothing here reserves the footer: it is drawn once, after the last block, shrinking into
     // whatever room the last page has left (it never adds a page).
     bottomReserve: margin,

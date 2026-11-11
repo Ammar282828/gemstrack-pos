@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orderAdvancePayments, orderFullTotal, withoutOrderAdvance } from './order-payment';
+import { getOrderPaymentStatus, orderAdvancePayments, orderFullTotal, withoutOrderAdvance } from './order-payment';
 
 const base = { id: 'ORD-000123', createdAt: '2026-09-01T10:00:00.000Z' };
 
@@ -60,5 +60,23 @@ describe('orderFullTotal', () => {
   });
   it('puts the advances back on the balance when no subtotal was kept', () => {
     expect(orderFullTotal({ subtotal: 0, advancePayment: 40000, advanceInExchangeValue: 0, grandTotal: 60000 } as never)).toBe(100000);
+  });
+});
+
+describe('getOrderPaymentStatus', () => {
+  const o = (over: Record<string, unknown>) => ({ id: 'O', grandTotal: 0, advancePayment: 0, ...over }) as never;
+  it('owing is Unpaid, or Partial once an advance is down', () => {
+    expect(getOrderPaymentStatus(o({ grandTotal: 40_000 }))).toBe('Unpaid');
+    expect(getOrderPaymentStatus(o({ grandTotal: 40_000, advancePayment: 60_000 }))).toBe('Partial');
+    expect(getOrderPaymentStatus(o({ grandTotal: 40_000, advanceInExchangeValue: 5_000 }))).toBe('Partial');
+  });
+  it('nothing left after money was paid is Paid', () => {
+    expect(getOrderPaymentStatus(o({ grandTotal: 0, advancePayment: 100_000 }))).toBe('Paid');
+    expect(getOrderPaymentStatus(o({ grandTotal: 0.4, advancePayment: 100_000 }))).toBe('Paid');
+    expect(getOrderPaymentStatus(o({ grandTotal: 0, invoiceId: 'INV-1' }))).toBe('Paid');
+  });
+  it('a 0-total order with nothing paid owes nothing: Nothing due, not Paid', () => {
+    expect(getOrderPaymentStatus(o({ grandTotal: 0 }))).toBe('Nothing due');
+    expect(getOrderPaymentStatus(o({}))).toBe('Nothing due');
   });
 });

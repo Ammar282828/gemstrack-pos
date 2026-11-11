@@ -10,9 +10,12 @@
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Expense } from '@/lib/store';
+import type { PayBatch } from '@/lib/karigar-pay';
 import { cleanObject } from './create-invoice';
+import { assertBatchTakesPayment, markFiled } from './workshop-admin';
 
 const EXPENSES = 'expenses';
+const BATCHES = 'karigar_batches';
 const LEDGER = { ammar: 'ammar_ledger', mina: 'mina_ledger' } as const;
 
 export async function addExpense(db: DbPort, input: Omit<Expense, 'id'>, fx: SideEffects = {}): Promise<Expense> {
@@ -22,20 +25,31 @@ export async function addExpense(db: DbPort, input: Omit<Expense, 'id'>, fx: Sid
   const ledgerEntryId = ledger ? db.newId(ledger) : undefined;
   const persisted = cleanObject({ ...input, ...(ledgerEntryId && { ledgerEntryId }) }) as Omit<Expense, 'id'>;
 
-  const b = db.batch();
-  if (ledger && ledgerEntryId) {
-    b.set(ledger, ledgerEntryId, {
-      type: 'payment',
-      category: 'loan',
-      description: `Expense paid: ${input.description}`,
-      amount: input.amount,
-      date: db.timestamp(new Date(input.date)),
-      createdAt: db.serverTime(),
-      linkedExpenseId: id,
+  const ledgerRow = ledger && ledgerEntryId ? {
+    type: 'payment',
+    category: 'loan',
+    description: `Expense paid: ${input.description}`,
+    amount: input.amount,
+    date: db.timestamp(new Date(input.date)),
+    createdAt: db.serverTime(),
+    linkedExpenseId: id,
+  } : null;
+
+  if (input.batchId) {
+    // Filed under a karigar's pay batch: the batch is read in the same transaction, so a payment cannot land on one that was just settled.
+    await db.runTransaction(async (tx) => {
+      const batch = await tx.get<PayBatch>(BATCHES, input.batchId!);
+      assertBatchTakesPayment(batch);
+      if (batch) markFiled(db, tx, input.batchId!);
+      if (ledger && ledgerEntryId && ledgerRow) tx.set(ledger, ledgerEntryId, ledgerRow);
+      tx.set(EXPENSES, id, persisted as unknown as Record<string, unknown>);
     });
+  } else {
+    const b = db.batch();
+    if (ledger && ledgerEntryId && ledgerRow) b.set(ledger, ledgerEntryId, ledgerRow);
+    b.set(EXPENSES, id, persisted as unknown as Record<string, unknown>);
+    await b.commit();
   }
-  b.set(EXPENSES, id, persisted as unknown as Record<string, unknown>);
-  await b.commit();
 
   void Promise.resolve(fx.log?.('expense.create', `Added expense: ${input.description}`,
     `Category: ${input.category} | Amount: ${input.amount.toLocaleString()}${paidBy && paidBy !== 'business' ? ` | Paid by: ${paidBy}` : ''}`, id)).catch(() => undefined);

@@ -26,6 +26,7 @@ import {
 } from '@/lib/writes/workshop-admin';
 import type { OpHandler, OpRoles } from './op-context';
 import { STORE_TAKEN_BY } from '@/lib/store-config';
+import { moveRefusedResponse } from '@/lib/machines/http';
 
 /** Who may run each operation: as the browser allows it today. */
 export const WORKSHOP_OPS: OpRoles = {
@@ -79,7 +80,7 @@ const instantOf = (v: unknown): string | null => {
 const CATEGORY_IDS = new Set(staticCategories.map((c) => c.id));
 
 /** A record that was refused (gone, settled, changed since) answers 409 with the shared write's words. */
-const refused = (e: unknown) => (e instanceof WorkshopRefusal ? bad(e.message, 409) : null);
+const refused = (e: unknown) => (e instanceof WorkshopRefusal ? bad(e.message, 409) : moveRefusedResponse(e));
 
 export const runWorkshopOp: OpHandler = async (op, body, ctx) => {
   const fx = { log: ctx.log };

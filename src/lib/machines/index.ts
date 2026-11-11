@@ -6,8 +6,14 @@
  * Link     payment_links/<token>.state    a Safepay link: open → paid / expired (a late payment still counts)
  * Online   online_orders/<id>.state       a website order waiting for a person to confirm it
  * Booking  orders/<id>.tcsBooking         a TCS parcel booked from the ERP, cancelled
+ * Batch    karigar_batches/<id>           a karigar's pay batch: open → settled (closedDate), then final
+ * Queue    social_queue/<id>.status       the post queue: held / scheduled → sending (a lease) → sent / failed; AI approval a guard
+ * Order WhatsApp  shopify_whatsapp/<id>.state  a web order's WhatsApp conversation; failed is recoverable by the customer's reply
  */
 import { defineMachine } from './machine';
+import { QUEUE } from './queue';
+import { WHATSAPP_FLOW } from './whatsapp-flow';
+export { QUEUE, WHATSAPP_FLOW };
 import { owesMoney } from '@/lib/money';
 
 // ── Order ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -130,8 +136,34 @@ export const BOOKING = defineMachine<BookingState, BookingCtx>({
   ],
 });
 
+// ── Karigar pay batch ───────────────────────────────────────────────────────────────────────────────────────────────
+
+export const BATCH_STATES = ['open', 'closed'] as const;
+export type BatchState = typeof BATCH_STATES[number];
+
+/**
+ * A batch has no status field: it is open until it has a `closedDate` (lib/karigar-pay.ts isOpenBatch). `sameIsNoop` is off so a
+ * move from a state to itself is looked up like any other: only an open batch can be settled again (never) or have a payment filed.
+ */
+export const BATCH = defineMachine<BatchState, Record<string, never>>({
+  name: 'Pay batch',
+  field: 'karigar_batches/<id>.closedDate',
+  states: BATCH_STATES,
+  labels: { open: 'Open', closed: 'Settled' },
+  tones: { open: 'working', closed: 'quiet' },
+  final: ['closed'],
+  sameIsNoop: false,
+  moves: [
+    { from: ['open'], to: 'closed', event: 'settle', note: 'Settle & Close / Carry Over: the total is worked out on the server from its payments, in the same transaction; one open batch per karigar (karigar_batch_locks/<karigarId>)' },
+    { from: ['open'], to: 'open', event: 'file', note: 'a payment (expense) filed under it; refused once it is settled' },
+  ],
+});
+
+/** Where a batch stands, from its fields. */
+export const batchStateOf = (b: { closedDate?: string | null }): BatchState => (b.closedDate ? 'closed' : 'open');
+
 /** The order of the docs and the export. */
-export const MACHINES = [ORDER, REPAIR, LINK, ONLINE, BOOKING] as const;
+export const MACHINES = [ORDER, REPAIR, LINK, ONLINE, BOOKING, BATCH, QUEUE, WHATSAPP_FLOW] as const;
 
 /** Where a booking stands, from the order's fields. */
 export function bookingStateOf(o: { tcsBooking?: { cancelledAt?: string | null; cn?: string | null } | null; tcsPending?: unknown }): BookingState {

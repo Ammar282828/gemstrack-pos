@@ -34,16 +34,19 @@ const pkr = (n: unknown) => `PKR ${Math.round(Number(n) || 0).toLocaleString('en
 
 /** The words under the PDF on WhatsApp: who it is for and what is owed — no number, no link. */
 export function invoiceWhatsAppCaption(
-  inv: Named & { grandTotal?: number; amountPaid?: number; balanceDue?: number } & Parameters<typeof invoiceSaleValue>[0],
+  inv: Named & { grandTotal?: number; amountPaid?: number; balanceDue?: number; status?: string } & Parameters<typeof invoiceSaleValue>[0],
   shopName: string,
 ): string {
   const name = clean(String(inv.customerName || ''));
   const lines = [`Dear ${name && !isWalkInName(name) ? name : 'Customer'},`, '', `Your invoice from ${shopName} is attached.`, ''];
   // The full sale, not what is left after the exchange gold (owner, 2026-11-03).
   lines.push(`*Total:* ${pkr(invoiceSaleValue(inv))}`);
-  if ((inv.amountPaid || 0) > 0) {
+  const b = balanceLine(inv.balanceDue, inv.status);
+  if (b.state === 'refunded') {
+    // A voided or refunded invoice owes nothing, whatever its balance still says.
+    lines.push('*Status:* Refunded');
+  } else if ((inv.amountPaid || 0) > 0) {
     lines.push(`*Paid:* ${pkr(inv.amountPaid)}`);
-    const b = balanceLine(inv.balanceDue);
     lines.push(b.state === 'credit' ? `*Credit to you:* ${pkr(b.amount)}` : `*Balance due:* ${pkr(inv.balanceDue)}`);
   }
   lines.push('', 'Thank you for your business.');

@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
+import { MoveRefused } from '@/lib/machines/machine';
+import { addExpense } from './expenses';
+import { updateExpense } from './expense-admin';
 import {
   addSilverEntry, addStockJob, deleteGivenItem, deletePayBatch, deleteSilverEntry, deleteStockJob, removeKarigar,
   setInvoicePieceDone, setInvoicePieceGiven, setInvoicePieceKarigar, setStockJobGiven, setStockJobStatus, settlePayBatch,
@@ -66,7 +69,7 @@ beforeEach(() => {
 
 const refusedWith = async (p: Promise<unknown>, words: RegExp) => {
   const e = await p.then(() => null, (x: unknown) => x);
-  expect(e).toBeInstanceOf(WorkshopRefusal);
+  expect(e instanceof WorkshopRefusal || e instanceof MoveRefused).toBe(true);
   expect((e as Error).message).toMatch(words);
 };
 
@@ -294,5 +297,116 @@ describe('given items', () => {
     expect(col('given_items').g1).toBeUndefined();
     expect(logged).toEqual([['given.delete', 'Deleted given item: Ring sample', 'ID: g1', 'g1']]);
     await refusedWith(deleteGivenItem(port, { id: 'g1' }), /No such given item/);
+  });
+});
+
+describe('pay batches are a machine: one open per karigar, settled once, closed takes no payment', () => {
+  // Firestore retries a transaction that lost a race, so two transactions on one doc run one after the other.
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial: DbPort = { ...port, runTransaction: (fn) => { const run = queue.then(() => port.runTransaction(fn)); queue = run.catch(() => undefined); return run as never; } };
+
+  it('two phones starting at once open ONE batch', async () => {
+    const results = await Promise.allSettled([
+      startPayBatch(serial, { karigarId: 'k1', label: 'October', startDate: NOW }),
+      startPayBatch(serial, { karigarId: 'k1', label: 'October (second phone)', startDate: NOW }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual(['fulfilled', 'rejected']);
+    const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    expect(lost.reason).toBeInstanceOf(MoveRefused);
+    expect((lost.reason as MoveRefused).status).toBe(409);
+    expect(Object.keys(col('karigar_batches'))).toHaveLength(1);
+    expect(col('karigar_batch_locks').k1).toEqual({ openBatchId: Object.keys(col('karigar_batches'))[0] });
+  });
+
+  it('a settled batch frees the lock; the next one can start (and a carry-over takes it over)', async () => {
+    const a = await startPayBatch(port, { karigarId: 'k1', label: 'A', startDate: NOW });
+    await settlePayBatch(port, { batchId: a.id, closedDate: NOW });
+    expect(col('karigar_batch_locks').k1).toEqual({ openBatchId: null });
+    const b = await startPayBatch(port, { karigarId: 'k1', label: 'B', startDate: NOW });
+    const out = await settlePayBatch(port, { batchId: b.id, closedDate: NOW, carryOverLabel: 'C' });
+    expect(col('karigar_batch_locks').k1).toEqual({ openBatchId: out.next!.id });
+    await refusedWith(startPayBatch(port, { karigarId: 'k1', label: 'D', startDate: NOW }), /already has an open pay batch, "C"/);
+  });
+
+  it('a lock left pointing at a deleted batch does not block', async () => {
+    const a = await startPayBatch(port, { karigarId: 'k1', label: 'A', startDate: NOW });
+    await deletePayBatch(port, { batchId: a.id });
+    expect((await startPayBatch(port, { karigarId: 'k1', label: 'B', startDate: NOW })).label).toBe('B');
+  });
+
+  it('settling twice: the second is refused and the first total stands', async () => {
+    put('karigar_batches', 'b1', { karigarId: 'k1', label: 'September', startDate: '2026-09-01T00:00:00.000Z' });
+    put('expenses', 'e1', { karigarId: 'k1', batchId: 'b1', amount: 4_000, date: '2026-09-05T00:00:00.000Z' });
+    await settlePayBatch(port, { batchId: 'b1', closedDate: NOW });
+    put('expenses', 'e2', { karigarId: 'k1', batchId: 'b1', amount: 9_000, date: '2026-09-06T00:00:00.000Z' });
+    const second = await settlePayBatch(port, { batchId: 'b1', closedDate: '2026-12-01T00:00:00.000Z', carryOverLabel: 'Next' }).then(() => null, (e: unknown) => e);
+    expect(second).toBeInstanceOf(MoveRefused);
+    expect((second as MoveRefused).message).toMatch(/settled already/);
+    expect(col('karigar_batches').b1).toMatchObject({ closedDate: NOW, totalPaid: 4_000 });
+    expect(Object.keys(col('karigar_batches'))).toEqual(['b1']);
+  });
+
+  it('the total is the payments on file, never a figure from the caller', async () => {
+    put('karigar_batches', 'b1', { karigarId: 'k1', label: 'September', startDate: '2026-09-01T00:00:00.000Z' });
+    put('expenses', 'e1', { karigarId: 'k1', batchId: 'b1', amount: 4_000, date: '2026-09-05T00:00:00.000Z' });
+    // A tampered extra field is ignored: the input has no total to take.
+    const out = await settlePayBatch(port, { batchId: 'b1', closedDate: NOW, totalPaid: 1 } as never);
+    expect(out.totalPaid).toBe(4_000);
+    expect(col('karigar_batches').b1.totalPaid).toBe(4_000);
+  });
+
+  it('a payment cannot be filed under a settled batch (new, or moved there by an edit)', async () => {
+    put('karigar_batches', 'bc', { karigarId: 'k1', label: 'August', startDate: '2026-08-01T00:00:00.000Z', closedDate: '2026-08-31T00:00:00.000Z', totalPaid: 0 });
+    put('karigar_batches', 'bo', { karigarId: 'k1', label: 'September', startDate: '2026-09-01T00:00:00.000Z' });
+    const base = { date: NOW, category: 'Karigar', description: 'Wages', amount: 1_000, paidBy: 'business' as const, karigarId: 'k1' };
+    const e = await addExpense(port, { ...base, batchId: 'bc' }).then(() => null, (x: unknown) => x);
+    expect(e).toBeInstanceOf(MoveRefused);
+    expect((e as MoveRefused).message).toMatch(/"August" is settled/);
+    expect(col('expenses')).toEqual({});
+    // Open batch, no batch and a batch that is gone all still take one, as before.
+    expect((await addExpense(port, { ...base, batchId: 'bo' })).batchId).toBe('bo');
+    expect((await addExpense(port, { ...base })).batchId).toBeUndefined();
+    expect((await addExpense(port, { ...base, batchId: 'gone' })).batchId).toBe('gone');
+    // An edit moving an existing payment onto the settled batch is refused; one already there may be edited.
+    const open = Object.keys(col('expenses'))[0];
+    const edited = await updateExpense(port, open, { ...base, batchId: 'bc' }).then(() => null, (x: unknown) => x);
+    expect(edited).toBeInstanceOf(MoveRefused);
+    put('expenses', 'old', { ...base, batchId: 'bc' });
+    expect((await updateExpense(port, 'old', { ...base, amount: 1_500, batchId: 'bc' })).amount).toBe(1_500);
+  });
+
+  it('a payment filed between settle\'s read of the payments and its commit is counted (settle runs again)', async () => {
+    put('karigar_batches', 'b1', { karigarId: 'k1', label: 'September', startDate: '2026-09-01T00:00:00.000Z' });
+    put('expenses', 'e1', { karigarId: 'k1', batchId: 'b1', amount: 4_000, date: '2026-09-05T00:00:00.000Z' });
+    let injected = false;
+    const racing: DbPort = {
+      ...port,
+      async queryEquals(c, f, v) {
+        const rows = await port.queryEquals(c, f, v) as never; // the payments as settle first sees them
+        if (c === 'expenses' && !injected) {
+          injected = true;
+          await addExpense(port, { date: NOW, category: 'Karigar', description: 'Late', amount: 1_000, paidBy: 'business', karigarId: 'k1', batchId: 'b1' });
+        }
+        return rows;
+      },
+    };
+    const out = await settlePayBatch(racing, { batchId: 'b1', closedDate: NOW });
+    expect(out.totalPaid).toBe(5_000);
+    expect(col('karigar_batches').b1).toMatchObject({ closedDate: NOW, totalPaid: 5_000 });
+    // With an owner's expected total of what he saw before the late payment, the new figure is said, not settled blind.
+  });
+
+  it('gives up after three tries when payments keep arriving', async () => {
+    put('karigar_batches', 'b1', { karigarId: 'k1', label: 'September', startDate: '2026-09-01T00:00:00.000Z' });
+    const busy: DbPort = {
+      ...port,
+      async queryEquals(c, f, v) {
+        const rows = await port.queryEquals(c, f, v) as never;
+        if (c === 'expenses') await addExpense(port, { date: NOW, category: 'Karigar', description: 'Again', amount: 1, paidBy: 'business', karigarId: 'k1', batchId: 'b1' });
+        return rows;
+      },
+    };
+    await refusedWith(settlePayBatch(busy, { batchId: 'b1', closedDate: NOW }), /Try settling again/);
+    expect(col('karigar_batches').b1.closedDate).toBeUndefined();
   });
 });

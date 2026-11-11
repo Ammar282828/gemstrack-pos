@@ -12,6 +12,7 @@ import type { DbPort, SideEffects } from '@/lib/db-port';
 import { statusAfterUntick, statusFromPieces } from '@/lib/order-stage';
 import { ORDER, ORDER_STATES } from '@/lib/machines';
 import { assertMove } from '@/lib/machines/machine';
+import { assertStillIn } from '@/lib/machines/expected';
 
 const ORDERS = 'orders';
 
@@ -48,11 +49,12 @@ export function pieceDonePatch<P extends Piece>(order: OrderLike<P>, index: numb
 /** The statuses whose change raises the WhatsApp alert (Settings decides whether it is sent). */
 export const alertsOnStatus = (s: string) => s === 'Completed' || s === 'Cancelled' || s === 'Refunded';
 
-export async function setOrderStatus(db: DbPort, input: { orderId: string; status: SettableStatus }, fx: SideEffects = {}) {
+export async function setOrderStatus(db: DbPort, input: { orderId: string; status: SettableStatus; /** The status the person saw (an offline replay): refused, 409, if the order has moved on since. */ from?: string }, fx: SideEffects = {}) {
   const { orderId, status } = input;
   const { ticked, noop } = await db.runTransaction(async tx => {
     const order = await tx.get<OrderLike>(ORDERS, orderId);
     if (!order) throw new Error('No such order');
+    assertStillIn(ORDER, 'order', order.status, input.from, status, { invoiced: !!order.invoiceId });
     // The machine (lib/machines): refuses a reopen over an invoice, a relabel as Refunded, a move out of Refunded.
     const { noop } = assertMove(ORDER, order.status, status, 'set', { invoiced: !!order.invoiceId });
     if (noop) return { patch: {}, ticked: 0, noop: true };

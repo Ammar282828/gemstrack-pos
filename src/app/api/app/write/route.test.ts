@@ -211,6 +211,31 @@ describe('orders', () => {
     expect(data.orders['ORD-000003'].status).toBe('Pending');
   });
 
+  it('a status move queued offline carries `from`: refused with 409 when the order moved on meanwhile, applied when it did not', async () => {
+    const stale = await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'Cancelled', from: 'Pending' });
+    expect(stale.status).toBe(409);
+    expect(stale.body).toMatchObject({ machine: 'Order', from: 'In Progress', to: 'Cancelled', error: "This order is now In Progress: your change to Cancelled from Pending wasn't applied." });
+    expect(Array.isArray(stale.body.allowed)).toBe(true);
+    expect(data.orders['ORD-000001'].status).toBe('In Progress');
+    expect(stale.body.followUps).toBeUndefined();
+    const fresh = await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'Pending', from: 'In Progress' });
+    expect(fresh.status).toBe(200);
+    expect(data.orders['ORD-000001'].status).toBe('Pending');
+    // Without `from`, as ever.
+    expect((await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'In Progress' })).status).toBe(200);
+  });
+
+  it('a repair move queued offline carries `from` too', async () => {
+    put('repairs', 'REP-000002', { status: 'collected', pieces: [], payments: [] });
+    const stale = await call({ op: 'setRepairStatus', repairId: 'REP-000002', status: 'ready', from: 'received' });
+    expect(stale.status).toBe(409);
+    expect(stale.body).toMatchObject({ machine: 'Repair', from: 'collected', to: 'ready', error: "This repair is now Collected: your change to Ready from In the shop wasn't applied." });
+    expect(data.repairs['REP-000002'].status).toBe('collected');
+    expect((await call({ op: 'setRepairStatus', repairId: 'REP-000002', status: 'ready', from: 'collected' })).status).toBe(200);
+    expect(data.repairs['REP-000002'].status).toBe('ready');
+    expect((await call({ op: 'setRepairStatus', repairId: 'REP-000002', status: 'received' })).status).toBe(200);
+  });
+
   it('a repair is not collected with money owing (409, the amount), and is when nothing is owed', async () => {
     put('repairs', 'REP-000001', { status: 'ready', pieces: [{ item: 'Ring', work: 'polish', price: 1_500 }], payments: [] });
     const refused = await call({ op: 'setRepairStatus', repairId: 'REP-000001', status: 'collected' });

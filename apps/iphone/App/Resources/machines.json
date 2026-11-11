@@ -1,5 +1,33 @@
 {
   "version": 1,
+  "derived": [
+    {
+      "name": "Invoice settlement",
+      "field": "derived from invoices/<id>.status, balanceDue, amountPaid (never stored)",
+      "states": [
+        "due",
+        "partly",
+        "paid",
+        "credit",
+        "refunded"
+      ],
+      "labels": {
+        "due": "Balance due",
+        "partly": "Balance due",
+        "paid": "Paid in full",
+        "credit": "Credit to customer",
+        "refunded": "Refunded"
+      },
+      "tones": {
+        "due": "late",
+        "partly": "owed",
+        "paid": "settled",
+        "credit": "credit",
+        "refunded": "quiet"
+      },
+      "rule": "status Refunded: refunded. Else in whole rupees (under 1 settled): balance 1 or more: partly if anything was paid, else due; balance -1 or less: credit; otherwise paid."
+    }
+  ],
   "machines": [
     {
       "name": "Order",
@@ -411,6 +439,289 @@
           "to": "cancelled",
           "event": "cancel",
           "when": "the parcel has not left"
+        }
+      ]
+    },
+    {
+      "name": "Pay batch",
+      "field": "karigar_batches/<id>.closedDate",
+      "states": [
+        "open",
+        "closed"
+      ],
+      "final": [
+        "closed"
+      ],
+      "labels": {
+        "open": "Open",
+        "closed": "Settled"
+      },
+      "tones": {
+        "open": "working",
+        "closed": "quiet"
+      },
+      "moves": [
+        {
+          "from": [
+            "open"
+          ],
+          "to": "closed",
+          "event": "settle",
+          "note": "Settle & Close / Carry Over: the total is worked out on the server from its payments, in the same transaction; one open batch per karigar (karigar_batch_locks/<karigarId>)"
+        },
+        {
+          "from": [
+            "open"
+          ],
+          "to": "open",
+          "event": "file",
+          "note": "a payment (expense) filed under it; refused once it is settled"
+        }
+      ]
+    },
+    {
+      "name": "Post queue",
+      "field": "social_queue/<id>.status",
+      "states": [
+        "draft",
+        "held",
+        "scheduled",
+        "sending",
+        "sent",
+        "failed"
+      ],
+      "final": [
+        "sent"
+      ],
+      "labels": {
+        "draft": "Arriving",
+        "held": "Held",
+        "scheduled": "Scheduled",
+        "sending": "Sending",
+        "sent": "Sent",
+        "failed": "Failed"
+      },
+      "tones": {
+        "draft": "quiet",
+        "held": "quiet",
+        "scheduled": "owed",
+        "sending": "working",
+        "sent": "settled",
+        "failed": "late"
+      },
+      "moves": [
+        {
+          "from": [
+            "draft"
+          ],
+          "to": "held",
+          "event": "ready",
+          "note": "every image has arrived"
+        },
+        {
+          "from": [
+            "scheduled",
+            "held"
+          ],
+          "to": "held",
+          "event": "hold",
+          "note": "keeps it until told"
+        },
+        {
+          "from": [
+            "failed"
+          ],
+          "to": "failed",
+          "event": "hold",
+          "note": "clears its time; it stays Failed"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "failed",
+          "event": "hold",
+          "when": "its claim has lapsed",
+          "note": "something may have gone: it stays Failed so the list says what is left"
+        },
+        {
+          "from": [
+            "held",
+            "scheduled",
+            "failed"
+          ],
+          "to": "scheduled",
+          "event": "schedule",
+          "when": "approved if an AI made it",
+          "note": "also how a failed piece gets its tries back"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "scheduled",
+          "event": "schedule",
+          "when": "its claim has lapsed; approved if an AI made it"
+        },
+        {
+          "from": [
+            "scheduled",
+            "failed"
+          ],
+          "to": "sending",
+          "event": "claim",
+          "when": "its time has come, tries left, approved",
+          "note": "the five-minute tick"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "sending",
+          "event": "claim",
+          "when": "its claim has lapsed, its time has come, tries left, approved",
+          "note": "a takeover; recorded in takeovers, and no unit already done is sent again"
+        },
+        {
+          "from": [
+            "held",
+            "scheduled",
+            "failed"
+          ],
+          "to": "sending",
+          "event": "claimNow",
+          "when": "approved if an AI made it",
+          "note": "Send now"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "sending",
+          "event": "claimNow",
+          "when": "its claim has lapsed; approved if an AI made it",
+          "note": "a takeover, as above"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "sent",
+          "event": "sent",
+          "note": "every unit is done; only while still Sending under the sender’s own claim"
+        },
+        {
+          "from": [
+            "sending"
+          ],
+          "to": "failed",
+          "event": "fail",
+          "note": "some units did not go; only while still Sending under the sender’s own claim"
+        }
+      ]
+    },
+    {
+      "name": "Order WhatsApp",
+      "field": "shopify_whatsapp/<order id>.state",
+      "states": [
+        "awaiting-confirmation",
+        "confirmed",
+        "declined",
+        "awaiting-payment",
+        "slip-received",
+        "paid",
+        "sent",
+        "failed",
+        "no-whatsapp"
+      ],
+      "final": [
+        "confirmed",
+        "declined",
+        "paid",
+        "sent",
+        "no-whatsapp"
+      ],
+      "labels": {
+        "awaiting-confirmation": "Awaiting confirmation",
+        "confirmed": "Confirmed on WhatsApp",
+        "declined": "Cancel requested",
+        "awaiting-payment": "Awaiting transfer",
+        "slip-received": "Screenshot sent",
+        "paid": "Paid · thanked on WhatsApp",
+        "sent": "Thanked on WhatsApp",
+        "failed": "WhatsApp did not send",
+        "no-whatsapp": "No WhatsApp"
+      },
+      "tones": {
+        "awaiting-confirmation": "working",
+        "confirmed": "settled",
+        "declined": "late",
+        "awaiting-payment": "working",
+        "slip-received": "owed",
+        "paid": "settled",
+        "sent": "quiet",
+        "failed": "late",
+        "no-whatsapp": "late"
+      },
+      "moves": [
+        {
+          "from": [
+            "awaiting-confirmation",
+            "failed"
+          ],
+          "to": "confirmed",
+          "event": "confirm",
+          "when": "cash on delivery",
+          "note": "the customer answered 1 / Confirm; from Failed too (the message may have arrived)"
+        },
+        {
+          "from": [
+            "awaiting-confirmation",
+            "failed"
+          ],
+          "to": "declined",
+          "event": "decline",
+          "when": "cash on delivery",
+          "note": "the customer answered 2 / Cancel: the shop is asked to cancel it; the order itself is not cancelled"
+        },
+        {
+          "from": [
+            "awaiting-payment",
+            "failed"
+          ],
+          "to": "slip-received",
+          "event": "slip",
+          "when": "bank transfer",
+          "note": "a picture or PDF; from Failed too"
+        },
+        {
+          "from": [
+            "awaiting-payment",
+            "slip-received"
+          ],
+          "to": "paid",
+          "event": "paid",
+          "note": "Shopify says the transfer is paid"
+        },
+        {
+          "from": [
+            "awaiting-confirmation",
+            "awaiting-payment",
+            "sent"
+          ],
+          "to": "failed",
+          "event": "fail",
+          "note": "the send threw; the shop is told. Not once the customer has answered"
+        },
+        {
+          "from": [
+            "awaiting-confirmation",
+            "awaiting-payment",
+            "sent"
+          ],
+          "to": "no-whatsapp",
+          "event": "noWhatsapp",
+          "note": "the number is not on WhatsApp; the shop is told"
         }
       ]
     }

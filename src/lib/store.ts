@@ -215,6 +215,7 @@ import { deleteAdvanceWhat, deleteOrderAdvance as writeDeleteOrderAdvance, remov
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
+import { settlePayBatch as writeSettlePayBatch, startPayBatch as writeStartPayBatch, WorkshopRefusal } from '@/lib/writes/workshop-admin';
 import { mergeCustomers as writeMergeCustomers } from '@/lib/writes/customer-admin';
 import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
 import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
@@ -2566,28 +2567,32 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      // The same write the iPhone app runs on the server (lib/writes/workshop-admin.ts): one transaction, one open batch per karigar.
       createKarigarBatch: async (data) => {
         if(get().settings.databaseLocked) return null;
         try {
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES), data);
-          const newBatch: KarigarBatch = { id: docRef.id, ...data };
+          const started = await writeStartPayBatch(clientPort, { karigarId: data.karigarId, label: data.label, startDate: data.startDate }, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
+          const newBatch: KarigarBatch = { ...data, ...started };
           set(state => { state.karigarBatches.push(newBatch); });
           return newBatch;
         } catch (error) {
           console.error('[GemsTrack Store createKarigarBatch] Error:', error);
+          // A refusal (a second open batch) is said to the person; any other failure stays the null it always was.
+          if (error instanceof MoveRefused || error instanceof WorkshopRefusal) throw error;
           return null;
         }
       },
 
-      closeKarigarBatch: async (batchId, closedDate, totalPaid) => {
+      // `totalPaid` is kept for the callers' signature: the total is worked out from the batch's payments in the write, never taken from here.
+      closeKarigarBatch: async (batchId, closedDate, _totalPaid) => {
         if(get().settings.databaseLocked) return;
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES, batchId), { closedDate, totalPaid }, { merge: true });
+          const settled = await writeSettlePayBatch(clientPort, { batchId, closedDate }, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           set(state => {
             const idx = state.karigarBatches.findIndex(b => b.id === batchId);
             if (idx !== -1) {
-              state.karigarBatches[idx].closedDate = closedDate;
-              state.karigarBatches[idx].totalPaid = totalPaid;
+              state.karigarBatches[idx].closedDate = settled.closedDate;
+              state.karigarBatches[idx].totalPaid = settled.totalPaid;
             }
           });
         } catch (error) {

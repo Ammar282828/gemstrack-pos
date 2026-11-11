@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { settlementOf } from '@/lib/machines/settlement';
 import { mirrorShopifyOrder, recordInvoicePayment, removeInvoicePayment } from './invoice-payment';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 
@@ -168,8 +169,10 @@ describe("Shopify's word on a web order", () => {
     });
     const out = await mirrorShopifyOrder(db, 'SHOPIFY-1406', cancelled, [], {}, {}, { voidWhenCancelled: true });
     expect(out).toMatchObject({ voided: true });
-    expect(data.invoices['SHOPIFY-1406']).toMatchObject({ status: 'Refunded', refundedAt: '2026-09-23T10:43:00Z', shopifyCancelledAt: '2026-09-23T10:43:00Z' });
+    expect(data.invoices['SHOPIFY-1406']).toMatchObject({ status: 'Refunded', balanceDue: 0, refundedAt: '2026-09-23T10:43:00Z', shopifyCancelledAt: '2026-09-23T10:43:00Z' });
     expect(data.hisaab.h1).toBeUndefined();
+    // Settlement reads it as refunded, owing nothing (it used to keep 11,850 as Balance due).
+    expect(settlementOf(data.invoices['SHOPIFY-1406'] as never)).toMatchObject({ state: 'refunded', amountDue: 0 });
     expect(await mirrorShopifyOrder(db, 'SHOPIFY-1406', cancelled, [], {}, {}, { voidWhenCancelled: true })).toMatchObject({ changed: false });
 
     await mirrorShopifyOrder(db, 'SHOPIFY-7', cancelled, [], {}, {}, { voidWhenCancelled: true });

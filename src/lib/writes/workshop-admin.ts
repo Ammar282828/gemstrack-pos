@@ -27,6 +27,8 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { batchTotal, batchPayments, isOpenBatch, silverProblem, silverSurcharge, type PayBatch, type PayExpense } from '@/lib/karigar-pay';
 import { cleanObject } from './create-invoice';
+import { assertMove, movesFrom, MoveRefused } from '@/lib/machines/machine';
+import { BATCH, batchStateOf } from '@/lib/machines';
 
 const KARIGARS = 'karigars';
 const BATCHES = 'karigar_batches';
@@ -69,55 +71,119 @@ async function liveKarigar(db: DbPort, id: string): Promise<KarigarDoc & { id: s
 
 export type NewBatch = { id: string; karigarId: string; label: string; startDate: string };
 
+/** One doc per karigar, `{ openBatchId }`: read and written inside the start/settle transactions, so "one open batch" is checked atomically. */
+const LOCKS = 'karigar_batch_locks';
+
+/** Settling a batch that is already settled: refused with the machine's table (a MoveRefused, so routes answer 409). */
+function assertSettleable(batch: PayBatch): void {
+  try {
+    assertMove(BATCH, batchStateOf(batch), 'closed', 'settle', {});
+  } catch (e) {
+    if (e instanceof MoveRefused) throw new MoveRefused(e.machine, e.from, e.to, e.allowed, `"${batch.label}" is settled already.`);
+    throw e;
+  }
+}
+
+/**
+ * Filing a payment under a batch (expenses.ts addExpense, expense-admin.ts updateExpense): only while it is open. A batch not on
+ * file (deleted) is not refused here: a payment under a vanished batch has always been allowed and shows with the direct ones.
+ */
+export function assertBatchTakesPayment(batch: (Partial<PayBatch> & { label?: string }) | null | undefined): void {
+  if (!batch) return;
+  // (callers then call `markFiled` in the same transaction)
+  try {
+    assertMove(BATCH, batchStateOf(batch), 'open', 'file', {});
+  } catch (e) {
+    if (e instanceof MoveRefused) throw new MoveRefused(e.machine, e.from, e.to, e.allowed, `"${batch.label ?? 'That pay batch'}" is settled: file the payment under his open pay batch, or none.`);
+    throw e;
+  }
+}
+
+/**
+ * Filing a payment under a batch also writes a fresh `filedVersion` on the batch doc, in the same transaction: settle reads the
+ * version before it reads the payments and checks it again inside its own transaction, so a payment filed in between is
+ * never missed (settle runs again and counts it), and Firestore serialises the two on the batch doc as well.
+ */
+export function markFiled(db: DbPort, tx: { set(c: string, id: string, d: Record<string, unknown>, merge?: boolean): void }, batchId: string): void {
+  tx.set(BATCHES, batchId, { filedVersion: db.newId(EXPENSES) }, true);
+}
+
 /**
  * "Start a pay batch": named by the owner ("March 2026"), started now. The page offers it only while he has
  * no open batch, and a second open one is refused here too (a tap on two phones), so his payments have one
- * place to go.
+ * place to go. One transaction: the karigar's lock doc is read and written in it, so two starts at the same moment
+ * cannot both pass (the second is retried by Firestore, sees the first's lock and is refused).
  */
 export async function startPayBatch(db: DbPort, input: { karigarId: string; label: string; startDate: string }, fx: SideEffects = {}): Promise<NewBatch> {
   const label = input.label.trim();
   if (!label) refuse('Give the pay batch a name.');
   const karigar = await liveKarigar(db, input.karigarId);
-  const his = await db.queryEquals<PayBatch>(BATCHES, 'karigarId', input.karigarId);
-  const open = his.find(isOpenBatch);
-  if (open) refuse(`${karigar.name || 'He'} already has an open pay batch, "${open.label}". Settle it first.`);
+  // A batch open from before the locks existed has no lock doc: found by its karigar, as it always was.
+  const legacyOpen = (await db.queryEquals<PayBatch>(BATCHES, 'karigarId', input.karigarId)).find(isOpenBatch);
   const id = db.newId(BATCHES);
   const batch = { karigarId: input.karigarId, label, startDate: input.startDate };
-  const b = db.batch();
-  b.set(BATCHES, id, batch);
-  await b.commit();
+  await db.runTransaction(async (tx) => {
+    const lock = await tx.get<{ openBatchId?: string | null }>(LOCKS, input.karigarId);
+    const held = lock?.openBatchId ? await tx.get<PayBatch>(BATCHES, lock.openBatchId) : null;
+    const open = held && isOpenBatch(held) ? held : legacyOpen;
+    if (open) {
+      throw new MoveRefused(BATCH.name, 'open', 'open', movesFrom(BATCH, 'open'), `${karigar.name || 'He'} already has an open pay batch, "${open.label}". Settle it first.`);
+    }
+    tx.set(BATCHES, id, batch);
+    tx.set(LOCKS, input.karigarId, { openBatchId: id });
+  });
   log(fx, 'karigar.update', `Pay batch started: ${label}`, `Karigar: ${karigar.name || input.karigarId}`, input.karigarId);
   return { id, ...batch };
 }
 
 /**
  * "Settle & Close" (and "Settle & Carry Over"): the batch is closed now with the total it comes to, and, when
- * a name is given for the next, a new batch starts at the same moment. Both in one commit. `expectedTotal`
- * is what the owner was shown: a payment added or removed since makes the total different, and the settle
- * is refused so he sees the new figure first.
+ * a name is given for the next, a new batch starts at the same moment. All in one transaction that first asserts the
+ * batch is open (a second settle is refused, never re-closed), and the total is worked out here from the payments on
+ * file, never taken from a caller. `expectedTotal` is what the owner was shown: a payment added or removed since makes
+ * the total different, and the settle is refused so he sees the new figure first.
  */
 export async function settlePayBatch(
   db: DbPort,
   input: { batchId: string; closedDate: string; expectedTotal?: number; carryOverLabel?: string },
   fx: SideEffects = {},
 ): Promise<{ batchId: string; label: string; karigarId: string; totalPaid: number; closedDate: string; next: NewBatch | null }> {
-  const batch = await db.get<PayBatch>(BATCHES, input.batchId);
-  if (!batch) return refuse('No such pay batch.');
-  if (!isOpenBatch(batch)) refuse(`"${batch.label}" is settled already.`);
-  const filed = await db.queryEquals<PayExpense>(EXPENSES, 'batchId', batch.id);
-  const totalPaid = batchTotal(batch, filed);
-  if (input.expectedTotal !== undefined && Math.abs(totalPaid - input.expectedTotal) > 0.005) {
-    refuse(`"${batch.label}" has changed since: it now comes to ${pkr(totalPaid)}. Check it and settle again.`);
-  }
-  const b = db.batch();
-  b.set(BATCHES, batch.id, { closedDate: input.closedDate, totalPaid }, true);
   const carry = (input.carryOverLabel ?? '').trim();
-  let next: NewBatch | null = null;
-  if (carry) {
-    next = { id: db.newId(BATCHES), karigarId: batch.karigarId, label: carry, startDate: input.closedDate };
-    b.set(BATCHES, next.id, { karigarId: next.karigarId, label: next.label, startDate: next.startDate });
+  type Seen = PayBatch & { filedVersion?: string };
+  const TRIES = 3;
+  let done: { batch: PayBatch; totalPaid: number; next: NewBatch | null } | null = null;
+  for (let attempt = 1; attempt <= TRIES && !done; attempt++) {
+    // The batch's filing version is read BEFORE its payments; the transaction asserts it has not moved. A payment filed in
+    // between (expenses.ts markFiled) changes it, and the settle runs again so the total counts that payment.
+    const seen = await db.get<Seen>(BATCHES, input.batchId);
+    if (!seen) return refuse('No such pay batch.');
+    // Queries cannot run inside a transaction: the payments are read first; the batch's state is what the transaction decides on.
+    const filed = await db.queryEquals<PayExpense>(EXPENSES, 'batchId', input.batchId);
+    const out = await db.runTransaction(async (tx) => {
+      const batch = await tx.get<Seen>(BATCHES, input.batchId);
+      if (!batch) return refuse('No such pay batch.');
+      assertSettleable(batch);
+      if (batch.filedVersion !== seen.filedVersion) return null;
+      const lock = await tx.get<{ openBatchId?: string | null }>(LOCKS, batch.karigarId);
+      const totalPaid = batchTotal(batch, filed);
+      if (input.expectedTotal !== undefined && Math.abs(totalPaid - input.expectedTotal) > 0.005) {
+        refuse(`"${batch.label}" has changed since: it now comes to ${pkr(totalPaid)}. Check it and settle again.`);
+      }
+      tx.set(BATCHES, batch.id, { closedDate: input.closedDate, totalPaid }, true);
+      let next: NewBatch | null = null;
+      if (carry) {
+        next = { id: db.newId(BATCHES), karigarId: batch.karigarId, label: carry, startDate: input.closedDate };
+        tx.set(BATCHES, next.id, { karigarId: next.karigarId, label: next.label, startDate: next.startDate });
+        tx.set(LOCKS, batch.karigarId, { openBatchId: next.id });
+      } else if (lock?.openBatchId === batch.id) {
+        tx.set(LOCKS, batch.karigarId, { openBatchId: null });
+      }
+      return { batch: batch as PayBatch, totalPaid, next };
+    });
+    done = out;
   }
-  await b.commit();
+  if (!done) return refuse('Payments are being filed under this pay batch right now. Try settling again.');
+  const { batch, totalPaid, next } = done;
   log(fx, 'karigar.update', `Pay batch settled: ${batch.label}`, `${pkr(totalPaid)}${next ? ` | Carried over to: ${next.label}` : ''}`, batch.karigarId);
   return { batchId: batch.id, label: batch.label, karigarId: batch.karigarId, totalPaid, closedDate: input.closedDate, next };
 }

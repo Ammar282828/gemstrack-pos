@@ -74,7 +74,7 @@ const getPaymentStatus = getOrderPaymentStatus;
 /** The app's tones for an order's status: nothing here picks a colour but the tone. */
 const statusTone = (s: string): Tone => (ORDER.tones as Record<string, Tone>)[s] ?? 'quiet';
 
-const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late' };
+const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late', 'Nothing due': 'quiet' };
 
 /** Where the order stands, as the app's card says it: a word, an icon, a tone. */
 const STAGE_LOOK: Record<OrderStage, { tone: Tone; Icon: React.ComponentType<{ className?: string }> }> = {
@@ -717,7 +717,7 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
       <SelectTrigger className={cls} aria-label="Payment"><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="All">Any payment</SelectItem>
-        {(['Paid', 'Partial', 'Unpaid'] as const).map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
+        {(['Paid', 'Partial', 'Unpaid', 'Nothing due'] as const).map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
       </SelectContent>
     </Select>
   );

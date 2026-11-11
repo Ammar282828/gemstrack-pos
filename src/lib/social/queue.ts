@@ -24,6 +24,10 @@
  * an approval, so no bulk path (Send all, Spread, the phones' trays) and not the
  * tick can ever send one unapproved.
  *
+ * The moves are declared in lib/machines/queue.ts. A claim is a lease with a token: the sender's per-unit records renew it and its
+ * final write is a compare-and-set (a hold or time set meanwhile is kept, results recorded beside it); a takeover needs the lease
+ * lapsed, is recorded in `takeovers`, and never resends a unit already in `done`.
+ *
  * Server-only.
  */
 
@@ -38,11 +42,13 @@ import { uploadToSite } from '@/lib/website/upload';
 import { saveFeatured } from '@/lib/website/featured';
 import type { Where } from '@/lib/social/diagnose';
 import { queueMediaKeys, queueUnits, type QueueCounts, type QueueStatus, type QueueTargets } from './queue-plan';
+import { check } from '@/lib/machines/machine';
+import { QUEUE as QUEUE_MACHINE, STALLED_MESSAGE, type QueueCtx } from '@/lib/machines/queue';
 
 export const QUEUE = 'social_queue';
 export const QUEUE_MEDIA = 'social_queue_media';
 const PART = 900 * 1024;
-/** A send that has been "sending" this long has died; the piece can be claimed again. */
+/** A claim is a lease: a send that has been "sending" this long without a unit going has died; the piece can be claimed again (a takeover). Each unit that goes renews it. */
 const CLAIM_MS = 10 * 60_000;
 /** The tick tries a failed piece this many times in all; after that it waits for the counter. */
 export const MAX_TRIES = 3;
@@ -71,6 +77,10 @@ export interface QueueItem extends QueueTargets {
   errors: Record<string, { message: string; at: string }>;
   attempts: number;
   claimedAt: string | null;
+  /** Who holds the claim: the sender's final write and its per-unit renewals count only while this is still the piece's token. */
+  claimToken?: string;
+  /** Claims taken over after their lease lapsed (the last five), so a double send can be traced. */
+  takeovers?: { at: string; claimedAt: string | null; token: string | null; done: number }[];
   sentAt?: string;
   /** An AI key's label, when an outside AI made and queued it (lib/agent): it waits for approval. */
   proposedBy?: string;
@@ -85,18 +95,23 @@ export interface QueueItem extends QueueTargets {
 export const awaitingApproval = (d: Pick<QueueItem, 'proposedBy' | 'approvedAt'>): boolean => !!d.proposedBy && !d.approvedAt;
 
 /** What the page sees: everything but the images. */
-export type QueueItemView = Omit<QueueItem, 'thumb' | 'stored'> & { thumb: string | null; units: string[]; awaitingApproval: boolean };
+export type QueueItemView = Omit<QueueItem, 'thumb' | 'stored' | 'claimToken'> & { thumb: string | null; units: string[]; awaitingApproval: boolean; stalled: boolean };
+
+const leaseLive = (d: Pick<QueueItem, 'status' | 'claimedAt'>, now = Date.now()) => d.status === 'sending' && !!d.claimedAt && now - Date.parse(d.claimedAt) < CLAIM_MS;
 
 const col = () => adminDb.collection(QUEUE);
 const mediaId = (id: string, key: string, part: number) => `${id}__${key}__${part}`;
 
 export function toView(d: QueueItem): QueueItemView {
-  const { thumb, stored: _stored, ...rest } = d;
-  // A send that died part-way (the request timed out) shows as failed, so the counter can retry what didn't go.
+  const { thumb, stored: _stored, claimToken: _token, ...rest } = d;
+  // A send that died part-way (the request timed out) is still "sending" in the store. The view offers it as a retry (status
+  // "failed", which the web and both phones already treat as retryable) and says so: `stalled` is true and the message reads
+  // "Stuck sending — retry", never a failure the sender reported.
   const stalled = d.status === 'sending' && (!d.claimedAt || Date.now() - Date.parse(d.claimedAt) >= CLAIM_MS);
   return {
     ...rest,
-    ...(stalled ? { status: 'failed' as const, errors: { ...d.errors, stalled: { message: 'It stopped part-way', at: d.claimedAt || d.createdAt } } } : {}),
+    stalled,
+    ...(stalled ? { status: 'failed' as const, errors: { ...d.errors, stalled: { message: STALLED_MESSAGE, at: d.claimedAt || d.createdAt } } } : {}),
     thumb: thumb ? `data:image/jpeg;base64,${Buffer.from(thumb).toString('base64')}` : null,
     units: queueUnits(d, d.counts),
     awaitingApproval: awaitingApproval(d),
@@ -162,6 +177,16 @@ async function deleteMedia(item: QueueItem): Promise<void> {
 
 const statusError = (message: string, status: number) => Object.assign(new Error(message), { status });
 
+const ctxOf = (d: QueueItem, over: Partial<QueueCtx> = {}, now = Date.now()): QueueCtx => ({
+  leaseLive: leaseLive(d, now), needsApproval: awaitingApproval(d), due: !!d.dueAt && Date.parse(d.dueAt) <= now, triesLeft: (d.attempts || 0) < MAX_TRIES, ...over,
+});
+
+/** The queue machine's say on a counter's move (lib/machines/queue.ts); the messages above already cover the common refusals. */
+function guardMove(d: QueueItem, event: string, to: QueueStatus, approver = false): void {
+  const v = check(QUEUE_MACHINE, d.status, to, event, ctxOf(d, { needsApproval: awaitingApproval(d) && !approver }));
+  if (!v.ok) throw statusError(v.reason, 409);
+}
+
 /**
  * `ready`: every image has arrived, so the draft joins the queue (held).
  * `schedule`: send it at `dueAt` (the tick does). `hold`: keep it until told.
@@ -173,7 +198,7 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
     if (!d) throw statusError('That piece is no longer in the queue.', 404);
-    const live = d.status === 'sending' && !!d.claimedAt && Date.now() - Date.parse(d.claimedAt) < CLAIM_MS;
+    const live = leaseLive(d);
     if (live) throw statusError('That piece is being sent right now.', 409);
     if (d.status === 'sent') throw statusError('That piece has already gone out.', 409);
     let patch: Partial<QueueItem>;
@@ -182,6 +207,7 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
       const missing = queueMediaKeys(d, d.counts).filter(k => !d.stored?.[k]);
       if (missing.length) throw statusError(`Some of this piece's images did not arrive (${missing.join(', ')}). Queue it again.`, 400);
       patch = { status: 'held' };
+      guardMove(d, 'ready', 'held');
     } else if (d.status === 'draft') {
       throw statusError('That piece has not finished arriving.', 409);
     } else if (change.action === 'approve') {
@@ -191,11 +217,14 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
     } else if (change.action === 'hold') {
       // Something already went (or may have): it stays "failed" so the list says what is left.
       patch = { status: d.status === 'failed' || d.status === 'sending' ? 'failed' : 'held', dueAt: null, claimedAt: null };
+      // The claim token stays: a send still running when this is a stalled one finds it is no longer "sending" and only records its results.
+      guardMove(d, 'hold', patch.status!);
     } else {
       if (!Number.isFinite(Date.parse(change.dueAt))) throw statusError('That time could not be read.', 400);
       if (awaitingApproval(d) && !change.by) throw statusError(`${d.proposedBy} made this piece: approve it first (its own Approve, in Posts).`, 409);
       // Scheduling again is also how the counter gives a failed piece its tries back.
       patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0, claimedAt: null, ...approval(d, change.by) };
+      guardMove(d, 'schedule', 'scheduled', !!change.by);
     }
     tx.update(ref, patch);
     return { ...d, ...patch };
@@ -205,7 +234,7 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
 export async function deleteItem(id: string): Promise<void> {
   const item = await getItem(id);
   if (!item) return;
-  if (item.status === 'sending' && item.claimedAt && Date.now() - Date.parse(item.claimedAt) < CLAIM_MS) throw statusError('That piece is being sent right now.', 409);
+  if (leaseLive(item)) throw statusError('That piece is being sent right now.', 409);
   await deleteMedia(item);
   await col().doc(id).delete();
 }
@@ -235,18 +264,22 @@ export async function claimItem(id: string, now = new Date(), force = false, app
   const ref = col().doc(id);
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
-    if (!d || d.status === 'draft' || d.status === 'sent') return null;
-    if (awaitingApproval(d) && !(force && approver)) return null;
-    if (d.status === 'sending' && d.claimedAt && now.getTime() - Date.parse(d.claimedAt) < CLAIM_MS) return null;
-    if (!force) {
-      if (!d.dueAt || Date.parse(d.dueAt) > now.getTime()) return null;
-      if (d.status === 'held' || d.attempts >= MAX_TRIES) return null;
-    }
-    const patch = { status: 'sending' as const, claimedAt: now.toISOString(), attempts: (d.attempts || 0) + 1, ...approval(d, approver, now) };
+    if (!d) return null;
+    // The machine decides (lib/machines/queue.ts): the tick needs its time and a try left, Send now only an approver for an AI's
+    // piece, and a piece already "sending" is claimable only once its lease has lapsed (a takeover, recorded below).
+    const ctx = ctxOf(d, { needsApproval: awaitingApproval(d) && !(force && approver) }, now.getTime());
+    if (!check(QUEUE_MACHINE, d.status, 'sending', force ? 'claimNow' : 'claim', ctx).ok) return null;
+    const takeover = d.status === 'sending';
+    const patch = {
+      status: 'sending' as const, claimedAt: now.toISOString(), claimToken: newToken(), attempts: (d.attempts || 0) + 1, ...approval(d, approver, now),
+      ...(takeover ? { takeovers: [...(d.takeovers || []), { at: now.toISOString(), claimedAt: d.claimedAt, token: d.claimToken ?? null, done: Object.keys(d.done || {}).length }].slice(-5) } : {}),
+    };
     tx.update(ref, patch);
     return { ...d, ...patch };
   });
 }
+
+const newToken = () => globalThis.crypto.randomUUID();
 
 /** How one unit goes out; swapped in tests so nothing real is sent. */
 export interface Senders {
@@ -284,11 +317,14 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
   const done = { ...item.done };
   const errors: QueueItem['errors'] = {};
   const destinations = new Map([...postGroups(), ...(postChannel() ? [postChannel()!] : [])].map(d => [d.key, d]));
+  const token = item.claimToken;
+  let lost = false;                    // the claim is no longer ours (a hold, a new time, a takeover): stop sending, only record
   const blocked = new Set<string>();   // WhatsApp destinations that failed a photo this time
   const media = new Map<string, Buffer>();
   const image = async (key: string) => { if (!media.has(key)) media.set(key, await getMedia(item, key)); return media.get(key)!; };
 
   for (const unit of queueUnits(item, item.counts)) {
+    if (lost) break;
     if (done[unit]) continue;
     const wa = unit.match(/^wa:(.+):(\d+)$/);
     if (wa && blocked.has(wa[1])) continue;
@@ -329,7 +365,14 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
         continue;
       }
       done[unit] = ref_ || 'sent';
-      await ref.update({ [`done.${unit}`]: done[unit] });
+      // Recorded at once (so no takeover resends it), and the lease renewed while the claim is still ours.
+      lost = await adminDb.runTransaction(async tx => {
+        const cur = (await tx.get(ref)).data() as QueueItem | undefined;
+        if (!cur) return true;
+        const mine = cur.status === 'sending' && cur.claimToken === token;
+        tx.update(ref, { [`done.${unit}`]: done[unit], ...(mine ? { claimedAt: new Date().toISOString() } : {}) });
+        return !mine;
+      }).catch(() => true);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       errors[unit] = { message: message.slice(0, 400), at: new Date().toISOString() };
@@ -338,15 +381,31 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
     }
   }
 
-  const left = queueUnits(item, item.counts).filter(u => !done[u]);
-  const finished = left.length === 0;
-  const patch: Record<string, unknown> = {
-    status: finished ? 'sent' : 'failed', claimedAt: null, errors,
-    ...(finished ? { sentAt: new Date().toISOString() } : {}),
-  };
-  await ref.update(patch);
-  if (finished) await deleteMedia(item).then(() => ref.update({ stored: {} })).catch(e => console.warn('[queue] could not clear the images:', e));
-  return { ...item, ...(patch as Partial<QueueItem>), done };
+  // The final write is a compare-and-set: it sets sent/failed only if the piece is still "sending" under this sender's claim. If a
+  // hold or a time was set meanwhile (or another sender took over), that state is kept and only the results are recorded.
+  const verdict = await adminDb.runTransaction(async tx => {
+    const cur = (await tx.get(ref)).data() as QueueItem | undefined;
+    if (!cur) return null;
+    const allDone = { ...(cur.done || {}), ...done };
+    const left = queueUnits(item, item.counts).filter(u => !allDone[u]);
+    const finished = left.length === 0;
+    const stillErrors = Object.fromEntries(Object.entries(errors).filter(([u]) => !allDone[u]));
+    const mine = cur.status === 'sending' && cur.claimToken === token;
+    let patch: Record<string, unknown>;
+    if (mine) {
+      const to = finished ? 'sent' : 'failed';
+      // (QUEUE: sending → sent / failed, by 'sent' / 'fail': the only moves a sender makes, and only from here.)
+      patch = { status: to, claimedAt: null, done: allDone, errors: stillErrors, ...(finished ? { sentAt: new Date().toISOString() } : {}) };
+    } else {
+      const kept = Object.fromEntries(Object.entries(cur.errors || {}).filter(([u]) => !allDone[u]));
+      patch = { done: allDone, errors: { ...kept, ...stillErrors } };
+    }
+    tx.update(ref, patch as FirebaseFirestore.UpdateData<QueueItem>);
+    return { mine, finished, next: { ...cur, ...patch } as QueueItem };
+  });
+  if (!verdict) return { ...item, done };
+  if (verdict.mine && verdict.finished) await deleteMedia(item).then(() => ref.update({ stored: {} })).catch(e => console.warn('[queue] could not clear the images:', e));
+  return verdict.next;
 }
 
 /** Pieces whose time has come (the last two days; older ones are the counter's to look at). */

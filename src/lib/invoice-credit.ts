@@ -7,7 +7,8 @@
  * money over the total from nobody in particular is change to hand back, not credit.
  */
 
-import { isCredit, owesMoney } from './money';
+import { isCredit } from './money';
+import { settlementOf } from './machines/settlement';
 
 /** The ledger row that carries an invoice's credit. */
 export const creditDescription = (invoiceId: string) => `Credit held for Invoice ${invoiceId}`;
@@ -26,13 +27,20 @@ export const inCredit = (balanceDue: number | undefined) => isCredit(balanceDue)
 
 export const canHoldCredit = (customerId: string | undefined | null) => !!customerId && customerId !== 'walk-in';
 
-/** How an invoice's balance reads, everywhere it is shown, printed or sent. */
-export function balanceLine(balanceDue: number | undefined): { label: string; amount: number; state: 'due' | 'paid' | 'credit' } {
-  const b = Number(balanceDue) || 0;
-  if (owesMoney(b)) return { label: 'Balance due', amount: b, state: 'due' };
-  if (isCredit(b)) return { label: 'Credit to customer', amount: -b, state: 'credit' };
-  return { label: 'Paid in full', amount: 0, state: 'paid' };
+/**
+ * How an invoice's balance reads, everywhere it is shown, printed or sent. Pass the invoice's `status` too wherever it is
+ * known: a refunded invoice owes nothing and holds nothing, whatever its balance still says (machines/settlement.ts).
+ */
+export function balanceLine(balanceDue: number | undefined, status?: string | null): { label: string; amount: number; state: 'due' | 'paid' | 'credit' | 'refunded' } {
+  const s = settlementOf({ status, balanceDue });
+  if (s.state === 'refunded') return { label: s.label, amount: 0, state: 'refunded' };
+  if (s.state === 'credit') return { label: s.label, amount: s.credit, state: 'credit' };
+  if (s.state === 'paid') return { label: s.label, amount: 0, state: 'paid' };
+  return { label: s.label, amount: s.amountDue, state: 'due' };
 }
+
+/** The same, from the invoice. */
+export const balanceLineOf = (inv: { balanceDue?: number; status?: string | null }) => balanceLine(inv.balanceDue, inv.status);
 
 /** The payment-history line written when the shop hands a customer their credit back (negative; not a refund of the sale). */
 export const isCreditPayback = (p: { amount?: number | null; kind?: string } | null | undefined) =>

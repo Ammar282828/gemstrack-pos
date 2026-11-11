@@ -97,7 +97,7 @@ const statusLook = (status: string) => { const t = toneClasses((ORDER.tones as R
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
-const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late' };
+const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late', 'Nothing due': 'quiet' };
 
 /** Booked, Making, Ready, Invoiced: where the order stands on the track (an online order awaiting its transfer is still Booked). */
 const TRACK_STEP = { transfer: 0, new: 0, karigar: 1, ready: 2, payment: 3, done: 3, closed: -1 } as const;

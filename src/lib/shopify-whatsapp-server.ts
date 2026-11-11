@@ -9,9 +9,14 @@
  *   bank: awaiting-payment → slip-received (tag "Payment screenshot") → paid (when Shopify says so)
  *   paid: sent
  *   any:  failed | no-whatsapp (the shop is told, to reach the customer another way)
+ *
+ * The moves are declared in lib/machines/whatsapp-flow.ts. A `failed` flow is recoverable: the send may have been delivered
+ * all the same, so the customer's reply (1 / 2, a screenshot) moves it on as if it had been waiting.
  */
 
 import { adminDb } from '@/lib/firebase-admin';
+import { check } from '@/lib/machines/machine';
+import { FLOW_STATES, WHATSAPP_FLOW } from '@/lib/machines/whatsapp-flow';
 import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { pushToShop } from '@/lib/push/send';
 import { sendWhatsAppMessage, sendWhatsAppPoll, toWhatsAppNumber, whatsAppNumberExists } from '@/lib/whatsapp';
@@ -45,42 +50,63 @@ const invoiceUrl = (o: { order_number?: number | string; name?: string }) =>
   `/${STORE_SHOPIFY_SECTION ? 'orders' : 'invoices'}/${encodeURIComponent(`SHOPIFY-${o.order_number ?? String(o.name || '').replace('#', '')}`)}`;
 
 /**
- * The order's WhatsApp state onto its ERP order, else its invoice (`whatsappOrder`), so the ERP shows it beside the Shopify chip
- * (owner, 2026-10-30: "add the tag in shopify and pos"). The pull's SHOPIFY-<n>, else the invoice carrying this
- * Shopify order id. Never throws: the invoice may not be in yet.
+ * Where the order's WhatsApp state is shown (owner, 2026-10-30: "add the tag in shopify and pos"): the pull's SHOPIFY-<n> ERP
+ * order, else the order carrying this Shopify order id (the section's, lib/writes/shopify-order.ts), then the invoice
+ * (history, and houses without the section). Null when the order is not in yet.
+ */
+async function findMarkTarget(f: Pick<OrderFlow, 'orderId' | 'name'>): Promise<FirebaseFirestore.DocumentReference | null> {
+  for (const name of ['orders', 'invoices']) {
+    const coll = adminDb.collection(name);
+    const byName = coll.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
+    if ((await byName.get()).exists) return byName;
+    const q = await coll.where('shopifyOrderId', '==', f.orderId).limit(1).get();
+    if (!q.empty) return q.docs[0].ref;
+  }
+  return null;
+}
+
+const whatsappMark = (state: FlowState, at: string) => ({ whatsappOrder: { state, at } });
+
+/**
+ * The order's WhatsApp state onto its ERP order, else its invoice (`whatsappOrder`), so the ERP shows it beside the Shopify chip.
+ * A compare-and-set in a transaction: written only while the flow still stands at `f.state`, so a slow copy of an earlier state
+ * never lands over a later one. Never throws: the invoice may not be in yet.
  */
 async function markInvoice(f: Pick<OrderFlow, 'orderId' | 'name' | 'state'>): Promise<void> {
   try {
-    // The section's ERP order first (lib/writes/shopify-order.ts), then the invoice (history, and houses without the section).
-    const orders = adminDb.collection('orders');
-    let oref: FirebaseFirestore.DocumentReference | null = orders.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
-    if (!(await oref.get()).exists) {
-      const oq = await orders.where('shopifyOrderId', '==', f.orderId).limit(1).get();
-      oref = oq.empty ? null : oq.docs[0].ref;
-    }
-    if (oref) { await oref.set({ whatsappOrder: { state: f.state, at: new Date().toISOString() } }, { merge: true }); return; }
-    const invoices = adminDb.collection('invoices');
-    let ref = invoices.doc(`SHOPIFY-${f.name.replace(/^#/, '')}`);
-    if (!(await ref.get()).exists) {
-      const q = await invoices.where('shopifyOrderId', '==', f.orderId).limit(1).get();
-      if (q.empty) return;
-      ref = q.docs[0].ref;
-    }
-    await ref.set({ whatsappOrder: { state: f.state, at: new Date().toISOString() } }, { merge: true });
+    const target = await findMarkTarget(f);
+    if (!target) return;
+    const flowRef = adminDb.collection(COLLECTION).doc(f.orderId);
+    await adminDb.runTransaction(async t => {
+      const flow = (await t.get(flowRef)).data() as OrderFlow | undefined;
+      const there = await t.get(target);
+      if (!there.exists || flow?.state !== f.state) return;
+      t.set(target, whatsappMark(f.state, new Date().toISOString()), { merge: true });
+    });
   } catch (e) { console.error('[shopify-whatsapp] invoice', f.name, (e as Error)?.message); }
 }
 
-/** Move a flow from one of `from` to `to`, once. Returns the flow when this call did it. */
-async function advance(orderId: string, from: FlowState[], to: FlowState, extra: Partial<OrderFlow> = {}): Promise<OrderFlow | null> {
+/**
+ * Move a flow to `to` by `event` (the machine, lib/machines/whatsapp-flow.ts), once. The order's/invoice's `whatsappOrder` is copied
+ * in the same transaction, so the two never disagree. Returns the flow when this call did it; null when the flow is not there, is
+ * not in a state the event leaves, or someone else moved it first.
+ */
+async function advance(orderId: string, event: string, to: FlowState, extra: Partial<OrderFlow> = {}): Promise<OrderFlow | null> {
   const ref = adminDb.collection(COLLECTION).doc(orderId);
+  const seen = (await ref.get()).data() as OrderFlow | undefined;
+  if (!seen) return null;
+  const target = await findMarkTarget(seen).catch(() => null);
   return adminDb.runTransaction(async t => {
-    const snap = await t.get(ref);
-    const f = snap.data() as OrderFlow | undefined;
-    if (!f || !from.includes(f.state)) return null;
+    const f = (await t.get(ref)).data() as OrderFlow | undefined;
+    const there = target ? await t.get(target) : null;
+    if (!f || !(FLOW_STATES as readonly string[]).includes(f.state)) return null;
+    const v = check(WHATSAPP_FLOW, f.state, to, event, { kind: f.kind });
+    if (!v.ok || v.noop) return null;   // a repeat finds it already there: it is not done twice
     const next = { ...f, ...extra, state: to, updatedAt: new Date().toISOString() };
     t.set(ref, next);
+    if (target && there?.exists) t.set(target, whatsappMark(to, next.updatedAt), { merge: true });
     return next;
-  }).then(async next => { if (next) await markInvoice(next); return next; });
+  });
 }
 
 async function tagOrder(shop: string, token: string, orderId: string, tag: string): Promise<void> {
@@ -116,14 +142,14 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
   if (!mine) return { started: false, reason: 'already-started' };
   await markInvoice({ orderId, name, state: first });
 
-  const fail = async (state: FlowState, error: string, title: string) => {
-    await ref.set({ state, error, updatedAt: new Date().toISOString() }, { merge: true });
-    await markInvoice({ orderId, name, state });
+  // Never over a customer's answer: a send that timed out may have arrived, and the reply has moved the flow on already.
+  const fail = async (event: 'fail' | 'noWhatsapp', state: FlowState, error: string, title: string) => {
+    if (!(await advance(orderId, event, state, { error }))) return;
     await pushToShop({ kind: 'orders', title, body: `${name} · ${phone} · ${error}`, url: invoiceUrl(order), key: `shopify-wa-fail_${orderId}` });
   };
   try {
     if ((await whatsAppNumberExists(phone)) === false) {
-      await fail('no-whatsapp', 'not on WhatsApp', 'Order has no WhatsApp: reach them another way');
+      await fail('noWhatsapp', 'no-whatsapp', 'not on WhatsApp', 'Order has no WhatsApp: reach them another way');
       return { started: false, kind, state: 'no-whatsapp' };
     }
     await sendWhatsAppMessage(phone, orderMessage(kind, order, { bankLine: STORE_CONFIG.bankLine, iban: STORE_CONFIG.iban }));
@@ -142,7 +168,7 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
     }
     return { started: true, kind, state: first };
   } catch (e) {
-    await fail('failed', (e as Error)?.message?.slice(0, 200) || 'send failed', 'Order WhatsApp did not send');
+    await fail('fail', 'failed', (e as Error)?.message?.slice(0, 200) || 'send failed', 'Order WhatsApp did not send');
     return { started: false, kind, state: 'failed' };
   }
 }
@@ -151,19 +177,24 @@ export async function startOrderFlow(order: ShopifyOrderLike): Promise<{ started
 export async function followUpPaidOrder(order: ShopifyOrderLike): Promise<boolean> {
   if (!shopifyOrderWhatsAppOn()) return false;
   if (order.financial_status !== 'paid') return false;
-  const f = await advance(String(order.id), ['awaiting-payment', 'slip-received'], 'paid');
+  const f = await advance(String(order.id), 'paid', 'paid');
   if (!f || f.kind !== 'bank') return false;
   try { await sendWhatsAppMessage(f.phone, BANK_PAID_REPLY(f)); } catch (e) { console.error('[shopify-whatsapp] paid', f.name, (e as Error)?.message); }
   return true;
 }
 
-/** The customer's open conversation: their newest flow still waiting for them. */
+/**
+ * The customer's open conversation: their newest flow still waiting for them. A flow whose send failed (cash on delivery or bank
+ * transfer) is open too, since the message may have arrived all the same; but a flow genuinely waiting comes first, so a reply
+ * meant for an older order is never taken by a newer one that failed.
+ */
 async function openFlowFor(phone: string): Promise<OrderFlow | null> {
   const snap = await adminDb.collection(COLLECTION).where('phone', '==', phone).get();
-  const open = snap.docs.map(d => d.data() as OrderFlow)
-    .filter(f => f.state === 'awaiting-confirmation' || f.state === 'awaiting-payment')
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return open[0] ?? null;
+  const mine = snap.docs.map(d => d.data() as OrderFlow);
+  const newest = (a: OrderFlow, b: OrderFlow) => b.createdAt.localeCompare(a.createdAt);
+  const waiting = mine.filter(f => f.state === 'awaiting-confirmation' || f.state === 'awaiting-payment').sort(newest);
+  const failed = mine.filter(f => f.state === 'failed' && (f.kind === 'cod' || f.kind === 'bank')).sort(newest);
+  return waiting[0] ?? failed[0] ?? null;
 }
 
 export interface InboundMessage { phone: string; text: string; media: boolean }
@@ -178,15 +209,15 @@ export async function handleInbound(m: InboundMessage, creds: () => Promise<{ sh
   const flow = await openFlowFor(m.phone);
   if (!flow) return 'no-open-order';
 
-  if (flow.kind === 'cod' && flow.state === 'awaiting-confirmation') {
+  if (flow.kind === 'cod' && (flow.state === 'awaiting-confirmation' || flow.state === 'failed')) {
     const answer = m.media ? null : readCodReply(m.text);
     if (!answer) return 'not-an-answer';
     return answerCod(flow, answer, creds);
   }
 
-  if (flow.kind === 'bank' && flow.state === 'awaiting-payment') {
+  if (flow.kind === 'bank' && (flow.state === 'awaiting-payment' || flow.state === 'failed')) {
     if (!m.media) return 'not-an-answer';
-    const f = await advance(flow.orderId, ['awaiting-payment'], 'slip-received');
+    const f = await advance(flow.orderId, 'slip', 'slip-received');
     if (!f) return 'already-answered';
     const { shop, token } = await creds();
     await tagOrder(shop, token, f.orderId, 'Payment screenshot');
@@ -200,7 +231,7 @@ export async function handleInbound(m: InboundMessage, creds: () => Promise<{ sh
 /** The customer's answer to a COD order, by reply or by a tap on its poll: tag it, thank them, tell the shop. Once. */
 async function answerCod(flow: OrderFlow, answer: 'confirm' | 'decline', creds: () => Promise<{ shop: string; token: string }>): Promise<string> {
   const to: FlowState = answer === 'confirm' ? 'confirmed' : 'declined';
-  const f = await advance(flow.orderId, ['awaiting-confirmation'], to);
+  const f = await advance(flow.orderId, answer, to);
   if (!f) return 'already-answered';
   const { shop, token } = await creds();
   await tagOrder(shop, token, f.orderId, answer === 'confirm' ? 'Confirm' : 'Cancel requested');
@@ -221,6 +252,6 @@ export async function handlePollVote(pollId: string, selected: string[], creds: 
   const snap = await adminDb.collection(COLLECTION).where('pollKey', '==', key).limit(1).get();
   const flow = snap.docs[0]?.data() as OrderFlow | undefined;
   if (!flow) return 'no-open-order';
-  if (flow.state !== 'awaiting-confirmation') return 'already-answered';
+  if (flow.kind !== 'cod' || (flow.state !== 'awaiting-confirmation' && flow.state !== 'failed')) return 'already-answered';
   return answerCod(flow, answer, creds);
 }

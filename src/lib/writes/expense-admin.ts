@@ -24,9 +24,11 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { AdditionalRevenue, Expense, PaidBy } from '@/lib/store';
 import { PARTNER_DRAWINGS, PARTNER_SALARY } from '@/lib/partnership';
+import { assertBatchTakesPayment, markFiled } from './workshop-admin';
 
 const EXPENSES = 'expenses';
 const REVENUE = 'additional_revenue';
+const BATCH_COLLECTION = 'karigar_batches';
 
 /** lib/shareholders.ts SHAREHOLDERS, without the browser's Firebase it reads the ledgers with. */
 const PARTNERS = {
@@ -148,6 +150,12 @@ export async function updateExpense(db: DbPort, id: string, input: ExpenseFields
   const saved = await db.runTransaction(async (tx) => {
     const existing = await tx.get<ExpenseDoc>(EXPENSES, id);
     if (!existing) throw new Error('No such expense.');
+    // Moved under a pay batch (or onto another): only an open one takes it. Left where it was, it is not asked again.
+    if (input.batchId && input.batchId !== existing.batchId) {
+      const target = await tx.get(BATCH_COLLECTION, input.batchId);
+      assertBatchTakesPayment(target);
+      if (target) markFiled(db, tx, input.batchId);
+    }
     const prevPaidBy = existing.paidBy || 'business';
     const nextPaidBy = input.paidBy || 'business';
     const prevLedgerId = typeof existing.ledgerEntryId === 'string' && existing.ledgerEntryId ? existing.ledgerEntryId : undefined;

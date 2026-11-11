@@ -51,4 +51,16 @@ describe('/api/staff/write updateOrderStatus', () => {
     expect((fake.col('orders')['O-X'] as { status: string }).status).toBe('Pending');
     expect((await call({ op: 'updateOrderStatus', orderId: 'nope', status: 'Pending' })).status).toBe(404);
   });
+  it('with `from`: a replay over a newer state is refused (409, nothing written); a matching or repeated one goes through; no `from` is as before', async () => {
+    fake.col('orders')['O-P'] = { status: 'Completed', items: [] };
+    const r = await call({ op: 'updateOrderStatus', orderId: 'O-P', status: 'Cancelled', from: 'Pending' });
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ machine: 'Order', from: 'Completed', to: 'Cancelled', error: "This order is now Completed: your change to Cancelled from Pending wasn't applied." });
+    expect((fake.col('orders')['O-P'] as { status: string }).status).toBe('Completed');
+    expect((await call({ op: 'updateOrderStatus', orderId: 'O-P', status: 'Cancelled', from: 'Completed' })).status).toBe(200);
+    expect((fake.col('orders')['O-P'] as { status: string }).status).toBe('Cancelled');
+    // Replayed again: already where it was going.
+    expect((await call({ op: 'updateOrderStatus', orderId: 'O-P', status: 'Cancelled', from: 'Pending' })).status).toBe(200);
+    expect((await call({ op: 'updateOrderStatus', orderId: 'O-P', status: 'Pending' })).status).toBe(200);
+  });
 });

@@ -11,6 +11,7 @@ import type { Repair, RepairPayment } from '@/lib/store';
 import { REPAIR_STATUS_LABELS, repairBalance, repairSummary, type RepairStatus } from '@/lib/repairs';
 import { REPAIR } from '@/lib/machines';
 import { assertMove } from '@/lib/machines/machine';
+import { assertStillIn } from '@/lib/machines/expected';
 import { cleanObject } from './create-invoice';
 import { checkIsoDate, checkMoney } from './validate';
 
@@ -60,7 +61,7 @@ export async function addRepair(db: DbPort, input: NewRepair, opts: { floor?: nu
 }
 
 /** Ready and collected are stamped with when. */
-export async function setRepairStatus(db: DbPort, id: string, status: RepairStatus, opts: { now?: string } = {}, fx: SideEffects = {}): Promise<void> {
+export async function setRepairStatus(db: DbPort, id: string, status: RepairStatus, opts: { now?: string; /** The status the person saw (an offline replay): refused, 409, if the ticket has moved on since. */ from?: string } = {}, fx: SideEffects = {}): Promise<void> {
   const now = opts.now ?? new Date().toISOString();
   const stamp = status === 'ready' ? { readyAt: now } : status === 'collected' ? { collectedAt: now } : {};
   // Read inside the transaction (after any payment just committed), and ask the repair machine: a ticket is not collected
@@ -68,6 +69,7 @@ export async function setRepairStatus(db: DbPort, id: string, status: RepairStat
   const moved = await db.runTransaction(async (tx) => {
     const repair = await tx.get<Repair>(REPAIRS, id);
     if (!repair) throw new Error(`Repair ${id} not found.`);
+    assertStillIn(REPAIR, 'repair', repair.status, opts.from, status, { balance: repairBalance(repair) });
     const { noop } = assertMove(REPAIR, repair.status, status, 'set', { balance: repairBalance(repair) });
     if (!noop) tx.set(REPAIRS, id, { status, ...stamp }, true);
     return !noop;

@@ -17,6 +17,7 @@ export const BACKUP_COLLECTIONS: readonly BackupCollection[] = [
   { id: 'expenses', label: 'Expenses', description: 'Expense records' },
   { id: 'additional_revenue', label: 'Extra revenue', description: 'Income not tied to a sale' },
   { id: 'karigar_batches', label: 'Karigar Batches', description: 'Karigar work batches' },
+  { id: 'karigar_batch_locks', label: 'Karigar Batch Locks', description: 'Which pay batch is open for each karigar' },
   { id: 'given_items', label: 'Given Items', description: 'Items given out' },
   { id: 'repairs', label: 'Repairs', description: "Customers' pieces in for repair" },
   { id: 'categories', label: 'Categories', description: 'Product category definitions' },

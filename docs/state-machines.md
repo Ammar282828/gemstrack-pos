@@ -72,3 +72,54 @@ are named actions (Finalize, Refund, Book with TCS) or the server's own runs (Sh
 | `pending` | `booked` | booked |  | TCS gave the consignment number |
 | `pending` | `none` | failed |  |  |
 | `booked` | `cancelled` | cancel | the parcel has not left |  |
+
+## Pay batch
+
+`karigar_batches/<id>.closedDate` · states: `open` (Open), `closed` (Settled) · final: `closed`
+
+| From | To | Event | Only when | Note |
+|---|---|---|---|---|
+| `open` | `closed` | settle |  | Settle & Close / Carry Over: the total is worked out on the server from its payments, in the same transaction; one open batch per karigar (karigar_batch_locks/<karigarId>) |
+| `open` | `open` | file |  | a payment (expense) filed under it; refused once it is settled |
+
+## Post queue
+
+`social_queue/<id>.status` · states: `draft` (Arriving), `held` (Held), `scheduled` (Scheduled), `sending` (Sending), `sent` (Sent), `failed` (Failed) · final: `sent`
+
+| From | To | Event | Only when | Note |
+|---|---|---|---|---|
+| `draft` | `held` | ready |  | every image has arrived |
+| `scheduled`, `held` | `held` | hold |  | keeps it until told |
+| `failed` | `failed` | hold |  | clears its time; it stays Failed |
+| `sending` | `failed` | hold | its claim has lapsed | something may have gone: it stays Failed so the list says what is left |
+| `held`, `scheduled`, `failed` | `scheduled` | schedule | approved if an AI made it | also how a failed piece gets its tries back |
+| `sending` | `scheduled` | schedule | its claim has lapsed; approved if an AI made it |  |
+| `scheduled`, `failed` | `sending` | claim | its time has come, tries left, approved | the five-minute tick |
+| `sending` | `sending` | claim | its claim has lapsed, its time has come, tries left, approved | a takeover; recorded in takeovers, and no unit already done is sent again |
+| `held`, `scheduled`, `failed` | `sending` | claimNow | approved if an AI made it | Send now |
+| `sending` | `sending` | claimNow | its claim has lapsed; approved if an AI made it | a takeover, as above |
+| `sending` | `sent` | sent |  | every unit is done; only while still Sending under the sender’s own claim |
+| `sending` | `failed` | fail |  | some units did not go; only while still Sending under the sender’s own claim |
+
+## Order WhatsApp
+
+`shopify_whatsapp/<order id>.state` · states: `awaiting-confirmation` (Awaiting confirmation), `confirmed` (Confirmed on WhatsApp), `declined` (Cancel requested), `awaiting-payment` (Awaiting transfer), `slip-received` (Screenshot sent), `paid` (Paid · thanked on WhatsApp), `sent` (Thanked on WhatsApp), `failed` (WhatsApp did not send), `no-whatsapp` (No WhatsApp) · final: `confirmed`, `declined`, `paid`, `sent`, `no-whatsapp`
+
+| From | To | Event | Only when | Note |
+|---|---|---|---|---|
+| `awaiting-confirmation`, `failed` | `confirmed` | confirm | cash on delivery | the customer answered 1 / Confirm; from Failed too (the message may have arrived) |
+| `awaiting-confirmation`, `failed` | `declined` | decline | cash on delivery | the customer answered 2 / Cancel: the shop is asked to cancel it; the order itself is not cancelled |
+| `awaiting-payment`, `failed` | `slip-received` | slip | bank transfer | a picture or PDF; from Failed too |
+| `awaiting-payment`, `slip-received` | `paid` | paid |  | Shopify says the transfer is paid |
+| `awaiting-confirmation`, `awaiting-payment`, `sent` | `failed` | fail |  | the send threw; the shop is told. Not once the customer has answered |
+| `awaiting-confirmation`, `awaiting-payment`, `sent` | `no-whatsapp` | noWhatsapp |  | the number is not on WhatsApp; the shop is told |
+
+## Derived states
+
+Not stored: worked out from other fields by one function each (`src/lib/machines/settlement.ts`), so every screen, PDF and message agrees.
+
+### Invoice settlement
+
+`derived from invoices/<id>.status, balanceDue, amountPaid (never stored)` · states: `due` (Balance due, late), `partly` (Balance due, owed), `paid` (Paid in full, settled), `credit` (Credit to customer, credit), `refunded` (Refunded, quiet)
+
+status Refunded: refunded. Else in whole rupees (under 1 settled): balance 1 or more: partly if anything was paid, else due; balance -1 or less: credit; otherwise paid.

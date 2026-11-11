@@ -59,6 +59,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - `npm run machines:export` writes `apps/iphone/App/Resources/machines.json` (the iPhone, Mac and Android read labels,
   tones and moves from it; Android copies it as an asset) and `docs/state-machines.md`; `machines.test.ts` fails when
   either is stale. `GET /api/app/machines` serves the same JSON. Add a machine there before writing a new status field.
+- **Round two (2026-11-11):** Karigar pay batch (one open per karigar, by a lock doc in the start's transaction; settle
+  totals the payments on the server, retried if one is filed meanwhile; nothing filed under a settled batch), Post queue
+  (claims are leases with a token; the last write is a compare-and-set, so a hold made mid-send stands; a takeover never
+  resends a destination already done), Order WhatsApp (a customer's reply revives a send that only looked failed; a declined
+  COD asks "cancel the order?" instead of closing it). Invoice settlement is one derived function
+  (`machines/settlement.ts`: refunded, credit, paid, partly, due) used by the PDF, the share text, voice and the lists; a
+  Shopify-voided invoice is Refunded with nothing due. Status ops take an optional `from` (what the person saw): a queued
+  change replayed over a newer status is refused with what it is now, never applied blind.
 
 ### Parity
 
