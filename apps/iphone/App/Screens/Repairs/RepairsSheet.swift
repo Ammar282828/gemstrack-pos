@@ -349,10 +349,10 @@ struct RepairsSheet: View {
         let owing = desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0
         let pay = ActionBar.Action("Take payment", systemImage: "banknote", isBusy: busy) { desk.taking = r }
         switch desk.status(r) {
-        case .received:
+        case .received where desk.canMove(r, to: "ready"):
             return ActionBar(primary: ActionBar.Action("Mark ready", systemImage: "checkmark.circle", isBusy: busy) { desk.markReady(r) },
                              secondary: owing ? [pay] : [])
-        case .ready:
+        case .ready where desk.canMove(r, to: "collected"):
             return ActionBar(primary: ActionBar.Action("Collected", systemImage: "shippingbox", isBusy: busy) { desk.collect(r) },
                              secondary: owing ? [pay] : [])
         default:

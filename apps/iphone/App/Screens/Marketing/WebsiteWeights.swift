@@ -18,6 +18,11 @@ struct WebsiteWeightsScreen: View {
     @State private var search = ""
     @State private var index = 0
     @State private var value = ""
+    /// The diamonds' carats (a solitaire's), and the smaller diamonds' beside it, as typed.
+    @State private var carats = ""
+    @State private var side = ""
+    /// White or dark, as the website will draw the weight on this photo (/api/website/pieces/ink).
+    @State private var ink = "#ffffff"
     @State private var saving = false
     @State private var confirming: Pending?
     /// The counter said not to ask again until the screen is left.
@@ -43,6 +48,12 @@ struct WebsiteWeightsScreen: View {
         let grams: Double?
         let label: Double?
         let advance: Bool
+        /// The weight itself changes (else only the carats do).
+        var weightChanged = true
+        /// The carats travel with the weight: a diamond piece, or one that already has some (so clearing them works).
+        var sendCarats = false
+        var carats: Double?
+        var side: Double?
     }
 
     var body: some View {
@@ -67,6 +78,7 @@ struct WebsiteWeightsScreen: View {
             await site.loadSettings()
             if pieces == nil { await load() }
         }
+        .task(id: current?.thumb ?? "") { await loadInk() }
         .onChange(of: collection) { _, _ in index = 0 }
         .onChange(of: onlyMissing) { _, _ in index = 0 }
         .onChange(of: search) { _, _ in index = 0 }
@@ -88,6 +100,26 @@ struct WebsiteWeightsScreen: View {
         Binding(get: { confirming != nil }, set: { (on: Bool) in if !on { confirming = nil } })
     }
 
+
+    /// The carats' top edge in the site's 3000 units: the weight's top (114) is its baseline less one line of its size, and the
+    /// carats' is its own baseline less one line of theirs, so the two sit where WeightLabel.jsx puts them.
+    private var caratsTop: Double {
+        PhotoCarats.caratsBaseline - PhotoCarats.caratsSize * (PhotoCarats.weightBaseline - 114) / PhotoCarats.weightSize
+    }
+
+    /// The ink the website will use on this photo: its dark one (#1a1a1a) or white (the overlay tool's own).
+    private var inkColor: Color {
+        ink.lowercased() == "#1a1a1a" ? Color(red: 26.0 / 255, green: 26.0 / 255, blue: 26.0 / 255) : Color.white
+    }
+
+    /// Asks the ERP which ink the site will choose for this photo's corner (the browser cannot read the site's pixels, nor can
+    /// the app): white until it answers, and white when it cannot.
+    private func loadInk() async {
+        ink = "#ffffff"
+        guard let thumb = current?.thumb, !thumb.isEmpty else { return }
+        let answer = try? await ERPAPI.shared.get("/api/website/pieces/ink?src=" + WebsiteNumber.query(thumb), as: WebsiteInk.self)
+        if let answer, !Task.isCancelled { ink = answer.ink }
+    }
 
     // MARK: The list being worked through
 
@@ -216,14 +248,28 @@ struct WebsiteWeightsScreen: View {
                     // As the site draws it (WeightLabel.jsx): Futura LT Light (bundled, App/Resources/Fonts) at 143/3000 of
                     // the photo's width, 120/3000 in, its baseline at (100 + 143 × 1.1)/3000 — so what is typed shows
                     // where it lands, at its size, in its face.
-                    if p.source != "label", let shown = preview(p) {
+                    let weight: String? = p.source != "label" ? preview(p) : nil
+                    let ct = PhotoCarats.line(main: PhotoCarats.parse(carats) ?? 0, side: PhotoCarats.parse(side) ?? 0)
+                    if weight != nil || !ct.isEmpty {
                         GeometryReader { geo in
                             let w = geo.size.width
-                            Text(shown + "g")
-                                .font(.custom("FuturaLT-Light", fixedSize: w * 143 / 3000))
-                                .tracking(w * 2 / 3000)
-                                .foregroundStyle(.white)
-                                .offset(x: w * 120 / 3000, y: w * 114 / 3000)
+                            ZStack(alignment: .topLeading) {
+                                if let weight {
+                                    Text(weight + "g")
+                                        .font(.custom("FuturaLT-Light", fixedSize: w * PhotoCarats.weightSize / 3000))
+                                        .tracking(w * 2 / 3000)
+                                        .foregroundStyle(inkColor)
+                                        .offset(x: w * 120 / 3000, y: w * 114 / 3000)
+                                }
+                                // The carats under it, the same face, smaller (baseline 100 + 143 × 1.1 + 90 × 1.3).
+                                if !ct.isEmpty {
+                                    Text(ct)
+                                        .font(.custom("FuturaLT-Light", fixedSize: w * PhotoCarats.caratsSize / 3000))
+                                        .tracking(w * 2 / 3000)
+                                        .foregroundStyle(inkColor)
+                                        .offset(x: w * 120 / 3000, y: w * caratsTop / 3000)
+                                }
+                            }
                         }
                         .allowsHitTesting(false)
                     }
@@ -271,6 +317,7 @@ struct WebsiteWeightsScreen: View {
             Button("Skip") { index = min(index + 1, max(0, queue.count - 1)) }
                 .disabled(index >= queue.count - 1)
             WebsiteFeatureButton(key: p.key, name: p.file)
+            if p.takesCarats { caratsFields }
         } header: {
             LedgerHeading(title: "Weight")
         } footer: {
@@ -281,6 +328,34 @@ struct WebsiteWeightsScreen: View {
                 Text("Recorded \(ShopDate.say(at, withTime: true))\(who). Clear the field and save to remove it.")
             }
         }
+    }
+
+    /// A diamond piece's carats, two rows: the main diamond (a solitaire's), and the smaller ones beside it. Drawn under the
+    /// weight on the photo, smaller: "0.50ct + 0.24ct". Either may stay empty.
+    @ViewBuilder
+    private var caratsFields: some View {
+        HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
+            Text("Main diamond")
+            Spacer()
+            TextField("0.00", text: $carats)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+                .keyboardDone()
+                .monospacedDigit()
+            Text("ct").foregroundStyle(.secondary)
+        }
+        HStack(alignment: .firstTextBaseline, spacing: pt(6)) {
+            Text("Small diamonds")
+            Spacer()
+            TextField("0.00", text: $side)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+                .keyboardDone()
+                .monospacedDigit()
+            Text("ct").foregroundStyle(.secondary)
+        }
+        Text("Shown under the weight on the photo, smaller: the solitaire, then the small diamonds after a +. Leave either empty.")
+            .font(.house(.footnote)).foregroundStyle(.secondary)
     }
 
     private var upcomingSection: some View {
@@ -341,8 +416,10 @@ struct WebsiteWeightsScreen: View {
 
     /// The field starts with the weight typed here before (never the photo's own label).
     private func prefill() {
-        guard let p = current else { value = ""; return }
+        guard let p = current else { value = ""; carats = ""; side = ""; return }
         value = p.source == "pos" ? (p.weightGrams.map { (g: Double) in WebsiteNumber.grams(g) } ?? "") : ""
+        carats = p.diamondCarats.map { (v: Double) in WebsiteNumber.grams(v) } ?? ""
+        side = p.sideCarats.map { (v: Double) in WebsiteNumber.grams(v) } ?? ""
     }
 
     private func ask(advance: Bool) {
@@ -357,18 +434,34 @@ struct WebsiteWeightsScreen: View {
             failure = "Enter a weight in grams."
             return
         }
+        // The diamonds' carats: empty clears, else above 0 and under 500 (the route's limit).
+        let ct = PhotoCarats.parse(carats)
+        let sideCt = PhotoCarats.parse(side)
+        guard PhotoCarats.valid(ct), PhotoCarats.valid(sideCt) else {
+            failure = "Enter the diamonds in carats."
+            return
+        }
+        let sendCarats = p.takesCarats
         // Nothing to change here: on to the next photo.
         let recorded = p.source == "pos" ? p.weightGrams : nil
-        if grams == recorded {
+        let weightChanged = grams != recorded
+        let caratsChanged = sendCarats && (ct != p.diamondCarats || sideCt != p.sideCarats)
+        if !weightChanged && !caratsChanged {
             if advance { index = min(index + 1, max(0, queue.count - 1)) }
             return
         }
-        let pending = Pending(key: p.key, file: p.file, grams: grams, label: p.labelWeightGrams, advance: advance)
+        let pending = Pending(key: p.key, file: p.file, grams: grams, label: p.labelWeightGrams, advance: advance,
+                              weightChanged: weightChanged, sendCarats: sendCarats, carats: ct, side: sideCt)
         if trusted { save(pending) } else { confirming = pending }
     }
 
     /// Exactly what changes on the site, for every visitor.
     private func words(_ p: Pending) -> String {
+        if !p.weightChanged {
+            let line = PhotoCarats.line(main: p.carats ?? 0, side: p.side ?? 0)
+            if line.isEmpty { return "The diamonds' carats come off \(p.file): \(site.siteName) stops drawing them under the weight." }
+            return "\(line) for \(p.file). \(site.siteName) draws it under the weight on the photograph, for everyone who opens it."
+        }
         if let g = p.grams {
             return "\(WebsiteNumber.grams(g)) g for \(p.file). \(site.siteName) draws it on the photograph's corner (unless the photo carries its own) and prices the piece from it at the day's rate, for everyone who opens it."
         }
@@ -379,13 +472,22 @@ struct WebsiteWeightsScreen: View {
     /// Instant: the piece is changed here and the counter moves on; the site's PUT goes through the Outbox
     /// (a failure comes back with Retry, and the same PUT is safe to repeat).
     private func save(_ p: Pending) {
-        let body: [String: Any] = ["key": p.key, "weightGrams": p.grams.map { (g: Double) -> Any in g } ?? NSNull()]
+        var body: [String: Any] = ["key": p.key, "weightGrams": p.grams.map { (g: Double) -> Any in g } ?? NSNull()]
+        // As the web sends them: only for a diamond piece or one that has carats, each a number above 0 or null (clears it).
+        if p.sendCarats {
+            body["diamondCarats"] = PhotoCarats.recorded(p.carats).map { (v: Double) -> Any in v } ?? NSNull()
+            body["sideCarats"] = PhotoCarats.recorded(p.side).map { (v: Double) -> Any in v } ?? NSNull()
+        }
         let was = queue
         if var list = pieces, let k = list.firstIndex(where: { (x: WebsiteWeightPiece) in x.key == p.key }) {
             list[k].weightGrams = p.grams ?? list[k].labelWeightGrams
             list[k].source = p.grams != nil ? "pos" : (list[k].labelWeightGrams != nil ? "label" : nil)
             list[k].enteredBy = p.grams != nil ? "you" : nil
             list[k].enteredAt = p.grams != nil ? ERPDate.iso(Date()) : nil
+            if p.sendCarats {
+                list[k].diamondCarats = PhotoCarats.recorded(p.carats)
+                list[k].sideCarats = PhotoCarats.recorded(p.side)
+            }
             pieces = list
         }
         let tracker = done
@@ -518,6 +620,7 @@ extension WebsiteWeightsScreen {
                 Text("g").font(.house(.title3)).foregroundStyle(.secondary)
             }
             WebsiteFeatureButton(key: p.key, name: p.file)
+            if p.takesCarats { caratsFields }
         } header: {
             LedgerHeading(title: "Weight")
         } footer: {

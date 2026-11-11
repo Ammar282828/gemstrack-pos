@@ -4,6 +4,7 @@ import UIKit
 #endif
 import CryptoKit
 import FirebaseAuth
+import ERPCore
 
 /// The ERP's server routes, as the signed-in person (their Firebase ID token). Every write that
 /// moves money goes this way (CONVENTIONS.md rule 1): the rules live once, in the ERP.
@@ -99,7 +100,9 @@ final class ERPAPI {
             if status == 304, ifNoneMatch != nil { return (Data(), 304, ifNoneMatch) }
             if status == 401, !refresh, auth.currentUser != nil { refresh = true; continue }
             guard (200..<300).contains(status) else {
-                let said = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["error"] as? String
+                let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                // A 409 from a state machine says what it allowed instead (ERPCore's MachineRefusal); the words are the server's.
+                let said: String? = status == 409 ? body.flatMap { MachineRefusal.message($0) } : (body?["error"] as? String)
                 throw Failure(status: status, message: said ?? "The ERP answered \(status).")
             }
             return (data, status, etag)

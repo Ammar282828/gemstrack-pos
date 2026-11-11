@@ -1230,6 +1230,8 @@ public func monthlyRevenue(_ input: BooksInput, options: BooksOptions = BooksOpt
 public struct YearRow: Equatable, Identifiable {
     public let year: Int
     public let revenue: Double
+    /// Of revenue, gold's (gold apart; the Profit page's Silver and Gold columns).
+    public let goldRevenue: Double
     public let expenses: Double
     public let unpaid: Double
     public let profit: Double
@@ -1241,7 +1243,7 @@ public struct YearRow: Equatable, Identifiable {
 /// Each calendar year of the history, newest first (the old "Yearly Performance Overview").
 public func yearlySummary(_ input: BooksInput, options: BooksOptions = BooksOptions()) -> [YearRow] {
     let p = prepareBooks(input, options)
-    struct Acc { var revenue = 0.0, expenses = 0.0, unpaid = 0.0, profit = 0.0, goods = 0.0 }
+    struct Acc { var revenue = 0.0, gold = 0.0, expenses = 0.0, unpaid = 0.0, profit = 0.0, goods = 0.0 }
     var years: [Int: Acc] = [:]
     let margin = options.margin
     for e in p.jewellery {
@@ -1249,6 +1251,7 @@ public func yearlySummary(_ input: BooksInput, options: BooksOptions = BooksOpti
         let yr = BooksCal.year(d)
         let value = invoiceSaleValue(e.item)
         years[yr, default: Acc()].revenue += value
+        years[yr, default: Acc()].gold += GoldApart.invoiceGoldPart(e.item, value)
         // Each sale at its own margin: from the 24k rate typed when it was made, else the assumed one (margin.ts).
         years[yr, default: Acc()].profit += value * invoiceMargin(e.item, settings: margin).percent / 100
         years[yr, default: Acc()].unpaid += max(0, e.item.balanceDue.isNaN ? 0 : e.item.balanceDue)
@@ -1259,6 +1262,7 @@ public func yearlySummary(_ input: BooksInput, options: BooksOptions = BooksOpti
         // Subtotal: the full order value regardless of advance paid.
         let sub = e.item.subtotal.isNaN ? 0 : e.item.subtotal
         years[yr, default: Acc()].revenue += sub
+        years[yr, default: Acc()].gold += GoldApart.orderGoldPart(e.item, sub)
         years[yr, default: Acc()].profit += sub * orderMargin(e.item, settings: margin).percent / 100
     }
     for e in p.extras {
@@ -1282,7 +1286,7 @@ public func yearlySummary(_ input: BooksInput, options: BooksOptions = BooksOpti
         let profit = NetProfit.beforeRunning(estimated: data.profit, revenue: data.revenue, goods: data.goods, recordsGoods: options.recordsGoods)
         // That profit less the running costs, never revenue less every expense (net-profit.ts).
         let net = profit - data.expenses
-        return YearRow(year: year, revenue: data.revenue, expenses: data.expenses, unpaid: data.unpaid, profit: profit,
+        return YearRow(year: year, revenue: data.revenue, goldRevenue: data.gold, expenses: data.expenses, unpaid: data.unpaid, profit: profit,
                        netProfit: net, netMargin: data.revenue > 0 ? net / data.revenue * 100 : 0)
     }.sorted { $0.year > $1.year }
 }
