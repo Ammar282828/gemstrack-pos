@@ -193,8 +193,8 @@
       },
       "tones": {
         "received": "working",
-        "ready": "owed",
-        "collected": "settled",
+        "ready": "settled",
+        "collected": "quiet",
         "cancelled": "quiet"
       },
       "moves": [

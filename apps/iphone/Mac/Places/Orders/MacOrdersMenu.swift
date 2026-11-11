@@ -202,7 +202,9 @@ enum MacOrdersMenu {
         ]
         return rows.map { (row: (String, String, String)) -> MacAction in
             let current = i.status == row.0
-            return MacAction("Status: " + row.0, symbol: current ? "checkmark" : row.1, enabled: on && !current,
+            // Only what the state machine allows from here (an invoiced order's status is read-only).
+            let allowed = i.order.map { OrdersLogic.canSetStatus($0, to: row.0, shown: i.status.isEmpty ? nil : i.status) } ?? false
+            return MacAction("Status: " + row.0, symbol: current ? "checkmark" : row.1, enabled: on && !current && allowed,
                              id: row.2, perform: { r.setStatus(row.0) })
         }
     }

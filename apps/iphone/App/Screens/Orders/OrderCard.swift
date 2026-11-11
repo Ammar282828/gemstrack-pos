@@ -148,10 +148,11 @@ struct OrderCardRows: View {
             Button { actions.markReady(order) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
         }
         Menu {
-            ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
+            ForEach(OrdersLogic.statusChoices(order), id: \.self) { s in
                 Button(role: s == "Cancelled" ? .destructive : nil) { actions.setStatus(order, s) } label: {
                     if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
                 }
+                .disabled(OrdersLogic.statusLocked(order))
             }
         } label: {
             Label("Set status", systemImage: "arrow.triangle.2.circlepath")

@@ -38,6 +38,8 @@ enum RepairsKit {
 
     /// REPAIR_STATUS_LABELS.
     static func label(_ s: RepairStatus) -> String {
+        // The machine's words (machines.json) where loaded; the table below is the fallback.
+        if let said = Machines.shared.label("Repair", s.rawValue), !said.isEmpty { return said }
         switch s {
         case .received: return "In the shop"
         case .ready: return "Ready"
@@ -50,6 +52,7 @@ enum RepairsKit {
     /// The web's STATUS_TONE (warning, success, quiet, destructive) in the kit's tones; a cancelled ticket says
     /// nothing, as a cancelled order does.
     static func tone(_ s: RepairStatus) -> Tone {
+        if let word = Machines.shared.tone("Repair", s.rawValue), let tone = Tone(word: word) { return tone }
         switch s {
         // Amber is money owed; a ticket in the shop is work in hand (blue).
         case .received: return .working

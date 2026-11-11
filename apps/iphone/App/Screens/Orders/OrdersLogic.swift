@@ -79,7 +79,25 @@ enum OrdersLogic {
 
     /// What the status menu offers: never a bare "Refunded" (docs/decisions.md "Orders hub"; the
     /// server refuses it too). Refund order is the order page's own move (OrderUndoSheets).
-    static let settableStatuses = ["Pending", "In Progress", "Completed", "Cancelled"]
+    static let settableStatuses = Machines.fallbackOrderChoices
+
+    /// The status menu's rows for this order: the state machine's `set` moves from its status plus its own (machines.json,
+    /// `Machines.orderStatusChoices`), the old list if the file is missing. An invoiced order's status is read-only
+    /// (`statusLocked`): the server refuses any `set` on it.
+    static func statusChoices(_ order: Order, shown: String? = nil) -> [String] {
+        Machines.shared.orderStatusChoices(current: shown ?? order.status.rawValue, invoiced: hasInvoice(order))
+    }
+
+    /// True when the menu shows the status but offers no change (invoiced, or Refunded).
+    static func statusLocked(_ order: Order, shown: String? = nil) -> Bool {
+        let current = shown ?? order.status.rawValue
+        return statusChoices(order, shown: current).allSatisfy { $0 == current }
+    }
+
+    /// Whether a person may set this order to `status` now (the Mac's menu rows).
+    static func canSetStatus(_ order: Order, to status: String, shown: String? = nil) -> Bool {
+        Machines.shared.canSetOrder(from: shown ?? order.status.rawValue, to: status, invoiced: hasInvoice(order))
+    }
 
     /// The hub's status filter: the ERP's ORDER_STATUSES, all of them (it filters, it does not write).
     static let filterStatuses = ["Pending", "In Progress", "Completed", "Cancelled", "Refunded"]

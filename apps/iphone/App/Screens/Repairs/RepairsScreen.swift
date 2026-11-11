@@ -190,11 +190,11 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func trailingSwipe(_ r: Repair) -> some View {
-        if session.isOwner && desk.status(r) == .received {
+        if session.isOwner && desk.status(r) == .received && desk.canMove(r, to: "ready") {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
                 .tint(Theme.accent)
         }
-        if session.isOwner && desk.status(r) == .ready {
+        if session.isOwner && desk.status(r) == .ready && desk.canMove(r, to: "collected") {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
                 .tint(.gray)
         }
@@ -210,10 +210,10 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func menu(_ r: Repair) -> some View {
-        if session.isOwner && desk.status(r) == .received {
+        if session.isOwner && desk.status(r) == .received && desk.canMove(r, to: "ready") {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
         }
-        if session.isOwner && desk.status(r) == .ready {
+        if session.isOwner && desk.status(r) == .ready && desk.canMove(r, to: "collected") {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
         }
         if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
@@ -224,7 +224,7 @@ struct RepairsScreen: View {
         if session.isOwner && desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0 {
             Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
         }
-        if session.isOwner && (desk.status(r) == .received || desk.status(r) == .ready) {
+        if session.isOwner && (desk.status(r) == .received || desk.status(r) == .ready) && desk.canMove(r, to: "cancelled") {
             Button(role: .destructive) { desk.askCancel(r) } label: { Label("Cancel repair", systemImage: "xmark.circle") }
         }
     }

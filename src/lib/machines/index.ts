@@ -55,7 +55,7 @@ export const REPAIR = defineMachine<RepairState, RepairCtx>({
   field: 'repairs/<id>.status',
   states: REPAIR_STATES,
   labels: { received: 'In the shop', ready: 'Ready', collected: 'Collected', cancelled: 'Cancelled' },
-  tones: { received: 'working', ready: 'owed', collected: 'settled', cancelled: 'quiet' },
+  tones: { received: 'working', ready: 'settled', collected: 'quiet', cancelled: 'quiet' },
   final: [],
   moves: [
     { from: ['ready', 'cancelled', 'collected'], to: 'received', event: 'set', note: 'back in the shop (undo)' },

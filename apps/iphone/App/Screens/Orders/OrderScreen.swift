@@ -743,10 +743,11 @@ struct OrderScreen: View {
         let canDelete = OrderActions.canDelete(order, isOwner: session.isOwner)
         return Menu {
             Section("Status") {
-                ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
+                ForEach(OrdersLogic.statusChoices(order, shown: shownStatus(order)), id: \.self) { s in
                     Button(role: s == "Cancelled" ? .destructive : nil) { choose(order, s) } label: {
                         if s == shownStatus(order) { Label(s, systemImage: "checkmark") } else { Text(s) }
                     }
+                    .disabled(OrdersLogic.statusLocked(order, shown: shownStatus(order)))
                         }
             }
             if showAdvance || showFinalize {

@@ -51,17 +51,25 @@ final class RepairsDesk {
 
     func isBusy(_ id: String) -> Bool { busy.contains(id) }
 
+    /// Whether the Repair machine lets a person set this ticket to `status` from where it is shown (machines.json; with no
+    /// file, yes). Collected still needs nothing owed: `collect` asks for the balance first.
+    func canMove(_ r: Repair, to status: String) -> Bool {
+        Machines.shared.canSetRepair(from: self.status(r).rawValue, to: status)
+    }
+
     // MARK: The steps
 
-    func markReady(_ r: Repair) { setStatus(r, "ready") }
+    func markReady(_ r: Repair) {
+        if canMove(r, to: "ready") { setStatus(r, "ready") }
+    }
 
     func collect(_ r: Repair) {
-        if busy.contains(r.id) { return }
+        if busy.contains(r.id) || !canMove(r, to: "collected") { return }
         if RepairsKit.repairBalance(r) > 0 { asking = .collect(r) } else { setStatus(r, "collected") }
     }
 
     func askCancel(_ r: Repair) {
-        if !busy.contains(r.id) { asking = .cancel(r) }
+        if !busy.contains(r.id) && canMove(r, to: "cancelled") { asking = .cancel(r) }
     }
 
     /// "received" | "ready" | "collected" | "cancelled".
@@ -108,6 +116,12 @@ final class RepairsDesk {
 
     /// The page's Hand back: the money first (noted "On collection"), then Collected.
     func takeAndCollect(_ r: Repair, amount: Double, method: String) async throws {
+        // Said before any money is taken, as the web's Hand back says it: a part payment here would be taken and then the
+        // hand-back refused (a repair is collected once nothing is owed; Take payment takes part of it).
+        let short = (RepairsKit.repairBalance(r) - amount).rounded()
+        if !balanceTaken.contains(r.id) && short >= 1 {
+            throw ERPAPI.Failure(status: 0, message: "\(Money.pkr(short)) more is owed: take the whole balance to hand it back.")
+        }
         if !balanceTaken.contains(r.id) {
             _ = try await ERPAPI.shared.write("recordRepairPayment", [
                 "repairId": r.id, "amount": amount, "method": method, "note": "On collection",
@@ -181,7 +195,9 @@ private struct RepairsDeskModifier: ViewModifier {
 
     private func askMessage(_ ask: RepairsDesk.Ask) -> String {
         switch ask {
-        case .collect: return "Take it now, or hand the pieces back and leave it owing."
+        // A ticket is collected only once nothing is owed (the Repair machine, lib/machines; the web's Hand back): the
+        // server refuses "collected" while a rupee is owed, so there is no handing back without the balance.
+        case .collect: return "Take the balance to hand the pieces back: a repair is collected once nothing is owed."
         case .cancel: return "Cancel keeps the record: the pieces are handed back unrepaired."
         }
     }
@@ -191,7 +207,6 @@ private struct RepairsDeskModifier: ViewModifier {
         switch ask {
         case .collect(let r):
             Button("Take the balance") { desk.paying = r }
-            Button("Hand back without it") { desk.setStatus(r, "collected") }
             Button("Not yet", role: .cancel) {}
         case .cancel(let r):
             Button("Cancel repair", role: .destructive) { desk.setStatus(r, "cancelled") }

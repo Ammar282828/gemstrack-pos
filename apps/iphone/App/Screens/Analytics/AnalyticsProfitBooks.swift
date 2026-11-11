@@ -145,7 +145,14 @@ struct AbProfitPage: View {
 
     /// "Revenue 4.5 lac · Est. profit 40,000 · running 10,000 · unpaid 5,000 · 3.2% margin".
     private func yearLine(_ y: YearRow) -> String {
-        var parts: [String] = ["Revenue \(Money.lacCrore(y.revenue))", "\(profitWord) \(Money.lacCrore(y.profit))", "running \(Money.lacCrore(y.expenses))"]
+        var parts: [String] = ["Revenue \(Money.lacCrore(y.revenue))"]
+        // Gold apart (Mina): silver and gold's revenue beside the total, as the web's Silver and Gold columns.
+        if let percent = ctx.options.goldApartMargin {
+            parts.append("Silver \(Money.lacCrore(y.revenue - y.goldRevenue))")
+            let gold = y.goldRevenue > 0 ? Money.lacCrore(y.goldRevenue) : "\u{2014}"
+            parts.append("Gold (est. \(GoldApart.percentText(percent))%) \(gold)")
+        }
+        parts += ["\(profitWord) \(Money.lacCrore(y.profit))", "running \(Money.lacCrore(y.expenses))"]
         if y.unpaid > 0 { parts.append("unpaid \(Money.lacCrore(y.unpaid))") }
         if y.revenue > 0 { parts.append("\(AbSay.pct1(y.netMargin)) margin") }
         return parts.joined(separator: " · ")

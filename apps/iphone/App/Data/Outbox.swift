@@ -275,8 +275,11 @@ final class Outbox {
                     let said = try await self.attemptOnce(id)
                     self.finish(id, said: said)
                     return
-                } catch let e as ERPAPI.Failure where e.status == 409 {
-                    // "Already recorded": the earlier try went through.
+                } catch let e as ERPAPI.Failure where e.status == 409 && e.message.hasPrefix("This was already sent") {
+                    // "Already recorded": the earlier try of this same named change went through (idempotency.ts's busy
+                    // answer; a replay of a finished one answers its first status). Any other 409 is a refusal and falls to
+                    // the next catch: a state machine's "can't go from … to …" (lib/machines/http.ts), not in stock, an
+                    // invoiced order. Taking every 409 for "already recorded" showed a refused status move as saved.
                     self.finish(id, said: nil)
                     return
                 } catch {
@@ -294,7 +297,14 @@ final class Outbox {
                     // 4xx other than a timeout/rate limit/expired token is a refusal: no retry will change it.
                     let refused = (400..<500).contains(status) && ![401, 408, 425, 429].contains(status)
                     attempt += 1
-                    if var en = self.entries[id] { en.attempts = attempt; self.entries[id] = en; self.persist(en.business) }
+                    if var en = self.entries[id] {
+                        en.attempts = attempt
+                        // Kept as refused, so the next launch does not send it again: a status move refused this morning
+                        // must not land by itself this afternoon because its order's invoice was undone meanwhile.
+                        if refused { en.refusal = error.localizedDescription }
+                        self.entries[id] = en
+                        self.persist(en.business)
+                    }
                     if refused || attempt > Self.backoff.count {
                         self.running.remove(id)
                         self.fail(id: id, label: self.items.first { $0.id == id }?.label ?? "", message: error.localizedDescription)
@@ -475,10 +485,11 @@ final class Outbox {
         for e in saved where entries[e.id] == nil {
             entries[e.id] = e
             let kept = e.durable == true
-            if kept, let refusal = e.refusal {
-                // Refused before the app was closed: kept as it was, said again in Waiting to send, not sent at every launch.
+            if let refusal = e.refusal {
+                // Refused before the app was closed: kept as it was, said again in Waiting to send, not sent at every launch
+                // (a kept creation or payment, and since 2026-11-11 a status or piece change too).
                 items.append(Item(id: e.id, label: e.label, status: .failed, message: refusal, summary: e.summary,
-                                  business: e.business, createdAt: e.createdAt, durable: true))
+                                  business: e.business, createdAt: e.createdAt, durable: kept))
                 continue
             }
             items.append(Item(id: e.id, label: e.label, status: kept ? .waiting : .saving, summary: e.summary,

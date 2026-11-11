@@ -19,7 +19,7 @@ struct MacRepairsDialogs: ViewModifier {
             .confirmationDialog(collectTitle, isPresented: collectShown, titleVisibility: .visible, presenting: model.collecting) { r in
                 collectButtons(r)
             } message: { r in
-                Text("\(r.id) still owes \(Money.pkr(RepairsKit.repairBalance(r).rounded())).")
+                Text("\(r.id) still owes \(Money.pkr(RepairsKit.repairBalance(r).rounded())). A repair is handed back once nothing is owed.")
             }
             .sheet(item: editingBinding) { r in
                 RepairsForm(editing: r) { _, _ in }
@@ -40,8 +40,9 @@ struct MacRepairsDialogs: ViewModifier {
 
     @ViewBuilder
     private func collectButtons(_ r: Repair) -> some View {
-        Button("Take \(Money.pkr(RepairsKit.repairBalance(r).rounded())) and Hand Back") { model.handBack(r, takingBalance: true) }
-        Button("Hand Back Without It") { model.handBack(r, takingBalance: false) }
+        // No "Hand Back Without It": the server refuses Collected while a rupee is owed (the Repair machine, as the web's
+        // Hand back), and the Mac showed it collected while the ERP kept it Ready.
+        Button("Take \(Money.pkr(RepairsKit.repairBalance(r).rounded())) and Hand Back") { model.handBack(r) }
         Button("Cancel", role: .cancel) {}
     }
 

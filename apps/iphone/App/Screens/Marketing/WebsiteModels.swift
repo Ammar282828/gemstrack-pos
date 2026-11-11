@@ -149,9 +149,18 @@ struct WebsiteWeightPiece: Decodable, Identifiable, Hashable {
     let labelWeightGrams: Double?
     var enteredBy: String?
     var enteredAt: String?
+    /// A diamond piece (the route's `diamond`): the carats fields show, as they do for one that already has some.
+    let diamond: Bool
+    /// The diamonds' carats, or the main stone's (a solitaire's), drawn under the weight; nil when none.
+    var diamondCarats: Double?
+    /// The smaller diamonds' carats beside a solitaire's.
+    var sideCarats: Double?
     var id: String { key }
 
-    private enum K: String, CodingKey { case key, collection, file, thumb, weightGrams, source, labelWeightGrams, enteredBy, enteredAt }
+    /// Whether the carats fields show for this photo (the page's `diamond || diamondCarats || sideCarats`).
+    var takesCarats: Bool { diamond || diamondCarats != nil || sideCarats != nil }
+
+    private enum K: String, CodingKey { case key, collection, file, thumb, weightGrams, source, labelWeightGrams, enteredBy, enteredAt, diamond, diamondCarats, sideCarats }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -164,6 +173,19 @@ struct WebsiteWeightPiece: Decodable, Identifiable, Hashable {
         labelWeightGrams = c.double(.labelWeightGrams)
         enteredBy = c.string(.enteredBy)
         enteredAt = c.string(.enteredAt)
+        diamond = c.bool(.diamond) ?? false
+        diamondCarats = c.double(.diamondCarats).flatMap { (v: Double) in v > 0 ? v : nil }
+        sideCarats = c.double(.sideCarats).flatMap { (v: Double) in v > 0 ? v : nil }
+    }
+}
+
+/// /api/website/pieces/ink: white or dark for the weight drawn on a photo (lib/website/label-ink.ts, read server side).
+struct WebsiteInk: Decodable {
+    let ink: String
+    private enum K: String, CodingKey { case ink }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        ink = c.string(.ink, default: "#ffffff")
     }
 }
 

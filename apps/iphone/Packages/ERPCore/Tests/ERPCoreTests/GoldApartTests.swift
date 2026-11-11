@@ -33,6 +33,17 @@ final class GoldApartTests: XCTestCase {
         XCTAssertEqual(GoldApart.orderGoldPart(o, 20000), 20000)
     }
 
+    func testYearsCarryGoldRevenueApart() {
+        let gold = invoice("G", "2026-11-02T10:00:00", [item("gold", 40000)], total: 40000)
+        let silver = invoice("S", "2025-03-03T10:00:00", [item("silver", 60000)], total: 60000)
+        let input = BooksInput(invoices: [gold, silver], orders: [], customers: [], expenses: [], additionalRevenues: [])
+        let years = yearlySummary(input, options: BooksOptions(now: NOW, goldApartMargin: 10))
+        XCTAssertEqual(years.map { $0.year }, [2026, 2025])
+        XCTAssertEqual(years[0].goldRevenue, 40000)
+        XCTAssertEqual(years[1].goldRevenue, 0)
+        XCTAssertEqual(years[1].revenue, 60000)
+    }
+
     func testLabels() {
         XCTAssertEqual(GoldApart.goldRevenueLabel(10), "Gold revenue (est. 10% margin)")
         XCTAssertEqual(GoldApart.goldRevenueLabel(7.5), "Gold revenue (est. 7.5% margin)")

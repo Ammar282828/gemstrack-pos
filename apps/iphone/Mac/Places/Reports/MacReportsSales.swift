@@ -160,15 +160,17 @@ struct MacReportsSales: View {
         yearMade(c.booksKey) {
             h.yearly
                 .map { (y: AnaYear) -> MacReportsYearRow in
-                    MacReportsYearRow(id: String(y.year), year: y.year, revenue: y.revenue, unpaid: y.unpaid, expenses: y.expenses,
-                                      profit: y.profit, net: y.netProfit, margin: y.revenue > 0 ? y.netProfit / y.revenue * 100 : 0)
+                    MacReportsYearRow(id: String(y.year), year: y.year, revenue: y.revenue, gold: y.goldRevenue, unpaid: y.unpaid,
+                                      expenses: y.expenses, profit: y.profit, net: y.netProfit,
+                                      margin: y.revenue > 0 ? y.netProfit / y.revenue * 100 : 0)
                 }
                 .sorted { (a: MacReportsYearRow, b: MacReportsYearRow) -> Bool in a.year > b.year }
         }
     }
 
     /// The years as rows, every column when the card has room for them and the four that matter when it has not (a seventh
-    /// column of a table cut the Margin off at the card's edge).
+    /// column of a table cut the Margin off at the card's edge). Where gold is apart (House of Mina) Silver and Gold follow
+    /// Revenue, as the web's Profit › Every year has them, and a middle width keeps them with the net profit.
     private func yearly(_ rows: [MacReportsYearRow]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             MacReportsHeader(title: "Yearly performance", detail: rows.isEmpty ? nil : "Click a year to filter Analytics to it")
@@ -179,35 +181,74 @@ struct MacReportsSales: View {
                     .padding(.bottom, 14)
             } else {
                 ViewThatFits(in: .horizontal) {
-                    yearGrid(rows, full: true)
-                    yearGrid(rows, full: false)
+                    yearGrid(rows, MacReportsYearColumn.full(gold: goldPercent))
+                    if goldPercent != nil { yearGrid(rows, MacReportsYearColumn.split) }
+                    yearGrid(rows, MacReportsYearColumn.short)
                 }
             }
         }
     }
 
-    private func yearGrid(_ rows: [MacReportsYearRow], full: Bool) -> some View {
-        let headers = full ? ["Year", "Revenue", "Unpaid", "Expenses", "Est. profit", "Net profit", "Margin"]
-                           : ["Year", "Revenue", "Net profit", "Margin"]
-        return MacReportsGrid(headers: headers, rows: rows.map { (r: MacReportsYearRow) -> MacReportsGridRow in yearRow(r, full: full) })
+    /// Gold apart's estimated margin (Mina's 10), nil where gold is not apart (Taheri).
+    private var goldPercent: Double? { f.goldApartMargin }
+
+    private func yearGrid(_ rows: [MacReportsYearRow], _ columns: [MacReportsYearColumn]) -> some View {
+        let headers = columns.map { (col: MacReportsYearColumn) -> String in col.header(goldPercent: goldPercent) }
+        return MacReportsGrid(headers: headers, rows: rows.map { (r: MacReportsYearRow) -> MacReportsGridRow in yearRow(r, columns) })
     }
 
     /// One year's row: its number first, a link that sets the period to that year.
-    private func yearRow(_ r: MacReportsYearRow, full: Bool) -> MacReportsGridRow {
-        let margin = r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "\u{2014}"
-        let year = r.year
+    private func yearRow(_ r: MacReportsYearRow, _ columns: [MacReportsYearColumn]) -> MacReportsGridRow {
         var tones: [Int: Tone] = [:]
-        let cells: [String]
-        if full {
-            if r.unpaid >= 1 { tones[2] = Tone.owed }
-            if r.net < 0 { tones[5] = Tone.late }
-            cells = [String(year), Money.grouped(r.revenue), r.unpaid >= 1 ? Money.grouped(r.unpaid) : "", Money.grouped(r.expenses),
-                     Money.grouped(r.profit), Money.grouped(r.net), margin]
-        } else {
-            if r.net < 0 { tones[2] = Tone.late }
-            cells = [String(year), Money.grouped(r.revenue), Money.grouped(r.net), margin]
+        var cells: [String] = []
+        for (i, col) in columns.enumerated() {
+            switch col {
+            case .year: cells.append(String(r.year))
+            case .revenue: cells.append(Money.grouped(r.revenue))
+            case .silver: cells.append(Money.grouped(r.revenue - r.gold))
+            case .gold: cells.append(r.gold >= 1 ? Money.grouped(r.gold) : "\u{2014}")
+            case .unpaid:
+                if r.unpaid >= 1 { tones[i] = Tone.owed }
+                cells.append(r.unpaid >= 1 ? Money.grouped(r.unpaid) : "")
+            case .running: cells.append(Money.grouped(r.expenses))
+            case .profit: cells.append(Money.grouped(r.profit))
+            case .net:
+                if r.net < 0 { tones[i] = Tone.late }
+                cells.append(Money.grouped(r.net))
+            case .margin: cells.append(r.revenue > 0 ? AnaFormat.fixed(r.margin, 1) + "%" : "\u{2014}")
+            }
         }
+        let year = r.year
         return MacReportsGridRow(String(year), cells, tones: tones, hint: "Show Analytics for \(String(year))") { pickYear(year) }
+    }
+}
+
+/// The year table's columns, in the web's order (Profit › Every year): Year, Revenue, [Silver, Gold], Unpaid, Running costs,
+/// Est. (or Gross) profit, Net profit, Margin.
+enum MacReportsYearColumn {
+    case year, revenue, silver, gold, unpaid, running, profit, net, margin
+
+    static func full(gold: Double?) -> [MacReportsYearColumn] {
+        gold == nil ? [.year, .revenue, .unpaid, .running, .profit, .net, .margin]
+                    : [.year, .revenue, .silver, .gold, .unpaid, .running, .profit, .net, .margin]
+    }
+    /// A narrower card with gold apart: the split stays beside the net profit.
+    static let split: [MacReportsYearColumn] = [.year, .revenue, .silver, .gold, .net, .margin]
+    static let short: [MacReportsYearColumn] = [.year, .revenue, .net, .margin]
+
+    func header(goldPercent: Double?) -> String {
+        switch self {
+        case .year: return "Year"
+        case .revenue: return "Revenue"
+        case .silver: return "Silver"
+        case .gold: return "Gold (est. \(GoldApart.percentText(goldPercent ?? 0))%)"
+        case .unpaid: return "Unpaid"
+        case .running: return "Running costs"
+        // Where the house records its goods (Mina) the profit is revenue less them, not an estimate (decision "Net profit").
+        case .profit: return House.recordsGoods ? "Gross profit" : "Est. profit"
+        case .net: return "Net profit"
+        case .margin: return "Margin"
+        }
     }
 }
 
@@ -226,6 +267,8 @@ struct MacReportsYearRow: Identifiable {
     let id: String
     let year: Int
     let revenue: Double
+    /// Of revenue, gold's (gold apart); silver is the rest.
+    let gold: Double
     let unpaid: Double
     let expenses: Double
     let profit: Double

@@ -387,20 +387,19 @@ struct MacOrdersPlace: View {
     }
 
     /// Orders dragged onto a column of the board: From With karigars onto Ready to hand over marks them ready, and back
-    /// again. Nothing else moves by dragging.
+    /// again, where the Order machine allows that move from the status shown (machines.json; the menu's rows ask the same).
+    /// Nothing else moves by dragging.
     private func dropOrders(_ ids: [String], onto target: OrderStage) -> Bool {
         var moved = false
         for id in ids {
             guard let order = book.orders.item(id) else { continue }
             let invoiceOwed = MacOrdersLogic.invoiceOwed(order.invoiceId.flatMap { $0.isEmpty ? nil : book.invoices.item($0) })
             let stage = MacOrdersLogic.stage(order, invoiceOwed: invoiceOwed, local: localStatus[order.id])
-            if target == .ready && stage == .karigar {
-                setStatus(order, "Completed")
-                moved = true
-            } else if target == .karigar && stage == .ready {
-                setStatus(order, "In Progress")
-                moved = true
-            }
+            let to: String? = target == .ready && stage == .karigar ? "Completed"
+                : target == .karigar && stage == .ready ? "In Progress" : nil
+            guard let to, OrdersLogic.canSetStatus(order, to: to, shown: localStatus[order.id]) else { continue }
+            setStatus(order, to)
+            moved = true
         }
         return moved
     }

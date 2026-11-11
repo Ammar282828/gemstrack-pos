@@ -50,9 +50,30 @@ enum Tone {
         }
     }
 
+    /// A tone by the word the state machines export ("owed", "working", "settled", "quiet", "late", "credit", "problem");
+    /// nil for a word this build does not know, so the caller keeps its own.
+    init?(word: String) {
+        switch word {
+        case "late": self = .late
+        case "owed": self = .owed
+        case "settled": self = .settled
+        case "credit": self = .credit
+        case "working": self = .working
+        case "quiet": self = .quiet
+        case "house": self = .house
+        case "problem": self = .problem
+        default: return nil
+        }
+    }
+
     /// An order's status in its tone: waiting is owed, with the karigars is working, done is settled; cancelled,
     /// refunded and unknown say nothing. The one palette for order statuses (`StatusBadge(order:)` reads it).
     init(status: OrderStatus) {
+        // The state machine's tone (machines.json) where the file is loaded; this table is the fallback.
+        if let word = Machines.shared.tone("Order", status.rawValue), let tone = Tone(word: word) {
+            self = tone
+            return
+        }
         switch status {
         case .pending: self = .owed
         case .inProgress: self = .working
