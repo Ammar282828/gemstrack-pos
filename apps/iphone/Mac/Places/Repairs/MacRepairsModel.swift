@@ -25,18 +25,15 @@ final class MacRepairsModel {
 
     // MARK: The steps
 
-    /// Collected: a ticket that owes asks once ("Take PKR x and Hand Back" / "Hand Back Without It" / Cancel); one that owes
-    /// nothing is handed back at once. Under a rupee is settled (decisions.md "Whole rupees").
+    /// Collected: a ticket that owes asks once ("Take PKR x and Hand Back" / Cancel); one that owes nothing is handed back at
+    /// once. Under a rupee is settled (decisions.md "Whole rupees"). A repair is collected only once nothing is owed (the
+    /// Repair machine refuses it otherwise), so there is no handing back without the balance.
     func collect(_ r: Repair) {
         if RepairsKit.repairBalance(r) >= 1 { collecting = r } else { desk.setStatus(r, "collected") }
     }
 
-    /// The balance taken (in cash, the counter's way) and the ticket handed back, or handed back as it is.
-    func handBack(_ r: Repair, takingBalance: Bool) {
-        guard takingBalance else {
-            desk.setStatus(r, "collected")
-            return
-        }
+    /// The balance taken (in cash, the counter's way) and the ticket handed back.
+    func handBack(_ r: Repair) {
         let id = r.id
         if handing.contains(id) { return }
         handing.insert(id)

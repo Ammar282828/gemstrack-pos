@@ -693,6 +693,9 @@ struct AnaYear: Identifiable {
     let unpaid: Double
     /// The estimated profit; owners only (0 where no margin was worked out).
     let profit: Double
+    /// Of `revenue`, gold's (gold apart, House of Mina: the year table's Silver and Gold columns; silver is the rest). The
+    /// same parts as ERPCore's `yearlySummary`: each sale's gold lines (GoldApart), extra revenue never gold.
+    var goldRevenue: Double = 0
     /// Estimated profit less the running costs (`expenses` here is running costs only), never revenue less expenses
     /// (decision "Net profit"; lib/analytics/net-profit.ts).
     var netProfit: Double { AnaNet.profit(estimated: profit, expenses: expenses) }
@@ -727,6 +730,7 @@ private struct AnaYearAcc {
     var unpaid = 0.0
     var profit = 0.0
     var goods = 0.0
+    var gold = 0.0
 }
 
 extension AnaHistory {
@@ -753,6 +757,7 @@ extension AnaHistory {
             let value = invoiceSaleValue(inv)
             let yr = AnaDate.year(of: d)
             years[yr, default: AnaYearAcc()].revenue += value
+            years[yr, default: AnaYearAcc()].gold += GoldApart.invoiceGoldPart(inv, value)
             if let margin {
                 years[yr, default: AnaYearAcc()].profit += value * invoiceMargin(inv, settings: margin).percent / 100
             }
@@ -763,6 +768,7 @@ extension AnaHistory {
             guard let d = AnaDate.parseISO(o.createdAt) else { continue }
             let yr = AnaDate.year(of: d)
             years[yr, default: AnaYearAcc()].revenue += o.subtotal
+            years[yr, default: AnaYearAcc()].gold += GoldApart.orderGoldPart(o, o.subtotal)
             if let margin {
                 years[yr, default: AnaYearAcc()].profit += o.subtotal * orderMargin(o, settings: margin).percent / 100
             }
@@ -789,7 +795,8 @@ extension AnaHistory {
             AnaYear(year: pair.key, revenue: pair.value.revenue, expenses: pair.value.expenses,
                     unpaid: pair.value.unpaid,
                     profit: NetProfit.beforeRunning(estimated: pair.value.profit, revenue: pair.value.revenue,
-                                                    goods: pair.value.goods, recordsGoods: !goods.isEmpty))
+                                                    goods: pair.value.goods, recordsGoods: !goods.isEmpty),
+                    goldRevenue: pair.value.gold)
         }
         yearly = yearRows.sorted { (a: AnaYear, b: AnaYear) -> Bool in a.year > b.year }
 
