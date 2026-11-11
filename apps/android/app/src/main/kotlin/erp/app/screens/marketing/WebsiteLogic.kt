@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.PhotoLabel
 import erp.core.logic.ShopNumber
 import androidx.compose.ui.graphics.ImageBitmap
 import erp.app.ui.AppClock
@@ -372,7 +373,23 @@ object WebsiteEditLogic {
 
 /** Photo weights' queue and words (WebsiteWeights.swift). */
 object WebsiteWeightsLogic {
-    class Pending(val key: String, val file: String, val grams: Double?, val label: Double?, val advance: Boolean)
+    /**
+     * What a save sends. Carats travel only for a diamond piece, or one that has some already (so clearing them works):
+     * `sendCarats`; then `carats` (the main diamond) and `side` (the small ones) go as typed, null clearing one.
+     */
+    class Pending(
+        val key: String, val file: String, val grams: Double?, val label: Double?, val advance: Boolean,
+        val sendCarats: Boolean = false, val carats: Double? = null, val side: Double? = null,
+    )
+
+    /** Whether the carats fields show: a diamond piece, or one that already has carats. */
+    fun showsCarats(p: WebsiteWeightPiece): Boolean = p.diamond || p.diamondCarats != null || p.sideCarats != null
+
+    /** The request body, field for field as the web sends it: weightGrams always, the carats only when they travel. */
+    fun body(p: Pending): LinkedHashMap<String, Any?> = LinkedHashMap<String, Any?>().apply {
+        put("key", p.key); put("weightGrams", p.grams)
+        if (p.sendCarats) { put("diamondCarats", p.carats); put("sideCarats", p.side) }
+    }
 
     fun collections(pieces: List<WebsiteWeightPiece>): List<String> = pieces.map { it.collection }.filter { it.isNotEmpty() }.toSet().sorted()
 
@@ -409,18 +426,25 @@ object WebsiteWeightsLogic {
 
     /** Exactly what changes on the site, for every visitor. */
     fun words(p: Pending, siteName: String): String {
+        val ct = PhotoLabel.caratsLine(p.carats ?: 0.0, p.side ?: 0.0)
+        val under = if (p.sendCarats && ct.isNotEmpty()) " The diamonds, $ct, go under it." else ""
         if (p.grams != null) {
-            return "${WebsiteNumber.grams(p.grams)} g for ${p.file}. $siteName draws it on the photograph's corner (unless the photo carries its own) and prices the piece from it at the day's rate, for everyone who opens it."
+            return "${WebsiteNumber.grams(p.grams)} g for ${p.file}. $siteName draws it on the photograph's corner (unless the photo carries its own) and prices the piece from it at the day's rate, for everyone who opens it.$under"
         }
         val own = p.label?.let { " The photo's own ${WebsiteNumber.grams(it)}g stays." } ?: ""
         return "The weight typed for ${p.file} comes off $siteName: the site stops drawing it and pricing from it.$own"
     }
 
     /** The list as a save leaves it (the piece takes the weight, or goes back to the photo's label). */
-    fun saved(pieces: List<WebsiteWeightPiece>, key: String, grams: Double?, now: Instant): List<WebsiteWeightPiece> =
+    fun saved(
+        pieces: List<WebsiteWeightPiece>, key: String, grams: Double?, now: Instant,
+        sendCarats: Boolean = false, carats: Double? = null, side: Double? = null,
+    ): List<WebsiteWeightPiece> =
         pieces.map { x ->
             if (x.key != key) x
             else x.copy(
+                diamondCarats = if (sendCarats) carats else x.diamondCarats,
+                sideCarats = if (sendCarats) side else x.sideCarats,
                 weightGrams = grams ?: x.labelWeightGrams,
                 source = if (grams != null) "pos" else if (x.labelWeightGrams != null) "label" else null,
                 enteredBy = if (grams != null) "you" else null,

@@ -296,6 +296,27 @@ class WebsiteTests {
         assertEquals(listOf("Earrings", "Rings"), WebsiteWeightsLogic.collections(all))
     }
 
+    @Test fun diamondCaratsTravelOnlyForADiamondPieceAndAreNamedInTheWords() {
+        val plain = w("Rings/A.webp", "Rings")
+        val ring = plain.copy(diamond = true)
+        assertEquals(false, WebsiteWeightsLogic.showsCarats(plain))
+        assertEquals(true, WebsiteWeightsLogic.showsCarats(ring))
+        assertEquals(true, WebsiteWeightsLogic.showsCarats(plain.copy(sideCarats = 0.24)))
+        // The web's PUT body, field for field: weightGrams always, the carats only when they travel (null clears one).
+        assertEquals(mapOf<String, Any?>("key" to "A", "weightGrams" to 3.5), WebsiteWeightsLogic.body(WebsiteWeightsLogic.Pending("A", "a", 3.5, null, true)))
+        val both = WebsiteWeightsLogic.Pending("A", "a", 3.5, null, true, true, 0.5, 0.24)
+        assertEquals(mapOf<String, Any?>("key" to "A", "weightGrams" to 3.5, "diamondCarats" to 0.5, "sideCarats" to 0.24), WebsiteWeightsLogic.body(both))
+        assertEquals(mapOf<String, Any?>("key" to "A", "weightGrams" to null, "diamondCarats" to null, "sideCarats" to 0.24),
+            WebsiteWeightsLogic.body(WebsiteWeightsLogic.Pending("A", "a", null, null, true, true, null, 0.24)))
+        assertTrue(WebsiteWeightsLogic.words(both, "taheri.shop").contains("0.50ct + 0.24ct"))
+        val list = WebsiteWeightsLogic.saved(listOf(ring), ring.key, 3.5, java.time.Instant.parse("2026-11-10T00:00:00Z"), true, 0.5, null)
+        assertEquals(0.5, list[0].diamondCarats)
+        assertEquals(null, list[0].sideCarats)
+        // Not sent: the piece's carats stay as they were.
+        val kept = WebsiteWeightsLogic.saved(listOf(ring.copy(diamondCarats = 1.0)), ring.key, 3.5, java.time.Instant.parse("2026-11-10T00:00:00Z"))
+        assertEquals(1.0, kept[0].diamondCarats)
+    }
+
     @Test fun theStripShowsTheNextTwelve() {
         val q = (0 until 20).map { w("A/$it.webp", "A") }
         val up = WebsiteWeightsLogic.upcoming(q, 2)

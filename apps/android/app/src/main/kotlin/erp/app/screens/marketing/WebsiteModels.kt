@@ -116,6 +116,11 @@ data class WebsiteWeightPiece(
     val labelWeightGrams: Double?,
     val enteredBy: String?,
     val enteredAt: String?,
+    /** The diamonds' carats, drawn under the weight (a solitaire's, or the diamonds'), and the smaller diamonds' beside them. */
+    val diamondCarats: Double? = null,
+    val sideCarats: Double? = null,
+    /** A diamond piece: the carats fields show (a diamond on the photo, or a diamond collection). */
+    val diamond: Boolean = false,
 ) {
     companion object : Decodable<WebsiteWeightPiece> {
         override fun fromMap(m: Map<String, Any?>): WebsiteWeightPiece {
@@ -124,6 +129,8 @@ data class WebsiteWeightPiece(
                 key = c.string("key", ""), collection = c.string("collection", ""), file = c.string("file", ""), thumb = c.string("thumb", ""),
                 weightGrams = c.double("weightGrams")?.takeIf { it > 0 }, source = c.string("source"),
                 labelWeightGrams = c.double("labelWeightGrams"), enteredBy = c.string("enteredBy"), enteredAt = c.string("enteredAt"),
+                diamondCarats = c.double("diamondCarats")?.takeIf { it > 0 }, sideCarats = c.double("sideCarats")?.takeIf { it > 0 },
+                diamond = c.bool("diamond", false),
             )
         }
     }
