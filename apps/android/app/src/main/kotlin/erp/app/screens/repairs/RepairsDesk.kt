@@ -45,9 +45,8 @@ import kotlinx.coroutines.launch
  * (setRepairStatus, recordRepairPayment: owners only, the ERP refuses anyone else), the questions they ask first, and the
  * ERP's own words when it says no.
  *
- * Collected while the ticket still owes asks first. The web's Hand back dialog always offers the balance, and lets the
- * amount go to nothing; here a ticket that owes asks "take it, or hand it back as it is", and one that owes nothing is
- * handed back at once.
+ * Collected while the ticket still owes asks first: the balance is taken, then Collected (the Repair machine refuses a
+ * collection while a rupee is owed, as the web's Hand back always has); one that owes nothing is handed back at once.
  */
 @Stable
 class RepairsDesk(private val scope: CoroutineScope) {
@@ -134,6 +133,12 @@ class RepairsDesk(private val scope: CoroutineScope) {
 
     /** The page's Hand back: the money first (noted "On collection"), then Collected. */
     suspend fun takeAndCollect(r: Repair, amount: Double, method: String) {
+        // Said before any money is taken, as the web's Hand back says it: a part payment here would be taken and then the
+        // hand-back refused (a repair is collected once nothing is owed; Take payment takes part of it).
+        val short = kotlin.math.round(repairBalance(r) - amount)
+        if (r.id !in balanceTaken && short >= 1) {
+            throw ErpApi.Failure(0, "${Money.pkr(short)} more is owed: take the whole balance to hand it back.")
+        }
         if (r.id !in balanceTaken) {
             ErpApi.shared.write(
                 "recordRepairPayment",
@@ -206,7 +211,9 @@ private fun RepairsAsk(desk: RepairsDesk, ask: RepairsDesk.Ask) {
         is RepairsDesk.Ask.Cancel -> "Cancel ${r.id}?"
     }
     val message = when (ask) {
-        is RepairsDesk.Ask.Collect -> "Take it now, or hand the pieces back and leave it owing."
+        // A ticket is collected only once nothing is owed (the Repair machine, lib/machines; the web's Hand back): the server
+        // refuses "collected" while a rupee is owed, so there is no handing back without the balance.
+        is RepairsDesk.Ask.Collect -> "Take the balance to hand the pieces back: a repair is collected once nothing is owed."
         is RepairsDesk.Ask.Cancel -> "Cancel keeps the record: the pieces are handed back unrepaired."
     }
     AlertDialog(
@@ -218,7 +225,6 @@ private fun RepairsAsk(desk: RepairsDesk, ask: RepairsDesk.Ask) {
                 when (ask) {
                     is RepairsDesk.Ask.Collect -> {
                         TextButton(onClick = { close(); desk.paying = r }, Modifier.fillMaxWidth()) { Text("Take the balance") }
-                        TextButton(onClick = { close(); desk.setStatus(r, "collected") }, Modifier.fillMaxWidth()) { Text("Hand back without it") }
                         TextButton(onClick = close, Modifier.fillMaxWidth()) { Text("Not yet") }
                     }
                     is RepairsDesk.Ask.Cancel -> {

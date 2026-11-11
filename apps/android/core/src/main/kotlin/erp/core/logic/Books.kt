@@ -972,12 +972,16 @@ fun monthlyRevenue(input: BooksInput, opts: BooksOptions = BooksOptions()): Mont
     return MonthlyRevenue(data, average, best.key)
 }
 
-data class YearRow(val year: Int, val revenue: Double, val expenses: Double, val unpaid: Double, val profit: Double, val netProfit: Double, val netMargin: Double)
+data class YearRow(
+    val year: Int, val revenue: Double, val expenses: Double, val unpaid: Double, val profit: Double, val netProfit: Double, val netMargin: Double,
+    /** Of [revenue], gold's (gold apart, House of Mina: the year table's Silver and Gold columns; silver is the rest). Extra revenue is never gold. */
+    val goldRevenue: Double = 0.0,
+)
 
 /** Each calendar year of the history, newest first (the old "Yearly Performance Overview"). */
 fun yearlySummary(input: BooksInput, opts: BooksOptions = BooksOptions()): List<YearRow> {
     val p = prepare(input, opts)
-    class Y(var revenue: Double = 0.0, var expenses: Double = 0.0, var unpaid: Double = 0.0, var profit: Double = 0.0, var goods: Double = 0.0)
+    class Y(var revenue: Double = 0.0, var gold: Double = 0.0, var expenses: Double = 0.0, var unpaid: Double = 0.0, var profit: Double = 0.0, var goods: Double = 0.0)
     val yearMap = HashMap<Int, Y>()
     fun yr(at: Instant): Y = yearMap.getOrPut(BooksCal.day(at).year) { Y() }
     for (d in p.jewellery) {
@@ -985,6 +989,7 @@ fun yearlySummary(input: BooksInput, opts: BooksOptions = BooksOptions()): List<
         val y = yr(at)
         val value = invoiceSaleValue(d.item)
         y.revenue += value
+        y.gold += GoldApart.invoiceGoldPart(d.item, value)
         // Each sale at its own margin: from the 24k rate typed when it was made, else the assumed one (Margin.kt).
         y.profit += value * invoiceMargin(d.item, opts.margin).percent / 100
         y.unpaid += max(0.0, d.item.balanceDue)
@@ -994,6 +999,7 @@ fun yearlySummary(input: BooksInput, opts: BooksOptions = BooksOptions()): List<
         val y = yr(at)
         // Subtotal: the full order value regardless of advance paid.
         y.revenue += d.item.subtotal
+        y.gold += GoldApart.orderGoldPart(d.item, d.item.subtotal)
         y.profit += d.item.subtotal * orderMargin(d.item, settings = opts.margin).percent / 100
     }
     for (d in p.extras) {
@@ -1016,6 +1022,6 @@ fun yearlySummary(input: BooksInput, opts: BooksOptions = BooksOptions()): List<
         val profit = NetProfit.beforeRunning(v.profit, v.revenue, v.goods, p.recordsGoods)
         // That profit less the running costs, never revenue less every expense (NetProfit).
         val net = NetProfit.of(profit, v.expenses)
-        YearRow(year, v.revenue, v.expenses, v.unpaid, profit, net, NetProfit.marginPercent(net, v.revenue))
+        YearRow(year, v.revenue, v.expenses, v.unpaid, profit, net, NetProfit.marginPercent(net, v.revenue), goldRevenue = v.gold)
     }.sortedByDescending { it.year }
 }

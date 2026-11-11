@@ -284,18 +284,18 @@ private fun RepairRow(
     val collected = RowAction("Collected", Symbols.Inventory2, Tone.working) { desk.collect(r) }
     val tell = whatsApp?.let { RowAction("Tell them", Symbols.Chat, Tone.settled) { openUrl(context, it) } }
     val trailing = when {
-        isOwner && r.status == RepairStatus.received -> ready
-        isOwner && r.status == RepairStatus.ready -> collected
+        isOwner && r.status == RepairStatus.received && RepairsKit.offers(r, "ready") -> ready
+        isOwner && r.status == RepairStatus.ready && RepairsKit.offers(r, "collected") -> collected
         else -> null
     }
     val menu = ArrayList<RowAction>()
-    if (isOwner && r.status == RepairStatus.received) menu.add(ready)
-    if (isOwner && r.status == RepairStatus.ready) menu.add(collected)
+    if (isOwner && r.status == RepairStatus.received && RepairsKit.offers(r, "ready")) menu.add(ready)
+    if (isOwner && r.status == RepairStatus.ready && RepairsKit.offers(r, "collected")) menu.add(collected)
     if (whatsApp != null) menu.add(RowAction("Tell them it's ready", Symbols.Chat, Tone.settled) { openUrl(context, whatsApp) })
     if (isOwner && r.status != RepairStatus.cancelled && repairBalance(r) > 0) {
         menu.add(RowAction("Take payment", Symbols.Payments, Tone.house) { desk.taking = r })
     }
-    if (isOwner && (r.status == RepairStatus.received || r.status == RepairStatus.ready)) {
+    if (isOwner && (r.status == RepairStatus.received || r.status == RepairStatus.ready) && RepairsKit.offers(r, "cancelled")) {
         menu.add(RowAction("Cancel repair", Symbols.Close, Tone.problem) { desk.askCancel(r) })
     }
     // The one Contact menu (ui/CustomerContact.kt) is a long-press entry that opens its own menu over the row.

@@ -99,7 +99,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
         trailing = { _ ->
             Box {
                 IconButton(onClick = { menuOpen = true }) { Icon(Symbols.MoreVert, contentDescription = "More") }
-                val cancellable = current?.let { it.status == RepairStatus.received || it.status == RepairStatus.ready } ?: false
+                val cancellable = current?.let { (it.status == RepairStatus.received || it.status == RepairStatus.ready) && RepairsKit.offers(it, "cancelled") } ?: false
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     // Print receipt is the ERP's receipt for this ticket, straight to the share sheet (Print, WhatsApp, Files), open to
                     // everyone who can read the ticket; Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
@@ -298,10 +298,10 @@ private fun ActionBar(r: Repair, desk: RepairsDesk) {
     val busy = desk.isBusy(r.id)
     val owing = r.status != RepairStatus.cancelled && repairBalance(r) > 0
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (r.status == RepairStatus.received) {
+        if (r.status == RepairStatus.received && RepairsKit.offers(r, "ready")) {
             ActionButton("Mark ready", Symbols.CheckCircle, true, busy, Modifier.weight(1f)) { desk.markReady(r) }
         }
-        if (r.status == RepairStatus.ready) {
+        if (r.status == RepairStatus.ready && RepairsKit.offers(r, "collected")) {
             ActionButton("Collected", Symbols.Inventory2, true, busy, Modifier.weight(1f)) { desk.collect(r) }
         }
         if (owing) {

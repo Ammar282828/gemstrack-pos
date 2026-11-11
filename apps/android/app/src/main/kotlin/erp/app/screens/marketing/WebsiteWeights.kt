@@ -81,6 +81,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.config.House
+import erp.core.logic.PhotoLabel
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Website → Photo weights (src/app/website/weights/page.tsx): the weight of each catalogue photograph that doesn't carry it
@@ -103,6 +105,12 @@ fun WebsiteWeightsScreen() {
     var search by remember { mutableStateOf("") }
     var index by remember { mutableIntStateOf(0) }
     var value by remember { mutableStateOf("") }
+    // The diamonds' carats (a diamond piece only): the main stone and the smaller ones beside it.
+    var carats by remember { mutableStateOf("") }
+    var side by remember { mutableStateOf("") }
+    // White or dark, by the photo behind the label (PhotoLabel.inkFor, the website's own rule).
+    var ink by remember { mutableStateOf(PhotoLabel.WHITE_INK) }
+    val context = LocalContext.current
     var savedCount by remember { mutableStateOf(0) }
     var confirming by remember { mutableStateOf<WebsiteWeightsLogic.Pending?>(null) }
     // The counter said not to ask again until the screen is left.
@@ -116,7 +124,11 @@ fun WebsiteWeightsScreen() {
     val queue = WebsiteWeightsLogic.queue(all, collection, onlyMissing, search)
     val current = queue.getOrNull(index)
 
-    fun prefill(p: WebsiteWeightPiece?) { value = WebsiteWeightsLogic.prefill(p) }
+    fun prefill(p: WebsiteWeightPiece?) {
+        value = WebsiteWeightsLogic.prefill(p)
+        carats = p?.diamondCarats?.let { WebsiteNumber.grams(it) } ?: ""
+        side = p?.sideCarats?.let { WebsiteNumber.grams(it) } ?: ""
+    }
 
     suspend fun load() {
         if (House.isDemo) {
@@ -144,6 +156,11 @@ fun WebsiteWeightsScreen() {
     LaunchedEffect(collection, onlyMissing, search) { index = 0 }
     LaunchedEffect(queue.size) { index = minOf(index, maxOf(0, queue.size - 1)) }
     LaunchedEffect(current?.key) { prefill(current) }
+    LaunchedEffect(current?.thumb) {
+        ink = PhotoLabel.WHITE_INK
+        val url = current?.thumb ?: return@LaunchedEffect
+        if (url.isNotEmpty()) ink = WebsiteLabelInk.of(context, url)
+    }
 
     fun advance(by: Int = 1) { index = (index + by).coerceIn(0, maxOf(0, queue.size - 1)) }
 
@@ -152,9 +169,9 @@ fun WebsiteWeightsScreen() {
      * with Retry, and the same PUT is safe to repeat).
      */
     fun save(p: WebsiteWeightsLogic.Pending) {
-        val body = LinkedHashMap<String, Any?>().apply { put("key", p.key); put("weightGrams", p.grams) }
+        val body = WebsiteWeightsLogic.body(p)
         val was = queue
-        val list = WebsiteWeightsLogic.saved(pieces ?: emptyList(), p.key, p.grams, AppClock.now())
+        val list = WebsiteWeightsLogic.saved(pieces ?: emptyList(), p.key, p.grams, AppClock.now(), p.sendCarats, p.carats, p.side)
         pieces = list
         Outbox.post(WEIGHT_PREFIX + p.file) {
             if (House.isDemo) throw ErpApi.Failure(0, "Not connected to the ERP in the demo.")
@@ -174,13 +191,18 @@ fun WebsiteWeightsScreen() {
         val p = current ?: return
         val typed = value.trim()
         val grams: Double? = if (typed.isEmpty()) null else (WebsiteNumber.parse(typed) ?: run { failure = "Enter a weight in grams."; return })
+        val ct = PhotoLabel.parseCarats(carats)
+        val sideCt = PhotoLabel.parseCarats(side)
+        if (!PhotoLabel.caratsValid(ct) || !PhotoLabel.caratsValid(sideCt)) { failure = "Enter the diamonds in carats."; return }
+        // Carats only travel for a diamond piece, or one that already has some (so clearing them works).
+        val sendCarats = WebsiteWeightsLogic.showsCarats(p)
         // Nothing to change here: on to the next photo.
         val recorded = if (p.source == "pos") p.weightGrams else null
-        if (grams == recorded) {
+        if (grams == recorded && (!sendCarats || (ct == p.diamondCarats && sideCt == p.sideCarats))) {
             if (advance) advance()
             return
         }
-        val pending = WebsiteWeightsLogic.Pending(p.key, p.file, grams, p.labelWeightGrams, advance)
+        val pending = WebsiteWeightsLogic.Pending(p.key, p.file, grams, p.labelWeightGrams, advance, sendCarats, ct, sideCt)
         if (trusted) save(pending) else confirming = pending
     }
 
@@ -192,8 +214,9 @@ fun WebsiteWeightsScreen() {
         }) else null) {
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }) {
                 WeightsPage(
-                    all, queue, current, index, collection, onlyMissing, search, value, savedCount, typing, site.siteName,
+                    all, queue, current, index, collection, onlyMissing, search, value, carats, side, ink, savedCount, typing, site.siteName,
                     setCollection = { collection = it }, setOnlyMissing = { onlyMissing = it }, setSearch = { search = it }, setValue = { value = it },
+                    setCarats = { carats = it }, setSide = { side = it },
                     goTo = { index = it }, save = { ask(true) }, skip = { advance() },
                 )
             }
@@ -222,6 +245,9 @@ private fun WeightsPage(
     onlyMissing: Boolean,
     search: String,
     value: String,
+    carats: String,
+    side: String,
+    ink: Int,
     savedCount: Int,
     typing: FocusRequester,
     siteName: String,
@@ -229,15 +255,17 @@ private fun WeightsPage(
     setOnlyMissing: (Boolean) -> Unit,
     setSearch: (String) -> Unit,
     setValue: (String) -> Unit,
+    setCarats: (String) -> Unit,
+    setSide: (String) -> Unit,
     goTo: (Int) -> Unit,
     save: () -> Unit,
     skip: () -> Unit,
 ) {
     val progress: @Composable () -> Unit = { ProgressCard(all, collection, onlyMissing, search, siteName, savedCount, setCollection, setOnlyMissing, setSearch) }
-    val photo: @Composable () -> Unit = { if (current != null) PhotoSection(current, queue.size, index, value, goTo) }
+    val photo: @Composable () -> Unit = { if (current != null) PhotoSection(current, queue.size, index, value, carats, side, ink, goTo) }
     val work: @Composable () -> Unit = {
         if (current != null) {
-            WeightSection(current, value, false, typing, setValue, save, skip, index >= queue.size - 1)
+            WeightSection(current, value, carats, side, false, typing, setValue, setCarats, setSide, save, skip, index >= queue.size - 1)
             val upcoming = WebsiteWeightsLogic.upcoming(queue, index)
             if (upcoming.isNotEmpty()) UpcomingStrip(upcoming, goTo)
         } else {
@@ -300,10 +328,10 @@ private fun ProgressCard(
 }
 
 @Composable
-private fun PhotoSection(p: WebsiteWeightPiece, total: Int, index: Int, value: String, goTo: (Int) -> Unit) {
+private fun PhotoSection(p: WebsiteWeightPiece, total: Int, index: Int, value: String, carats: String, side: String, ink: Int, goTo: (Int) -> Unit) {
     LedgerSection(p.collection.ifEmpty { "Photo" }, footer = { Text(p.file) }) {
         Box(Modifier.fillMaxWidth().padding(8.dp)) {
-            WebsiteWeightPhoto(p, value, Modifier.fillMaxWidth())
+            WebsiteWeightPhoto(p, value, Modifier.fillMaxWidth(), carats, side, ink)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { goTo(maxOf(index - 1, 0)) }, enabled = index > 0) { Icon(Symbols.KeyboardArrowLeft, "Previous") }
@@ -315,10 +343,16 @@ private fun PhotoSection(p: WebsiteWeightPiece, total: Int, index: Int, value: S
 
 /** The photograph with the weight drawn on it as the site would, or the weight its own label already shows. */
 @Composable
-fun WebsiteWeightPhoto(p: WebsiteWeightPiece, value: String, modifier: Modifier = Modifier) {
+fun WebsiteWeightPhoto(
+    p: WebsiteWeightPiece, value: String, modifier: Modifier = Modifier,
+    carats: String = p.diamondCarats?.let { WebsiteNumber.grams(it) } ?: "", side: String = p.sideCarats?.let { WebsiteNumber.grams(it) } ?: "",
+    ink: Int = PhotoLabel.WHITE_INK,
+) {
     Box(modifier.aspectRatio(1f).clip(Radius.chipShape)) {
         StockImage(p.thumb, p.file, p.key, Modifier.fillMaxSize())
-        if (p.source != "label") WeightLabel(WebsiteWeightsLogic.preview(p, value))
+        // The carats line shows under a weight burned into the photo too.
+        val line = PhotoLabel.caratsLine(PhotoLabel.parseCarats(carats)?.takeIf { it > 0 } ?: 0.0, PhotoLabel.parseCarats(side)?.takeIf { it > 0 } ?: 0.0)
+        WeightLabel(if (p.source != "label") WebsiteWeightsLogic.preview(p, value) else null, line, Color(0xFF000000.toInt() or ink))
         if (p.source == "label" && p.labelWeightGrams != null) {
             Text(
                 "Weight on the photo: ${WebsiteNumber.grams(p.labelWeightGrams)}g",
@@ -331,32 +365,43 @@ fun WebsiteWeightPhoto(p: WebsiteWeightPiece, value: String, modifier: Modifier 
 
 /**
  * As the site draws it (WeightLabel.jsx): Futura LT Light (bundled) at 143/3000 of the photo's width, 120/3000 in, its
- * baseline at (100 + 143 × 1.1)/3000, tracking 2/3000: what is typed shows where it lands, at its size, in its face.
+ * baseline at (100 + 143 × 1.1)/3000, tracking 2/3000: what is typed shows where it lands, at its size, in its face. A
+ * diamond piece's carats ("0.50ct + 0.24ct") go under it in the same face at 90/3000, baseline 1.3 of its size lower, and both
+ * are white or dark by the photo behind them (`ink`).
  */
 @Composable
-private fun WeightLabel(shown: String?) {
-    if (shown == null) return
+private fun WeightLabel(shown: String?, carats: String, ink: Color) {
+    if (shown == null && carats.isEmpty()) return
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         val w = constraints.maxWidth.toFloat()
         val density = LocalDensity.current
-        Text(
-            "${shown}g",
-            Modifier.offset { IntOffset((w * 120 / 3000).roundToInt(), (w * 114 / 3000).roundToInt()) },
-            color = Color.White,
-            style = TextStyle(
-                fontFamily = ErpFonts.futuraLight, fontWeight = FontWeight.Normal,
-                fontSize = with(density) { (w * 143 / 3000).toSp() },
-                letterSpacing = with(density) { (w * 2 / 3000).toSp() },
-            ),
-            maxLines = 1, softWrap = false,
-        )
+        val k = w / PhotoLabel.REFERENCE.toFloat()
+        // A line is placed by its baseline: Compose offsets the text box, so the baseline it reports is subtracted.
+        @Composable
+        fun Line(text: String, size: Double, baseline: Double) {
+            var ascent by remember { mutableStateOf(0f) }
+            Text(
+                text,
+                Modifier.offset { IntOffset((PhotoLabel.LEFT * k).roundToInt(), ((baseline * k) - ascent).roundToInt()) },
+                color = ink,
+                onTextLayout = { ascent = it.firstBaseline },
+                style = TextStyle(
+                    fontFamily = ErpFonts.futuraLight, fontWeight = FontWeight.Normal,
+                    fontSize = with(density) { (size * k).toFloat().toSp() },
+                    letterSpacing = with(density) { (PhotoLabel.TRACKING * k).toFloat().toSp() },
+                ),
+                maxLines = 1, softWrap = false,
+            )
+        }
+        if (shown != null) Line("${shown}g", PhotoLabel.WEIGHT_SIZE, PhotoLabel.WEIGHT_BASELINE)
+        if (carats.isNotEmpty()) Line(carats, PhotoLabel.CT_SIZE, PhotoLabel.CT_BASELINE)
     }
 }
 
 @Composable
 private fun WeightSection(
-    p: WebsiteWeightPiece, value: String, saving: Boolean, typing: FocusRequester, setValue: (String) -> Unit,
-    save: () -> Unit, skip: () -> Unit, last: Boolean,
+    p: WebsiteWeightPiece, value: String, carats: String, side: String, saving: Boolean, typing: FocusRequester, setValue: (String) -> Unit,
+    setCarats: (String) -> Unit, setSide: (String) -> Unit, save: () -> Unit, skip: () -> Unit, last: Boolean,
 ) {
     FormSection(
         "Weight",
@@ -378,10 +423,35 @@ private fun WeightSection(
             )
             Text("g", Modifier.padding(bottom = 14.dp), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (WebsiteWeightsLogic.showsCarats(p)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CaratsField("Main diamond", carats, setCarats, Modifier.weight(1f))
+                CaratsField("Small diamonds", side, setSide, Modifier.weight(1f))
+            }
+            Text(
+                "Shown under the weight on the photo, smaller: the solitaire, then the small diamonds after a +. Leave either empty.",
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = skip, enabled = !last, modifier = Modifier.fillMaxWidth()) { Text("Skip") }
         }
         WebsiteFeatureButton(p.key, p.file, Modifier.padding(horizontal = 8.dp))
+    }
+}
+
+/** One carats field: the label above, "ct" beside the number. */
+@Composable
+private fun CaratsField(label: String, value: String, set: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextField(
+            value = value, onValueChange = set, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("0.00", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            suffix = { Text("ct") },
+            textStyle = MaterialTheme.typography.titleLarge,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        )
     }
 }
 
