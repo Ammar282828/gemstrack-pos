@@ -39,7 +39,7 @@ object RepairsKit {
     // MARK: Words
 
     /** REPAIR_STATUS_LABELS. */
-    fun label(s: RepairStatus): String = when (s) {
+    fun label(s: RepairStatus): String = erp.app.data.MachineTable.label(erp.core.logic.Machines.REPAIR, s.rawValue) ?: when (s) {
         RepairStatus.received -> "In the shop"
         RepairStatus.ready -> "Ready"
         RepairStatus.collected -> "Collected"
@@ -48,11 +48,20 @@ object RepairsKit {
     }
 
     /** The web's STATUS_TONE (warning, success, quiet, destructive) in the kit's tones; a cancelled ticket says nothing, as a cancelled order does. */
-    fun tone(s: RepairStatus): erp.app.ui.Tone = when (s) {
-        RepairStatus.received -> erp.app.ui.Tone.owed
-        RepairStatus.ready -> erp.app.ui.Tone.settled
+    fun tone(s: RepairStatus): erp.app.ui.Tone = erp.app.data.MachineTable.tone(erp.core.logic.Machines.REPAIR, s.rawValue) ?: when (s) {
+        RepairStatus.received -> erp.app.ui.Tone.working
+        RepairStatus.ready -> erp.app.ui.Tone.owed
+        RepairStatus.collected -> erp.app.ui.Tone.settled
         else -> erp.app.ui.Tone.quiet
     }
+
+    /**
+     * Whether the state machine (machines.json, Repair) lets this ticket move to [to] (`received`, `ready`, `collected`,
+     * `cancelled`). A move to its own state is no move. The server refuses the rest with a 409 and says why; collecting with money
+     * owing is its guard, which the desk asks about first.
+     */
+    fun offers(r: Repair, to: String): Boolean =
+        r.status.rawValue != to && erp.app.data.MachineTable.current.can(erp.core.logic.Machines.REPAIR, r.status.rawValue, to)
 
     /** Who it is for: a ticket with no name, or the old "Walk-in Customer", is a walk-in. */
     fun customer(r: Repair): String {

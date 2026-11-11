@@ -212,6 +212,35 @@ object OrdersLogic {
     /** What the status menu offers: never a bare "Refunded" (docs/decisions.md "Orders hub"; the server refuses it too). Refund order is the ERP's own page. */
     val settableStatuses = listOf("Pending", "In Progress", "Completed", "Cancelled")
 
+    /**
+     * The statuses a person may choose for this order, from the state machine (machines.json, Order, event `set`): the ones the
+     * table lets it move to, and its own (ticked). An invoiced order keeps its status until the invoice is undone (every `set`
+     * move is "not invoiced"), so it offers none to move to. With no table read, the four settable ones: the server still decides.
+     */
+    fun statusChoices(order: Order, machines: erp.core.logic.Machines = erp.app.data.MachineTable.current): List<String> {
+        val table = machines.machine(erp.core.logic.Machines.ORDER) ?: return settableStatuses
+        val from = order.status.rawValue
+        val canMove = !hasInvoice(order)
+        return settableStatuses.filter { it == from || (canMove && table.can(from, it)) }
+    }
+
+    /** Whether the table lets this order be set to [to] (true with no table read; the server decides). */
+    fun maySet(order: Order, to: String, machines: erp.core.logic.Machines = erp.app.data.MachineTable.current): Boolean =
+        to in statusChoices(order, machines) || machines.machine(erp.core.logic.Machines.ORDER) == null
+
+    /**
+     * Whether a piece may be ticked: the table's `pieces` event leaves the order's state (Pending, In Progress, Completed; not
+     * Cancelled or Refunded) and the order has no invoice. With no table read, the order is simply open.
+     */
+    fun canTickPieces(order: Order, machines: erp.core.logic.Machines = erp.app.data.MachineTable.current): Boolean {
+        if (hasInvoice(order)) return false
+        val table = machines.machine(erp.core.logic.Machines.ORDER) ?: return order.status != OrderStatus.cancelled && order.status != OrderStatus.refunded
+        return table.allowed(order.status.rawValue, "pieces").isNotEmpty()
+    }
+
+    /** The status's words from the table (the same as the web's), the raw status where it has none. */
+    fun statusLabel(status: String): String = erp.app.data.MachineTable.label(erp.core.logic.Machines.ORDER, status) ?: status
+
     /** The hub's status filter: the ERP's ORDER_STATUSES, all of them (it filters, it does not write). */
     val filterStatuses = listOf("Pending", "In Progress", "Completed", "Cancelled", "Refunded")
 

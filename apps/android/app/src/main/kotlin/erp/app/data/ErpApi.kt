@@ -6,6 +6,7 @@ import erp.app.config.Businesses
 import erp.app.config.House
 import erp.app.config.UpdateGate
 import erp.core.Json
+import erp.core.logic.MoveRefusal
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellableContinuation
@@ -41,7 +42,14 @@ class ErpApi private constructor(private val initial: Business) {
      * Outbox; a read is answered from [ReadCache] where there is a last answer. `neverLeft`: the request certainly never left
      * the phone (no line at all), so even a send that must never go twice may wait for it.
      */
-    class Failure(val status: Int, override val message: String, val offline: Boolean = false, val neverLeft: Boolean = false) : Exception(message) {
+    class Failure(
+        val status: Int, override val message: String, val offline: Boolean = false, val neverLeft: Boolean = false,
+        /**
+         * A move the state machines refuse (409 `{ error, machine, from, to, allowed }`, lib/machines/http.ts): [message] is already its
+         * reason, in the shop's words, for the person to read. Null for any other failure, a duplicate request's 409 included.
+         */
+        val refusal: MoveRefusal? = null,
+    ) : Exception(message) {
         companion object {
             /** What an action that needs the ERP says with no line. Plain, and the same everywhere. */
             fun needsConnection(what: String = "This"): Failure =
@@ -73,7 +81,7 @@ class ErpApi private constructor(private val initial: Business) {
                 } catch (e: IOException) {
                     throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.", offline = true)
                 }
-                if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
+                if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.", refusal = if (r.code == 409) MoveRefusal.parse(text) else null)
                 text
             }
             if (readsFromCache) ReadCache.store(text, path, id)

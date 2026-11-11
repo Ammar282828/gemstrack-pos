@@ -549,7 +549,7 @@ private fun Pieces(order: Order, ticking: Int?, isOwner: Boolean, onGiveOut: () 
                 val name = if (OrdersLogic.hasKarigar(item) && kid != null) karigars.value.firstOrNull { it.id == kid }?.name ?: "Karigar $kid" else null
                 OrderPieceRow(
                     index = i, item = item, karigar = name,
-                    canTick = isOwner && !invoiced, busy = ticking == i, showBreakdown = isOwner,
+                    canTick = isOwner && OrdersLogic.canTickPieces(order), busy = ticking == i, showBreakdown = isOwner,
                     onTick = { done -> onTick(i, done) },
                     modifier = Modifier.ledgerRow(),
                 )
@@ -802,10 +802,11 @@ private fun MoreMenu(
     Box {
     IconButton(onClick = { open = true }) { Icon(Symbols.MoreVert, "More") }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-        MenuHeader("Status")
-        for (s in OrdersLogic.settableStatuses) {
+        val choices = OrdersLogic.statusChoices(order)
+        if (choices.size > 1) MenuHeader("Status")
+        for (s in if (choices.size > 1) choices else emptyList()) {
             DropdownMenuItem(
-                text = { Text(s) },
+                text = { Text(OrdersLogic.statusLabel(s)) },
                 leadingIcon = if (s == order.status.rawValue) ({ Icon(Symbols.Check, "Current status") }) else null,
                 enabled = !updatingStatus,
                 onClick = { open = false; onStatus(s) },

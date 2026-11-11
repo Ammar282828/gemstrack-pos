@@ -232,14 +232,15 @@ private fun WaitingCard(r: OnlineOrderRow, onConfirm: (OnlineOrderRow) -> Unit, 
                 )
             }
         } else {
-            Button(
+            val table = erp.app.data.MachineTable.current
+            if (table.can(erp.core.logic.Machines.WEBSITE_ORDER, r.state, "confirming", "claim")) Button(
                 onClick = { onConfirm(r) }, modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
             ) {
                 Icon(Symbols.Check, null, Modifier.size(18.dp))
                 Text("Confirm", Modifier.padding(start = 8.dp))
             }
-            OutlinedButton(onClick = { onDecline(r) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Tone.problem.color())) {
+            if (table.can(erp.core.logic.Machines.WEBSITE_ORDER, r.state, "declined", "decline")) OutlinedButton(onClick = { onDecline(r) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Tone.problem.color())) {
                 Icon(Symbols.Close, null, Modifier.size(18.dp))
                 Text("Decline", Modifier.padding(start = 8.dp))
             }

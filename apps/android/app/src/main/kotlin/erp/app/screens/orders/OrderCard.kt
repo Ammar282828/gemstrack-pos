@@ -121,7 +121,7 @@ fun OrderCard(
     val whatsApp = RowAction("WhatsApp", Symbols.Chat, Tone.credit) { actions.contact(order, OrderContactKind.whatsApp) }
     val advance = RowAction("Advance", Symbols.Payments, Tone.working) { actions.advance(order) }
     val ready = RowAction("Ready", Symbols.CheckCircle, Tone.settled) { actions.markReady(order) }
-    val right = listOfNotNull(advance.takeIf { canAdvance }, ready.takeIf { stage == OrderStage.karigar })
+    val right = listOfNotNull(advance.takeIf { canAdvance }, ready.takeIf { stage == OrderStage.karigar && OrdersLogic.maySet(order, "Completed") })
     SwipeActions(
         modifier = modifier.clip(Radius.cardShape),
         start = call.takeIf { hasPhone },
@@ -160,18 +160,19 @@ fun OrderCard(
                     if (canAdvance) {
                         MenuItem("Record an advance", Symbols.Payments) { menu = false; actions.advance(order) }
                     }
-                    if (stage == OrderStage.karigar) {
+                    if (stage == OrderStage.karigar && OrdersLogic.maySet(order, "Completed")) {
                         MenuItem("Mark ready", Symbols.CheckCircle) { menu = false; actions.markReady(order) }
                     }
-                    Text(
+                    val choices = OrdersLogic.statusChoices(order)
+                    if (choices.size > 1) Text(
                         "Set status",
                         Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    for (s in OrdersLogic.settableStatuses) {
+                    for (s in if (choices.size > 1) choices else emptyList()) {
                         DropdownMenuItem(
-                            text = { Text(s) },
+                            text = { Text(OrdersLogic.statusLabel(s)) },
                             leadingIcon = if (s == order.status.rawValue) ({ Icon(Symbols.Check, "Current status") }) else null,
                             onClick = { menu = false; actions.setStatus(order, s) },
                         )

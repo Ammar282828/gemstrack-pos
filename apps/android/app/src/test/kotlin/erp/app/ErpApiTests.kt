@@ -20,6 +20,14 @@ class ErpApiTests {
 
     private fun nameOf(w: WriteIntents, body: Map<String, Any?>) = w.id(w.key(body))
 
+    @Test fun aRefusedMoveCarriesTheReasonAndWhatIsAllowed() {
+        val r = assertNotNull(erp.core.logic.MoveRefusal.parse("""{"error":"Repair has 2,800 still owed.","machine":"Repair","from":"ready","to":"collected","allowed":[{"to":"received","event":"set"}]}"""))
+        assertEquals("Repair has 2,800 still owed.", r.reason)
+        assertEquals(listOf(erp.core.logic.Allowed("received", "set")), r.allowed)
+        // the duplicate request's 409 is a different answer and stays "already recorded"
+        assertNull(erp.core.logic.MoveRefusal.parse("""{"error":"This was already sent and is being recorded.","duplicate":true}"""))
+    }
+
     @Test fun theSameChangeAskedAgainGoesWithTheSameName() {
         val w = intents()
         val a = nameOf(w, payment)

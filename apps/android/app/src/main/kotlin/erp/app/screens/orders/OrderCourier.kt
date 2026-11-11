@@ -392,7 +392,7 @@ fun OrderTrackingCard(order: Order, refreshKey: Int, quick: QuickPdf, onCancelle
                     }
                 }
             }
-            if (TcsCourier.canCancel(live, t)) {
+            if (TcsCourier.canCancel(live, t) && erp.app.data.MachineTable.current.can(erp.core.logic.Machines.TCS_BOOKING, "booked", "cancelled", "cancel")) {
                 TextButton(onClick = { confirmCancel = true }) {
                     Icon(Symbols.Close, null, Modifier.size(18.dp), tint = Tone.problem.color())
                     Text("Cancel booking", Modifier.padding(start = 6.dp), color = Tone.problem.color())

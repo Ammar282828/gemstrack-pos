@@ -286,10 +286,8 @@ object CustomerKit {
 
     /** The repair's steps in the shop's words: In the shop, Ready, Collected. */
     fun repairStatus(s: RepairStatus): Pair<String, Tone> = when (s) {
-        RepairStatus.received -> "In the shop" to Tone.owed
-        RepairStatus.ready -> "Ready" to Tone.settled
-        RepairStatus.collected -> "Collected" to Tone.quiet
-        RepairStatus.cancelled -> "Cancelled" to Tone.quiet
+        RepairStatus.received, RepairStatus.ready, RepairStatus.collected, RepairStatus.cancelled ->
+            erp.app.screens.repairs.RepairsKit.label(s) to erp.app.screens.repairs.RepairsKit.tone(s)
         else -> (if (s.rawValue.isEmpty()) "No status" else s.rawValue) to Tone.quiet
     }
 }

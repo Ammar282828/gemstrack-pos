@@ -48,8 +48,10 @@ class RepairsLogicTests {
         assertEquals("Cancelled", RepairsKit.label(RepairStatus.cancelled))
         assertEquals("No status", RepairsKit.label(RepairStatus.unknown("")))
         assertEquals("on hold", RepairsKit.label(RepairStatus.unknown("on hold")))
-        assertEquals(erp.app.ui.Tone.owed, RepairsKit.tone(RepairStatus.received))
-        assertEquals(erp.app.ui.Tone.settled, RepairsKit.tone(RepairStatus.ready))
+        // the state machine's tones (machines.json); with no table read the same ones
+        assertEquals(erp.app.ui.Tone.working, RepairsKit.tone(RepairStatus.received))
+        assertEquals(erp.app.ui.Tone.owed, RepairsKit.tone(RepairStatus.ready))
+        assertEquals(erp.app.ui.Tone.settled, RepairsKit.tone(RepairStatus.collected))
         assertEquals(erp.app.ui.Tone.quiet, RepairsKit.tone(RepairStatus.cancelled))
     }
 

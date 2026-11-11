@@ -17,7 +17,7 @@ import erp.core.models.OrderStatus
 enum class Tone { late, owed, settled, credit, working, quiet, house, problem }
 
 /** An order's status in its tone: waiting is owed, with the karigars is working, done is settled; the rest say nothing. */
-fun Tone(status: OrderStatus): Tone = when (status) {
+fun Tone(status: OrderStatus): Tone = erp.app.data.MachineTable.tone(erp.core.logic.Machines.ORDER, status.rawValue) ?: when (status) {
     OrderStatus.pending -> Tone.owed
     OrderStatus.inProgress -> Tone.working
     OrderStatus.completed -> Tone.settled

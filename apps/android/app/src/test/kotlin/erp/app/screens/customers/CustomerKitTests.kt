@@ -265,9 +265,9 @@ class CustomerKitTests {
     }
 
     @Test fun repairStepsInTheShopsWords() {
-        assertEquals("In the shop" to erp.app.ui.Tone.owed, CustomerKit.repairStatus(RepairStatus.received))
-        assertEquals("Ready" to erp.app.ui.Tone.settled, CustomerKit.repairStatus(RepairStatus.ready))
-        assertEquals("Collected" to erp.app.ui.Tone.quiet, CustomerKit.repairStatus(RepairStatus.collected))
+        assertEquals("In the shop" to erp.app.ui.Tone.working, CustomerKit.repairStatus(RepairStatus.received))
+        assertEquals("Ready" to erp.app.ui.Tone.owed, CustomerKit.repairStatus(RepairStatus.ready))
+        assertEquals("Collected" to erp.app.ui.Tone.settled, CustomerKit.repairStatus(RepairStatus.collected))
         assertEquals("Cancelled" to erp.app.ui.Tone.quiet, CustomerKit.repairStatus(RepairStatus.cancelled))
         assertEquals("No status" to erp.app.ui.Tone.quiet, CustomerKit.repairStatus(RepairStatus.unknown("")))
         assertEquals("odd" to erp.app.ui.Tone.quiet, CustomerKit.repairStatus(RepairStatus.unknown("odd")))

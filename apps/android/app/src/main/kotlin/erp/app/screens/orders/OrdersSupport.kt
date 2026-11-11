@@ -107,7 +107,7 @@ object OrderPaths {
 /** The colours the Orders screens give what they say, from the ledger's tones only. */
 object OrdersTone {
     /** The status picker's pill: amber while waiting to start, blue with the karigars, green once finished. */
-    fun status(s: OrderStatus): Tone = when (s) {
+    fun status(s: OrderStatus): Tone = erp.app.data.MachineTable.tone(erp.core.logic.Machines.ORDER, s.rawValue) ?: when (s) {
         OrderStatus.pending -> Tone.owed
         OrderStatus.inProgress -> Tone.working
         OrderStatus.completed -> Tone.settled

@@ -108,6 +108,17 @@ class OutboxTests {
         assertEquals(0, o.pending)
     }
 
+    @Test fun aRefusedMoveIsNotSavedAndSaysWhy() = runTest {
+        val o = engine()
+        val body = """{"error":"Order is Refunded, which is final.","machine":"Order","from":"Refunded","to":"Pending","allowed":[]}"""
+        failWith = { ErpApi.Failure(409, "Order is Refunded, which is final.", refusal = erp.core.logic.MoveRefusal.parse(body)) }
+        o.enqueue("setOrderStatus", mapOf("orderId" to "O1", "status" to "Pending"), "O1 status")
+        advanceUntilIdle()
+        assertEquals(1, sent.size, "a refusal is not retried")
+        val failed = assertNotNull(o.failure.value, "the person is told, not left with a change that never happened")
+        assertEquals("Order is Refunded, which is final.", failed.message)
+    }
+
     @Test fun retryTriesAgainFromTheStart() = runTest {
         val o = engine()
         failWith = { ErpApi.Failure(422, "Nope") }

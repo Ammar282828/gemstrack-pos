@@ -245,11 +245,13 @@ class OutboxEngine(
                     throw e
                 } catch (e: Exception) {
                     val status = (e as? ErpApi.Failure)?.status ?: 0
-                    if (status == 409) {
+                    if (status == 409 && (e as? ErpApi.Failure)?.refusal == null) {
                         // "Already recorded": the earlier try went through.
                         finish(id, null)
                         return@launch
                     }
+                    // A 409 that names a machine is a move the ERP refused (an order cannot go from Refunded to Pending): it was NOT
+                    // recorded. It falls to the refusal below, which says the ERP's reason and puts the screen back as the books have it.
                     // No line is not a failure: a change waits for it as long as it takes (a named write is the same change however
                     // often it is sent). A post that may have gone out is not repeated; only one that never left.
                     val lost = if (posts.containsKey(id)) Connection.neverLeft(e) else (e is ErpApi.Failure && Connection.lost(e))
