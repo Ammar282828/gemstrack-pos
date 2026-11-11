@@ -50,8 +50,8 @@ object RepairsKit {
     /** The web's STATUS_TONE (warning, success, quiet, destructive) in the kit's tones; a cancelled ticket says nothing, as a cancelled order does. */
     fun tone(s: RepairStatus): erp.app.ui.Tone = erp.app.data.MachineTable.tone(erp.core.logic.Machines.REPAIR, s.rawValue) ?: when (s) {
         RepairStatus.received -> erp.app.ui.Tone.working
-        RepairStatus.ready -> erp.app.ui.Tone.owed
-        RepairStatus.collected -> erp.app.ui.Tone.settled
+        RepairStatus.ready -> erp.app.ui.Tone.settled
+        RepairStatus.collected -> erp.app.ui.Tone.quiet
         else -> erp.app.ui.Tone.quiet
     }
 
