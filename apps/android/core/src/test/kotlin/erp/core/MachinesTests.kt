@@ -33,7 +33,7 @@ class MachinesTests {
     @Test fun wordsAndTones() {
         assertEquals("In the shop", t.label("Repair", "received"))
         assertEquals("working", t.tone("Order", "In Progress"))
-        assertEquals("owed", t.tone("Repair", "ready"))
+        assertEquals("settled", t.tone("Repair", "ready"))
         assertNull(t.label("Order", "Weird"))
     }
 
