@@ -214,10 +214,13 @@ private fun Detail(shelfOrder: Order) {
     val customer = order.customerId?.takeIf { it.isNotEmpty() }?.let { rememberShelfItem(book.customers, it) }
 
     fun setStatus(status: String) {
+        // `from`: the status the person saw when they chose, so a change queued offline and replayed later is refused if
+        // the order moved meanwhile (machines/expected.ts), instead of landing over it.
+        val from = order.status.rawValue
         localStatus["status"] = status
         if (status == "Cancelled") haptics.warning() else haptics.success()
         note.show(Note(OrdersLocal.said(status), order.id))
-        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
+        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status, "from" to from), "${order.id} status")
     }
 
     fun choose(status: String) {

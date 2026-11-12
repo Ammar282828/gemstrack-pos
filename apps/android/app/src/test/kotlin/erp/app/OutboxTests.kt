@@ -100,12 +100,23 @@ class OutboxTests {
 
     @Test fun alreadyRecordedCountsAsSaved() = runTest {
         val o = engine()
-        failWith = { ErpApi.Failure(409, "already sent and recorded") }
+        // run-op.ts's busy answer for the same named change: the earlier try went through.
+        failWith = { ErpApi.Failure(409, "This was already sent and is being recorded. Check it before entering it again.") }
         o.enqueue("setPieceDone", mapOf("orderId" to "O1"), "Piece")
         advanceUntilIdle()
         assertEquals(1, sent.size)
         assertNull(o.failure.value)
         assertEquals(0, o.pending)
+    }
+
+    @Test fun anyOther409IsARefusalNotASave() = runTest {
+        val o = engine()
+        // Not a state machine's answer (no `machine`), still not recorded: the order was invoiced meanwhile.
+        failWith = { ErpApi.Failure(409, "This order is invoiced: its pieces are settled.") }
+        o.enqueue("setPieceDone", mapOf("orderId" to "O1"), "Piece")
+        advanceUntilIdle()
+        assertEquals(1, sent.size)
+        assertEquals("This order is invoiced: its pieces are settled.", o.failure.value?.message)
     }
 
     @Test fun aRefusedMoveIsNotSavedAndSaysWhy() = runTest {

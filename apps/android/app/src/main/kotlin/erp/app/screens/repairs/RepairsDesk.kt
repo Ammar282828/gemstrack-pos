@@ -110,10 +110,12 @@ class RepairsDesk(private val scope: CoroutineScope) {
      */
     fun setStatus(r: Repair, status: String) {
         val id = r.id
+        // `from`: the status the person saw (a move already shown on screen counts), so a stale queued change is refused.
+        val seen = moved[id]?.to ?: Book.shared.repairs.item(id)?.status ?: r.status
         moved[id] = Move(Book.shared.repairs.item(id)?.status ?: r.status, RepairStatus.of(status))
         moves += 1
         note = Note(words(id, status))
-        ErpApi.shared.enqueue("setRepairStatus", mapOf("repairId" to id, "status" to status), "$id status")
+        ErpApi.shared.enqueue("setRepairStatus", mapOf("repairId" to id, "status" to status, "from" to seen.rawValue), "$id status")
     }
 
     private fun words(id: String, status: String) = when (status) {
@@ -146,7 +148,7 @@ class RepairsDesk(private val scope: CoroutineScope) {
             )
             balanceTaken.add(r.id)
         }
-        ErpApi.shared.write("setRepairStatus", mapOf("repairId" to r.id, "status" to "collected"))
+        ErpApi.shared.write("setRepairStatus", mapOf("repairId" to r.id, "status" to "collected", "from" to r.status.rawValue))
         balanceTaken.remove(r.id)
         paymentsTaken += 1
     }
