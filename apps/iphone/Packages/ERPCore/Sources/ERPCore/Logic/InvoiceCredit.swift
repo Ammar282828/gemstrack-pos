@@ -44,17 +44,29 @@ public struct BalanceLine: Equatable {
     public let label: String
     public let amount: Double
     public let state: BalanceState
+    /// True for a refunded invoice (balanceLine(_:status:)): `state` reads .paid, the label "Refunded", the amount 0, so no
+    /// screen shows a balance or a credit on it. Screens that switch on `state` keep working; test this first.
+    public let refunded: Bool
 
-    public init(label: String, amount: Double, state: BalanceState) {
+    public init(label: String, amount: Double, state: BalanceState, refunded: Bool = false) {
         self.label = label
         self.amount = amount
         self.state = state
+        self.refunded = refunded
     }
 }
 
-public func balanceLine(_ balanceDue: Double?) -> BalanceLine {
-    let b = balance(balanceDue)
-    if owesMoney(b) { return BalanceLine(label: "Balance due", amount: b, state: .due) }
-    if isCredit(b) { return BalanceLine(label: "Credit to customer", amount: -b, state: .credit) }
-    return BalanceLine(label: "Paid in full", amount: 0, state: .paid)
+/// Pass the invoice's `status` wherever it is known: a refunded invoice owes nothing and holds nothing, whatever its balance
+/// still says (machines/settlement.ts). The words come from `settlementOf` (machines.json where loaded).
+public func balanceLine(_ balanceDue: Double?, status: String? = nil) -> BalanceLine {
+    let s = settlementOf(status: status, balanceDue: balanceDue, amountPaid: nil)
+    switch s.state {
+    case .refunded: return BalanceLine(label: s.label, amount: 0, state: .paid, refunded: true)
+    case .credit: return BalanceLine(label: s.label, amount: s.credit, state: .credit)
+    case .paid: return BalanceLine(label: s.label, amount: 0, state: .paid)
+    case .due, .partly: return BalanceLine(label: s.label, amount: s.amountDue, state: .due)
+    }
 }
+
+/// The same, from the invoice (`balanceLineOf`).
+public func balanceLineOf(_ inv: Invoice) -> BalanceLine { balanceLine(inv.balanceDue, status: inv.status?.rawValue) }

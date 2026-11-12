@@ -167,12 +167,15 @@ enum InvoiceFacts {
     /// `estimateMessage`: "estimate", its ID, what is owed, and the name as the bill has it). `shopName` is
     /// the shop's, never "… ERP".
     static func shareMessage(_ inv: Invoice, shopName: String, byCustomer: Bool) -> String {
-        let line = balanceLine(inv.balanceDue)
+        let line = balanceLineOf(inv)
         if !byCustomer {
             // `inv.customerName || 'Customer'`: a walk-in's bill reads "Dear Walk-in Customer", as the web's does.
             let named = inv.customerName.isEmpty ? "Customer" : inv.customerName
             var m = "Dear \(named),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(rupees(inv.grandTotal))\n"
-            if inv.amountPaid > 0 {
+            if line.refunded {
+                // A refunded invoice owes nothing, whatever its balance still says (settlement.ts).
+                m += "*Status:* Refunded\n\n"
+            } else if inv.amountPaid > 0 {
                 m += "*Amount Paid:* PKR \(rupees(inv.amountPaid))\n*Balance Due:* PKR \(rupees(inv.balanceDue))\n\n"
             } else {
                 m += "*Amount Due:* PKR \(rupees(inv.grandTotal))\n\n"
@@ -182,7 +185,9 @@ enum InvoiceFacts {
         let name = clean(inv.customerName)
         let who = name.isEmpty || isWalkInName(name) ? "Customer" : name
         var lines = ["Dear \(who),", "", "Your invoice from \(shopName) is at the link below.", "", "*Total:* \(Money.pkr(inv.grandTotal))"]
-        if inv.amountPaid > 0 {
+        if line.refunded {
+            lines.append("*Status:* Refunded")
+        } else if inv.amountPaid > 0 {
             lines.append("*Paid:* \(Money.pkr(inv.amountPaid))")
             lines.append(line.state == .credit ? "*Credit to you:* \(Money.pkr(line.amount))" : "*Balance due:* \(Money.pkr(inv.balanceDue))")
         }

@@ -345,6 +345,8 @@ struct MacOrdersPlace: View {
     }
 
     private func setStatus(_ order: Order, _ status: String) {
+        // The status shown when the person chose, taken before the screen moves.
+        let from = localStatus[order.id] ?? order.status.rawValue
         Motion.run(Motion.enter, reduce: reduceMotion) { localStatus[order.id] = status }
         if status == "Completed" {
             Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
@@ -353,7 +355,7 @@ struct MacOrdersPlace: View {
         } else {
             Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
         }
-        MacOrdersWrites.setStatus(order, status)
+        MacOrdersWrites.setStatus(order, status, from: from)
     }
 
     private var cancelShown: Binding<Bool> {

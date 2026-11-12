@@ -76,10 +76,12 @@ final class RepairsDesk {
     /// Not money: the ticket moves on the screen at once and the write goes through the Outbox.
     func setStatus(_ r: Repair, _ status: String) {
         let id = r.id
+        // What the person saw when they chose (a change just made on this screen counts), kept for the server's check.
+        let seen = self.status(r).rawValue
         moved[id] = (from: r.status, to: RepairStatus(rawValue: status))
         moves += 1
         say(Note(title: Self.words(id, status)))
-        Outbox.shared.send(op: "setRepairStatus", fields: ["repairId": id, "status": status],
+        Outbox.shared.send(op: "setRepairStatus", fields: ["repairId": id, "status": status, "from": seen],
                            business: House.business, label: "\(id) status")
     }
 
@@ -128,7 +130,7 @@ final class RepairsDesk {
             ])
             balanceTaken.insert(r.id)
         }
-        _ = try await ERPAPI.shared.write("setRepairStatus", ["repairId": r.id, "status": "collected"])
+        _ = try await ERPAPI.shared.write("setRepairStatus", ["repairId": r.id, "status": "collected", "from": status(r).rawValue])
         balanceTaken.remove(r.id)
         paymentsTaken += 1
     }

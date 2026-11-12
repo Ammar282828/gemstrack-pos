@@ -250,8 +250,9 @@ extension MacOrdersLogic {
 /// fields (OrdersHub.setStatus, OrderScreen.tick / assign), because those are private to their screens' state.
 @MainActor
 enum MacOrdersWrites {
-    static func setStatus(_ order: Order, _ status: String) {
-        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status],
+    /// `from` is the status shown when the person chose, so the server can refuse a change made on a stale view.
+    static func setStatus(_ order: Order, _ status: String, from: String) {
+        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status, "from": from],
                            business: House.business, label: "\(order.id) status")
     }
 

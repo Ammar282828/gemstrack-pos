@@ -464,7 +464,7 @@ struct OrderScreen: View {
         let rates = OrdersLogic.rateLine(order)
         Section {
             if let inv = invoice {
-                MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
+                MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.status == .refunded ? 0 : inv.balanceDue)
                     .padding(.vertical, pt(6))
             }
             if !rates.isEmpty {
@@ -855,6 +855,8 @@ struct OrderScreen: View {
     }
 
     private func setStatus(_ order: Order, _ status: String) {
+        // The status the person saw when they chose, taken before the screen moves (a queued change carries it).
+        let from = shownStatus(order)
         Motion.run(Motion.enter, reduce: reduceMotion) { localStatus = status }
         savedTick += 1
         if status == "Completed" {
@@ -864,7 +866,7 @@ struct OrderScreen: View {
         } else {
             Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
         }
-        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status],
+        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status, "from": from],
                            business: House.business, label: "\(order.id) status")
     }
 
@@ -1250,8 +1252,10 @@ extension OrderScreen {
         if let inv = invoice {
             MacOrdersMoneyRow(label: "Total", value: Money.pkr(inv.grandTotal))
             MacOrdersMoneyRow(label: "Paid", value: Money.pkr(inv.amountPaid))
-            MacOrdersMoneyRow(label: isCredit(inv.balanceDue) ? "In credit" : "Due", value: Money.pkr(abs(inv.balanceDue)), strong: true,
-                              tone: inv.balanceDue >= 1 ? .owed : (isCredit(inv.balanceDue) ? .credit : .quiet))
+            // A refunded invoice owes and holds nothing (settlement.ts), a balance under 1 rupee is settled.
+            let bal = balanceLineOf(inv)
+            MacOrdersMoneyRow(label: bal.state == .credit ? "In credit" : "Due", value: Money.pkr(bal.amount), strong: true,
+                              tone: bal.state == .due ? .owed : (bal.state == .credit ? .credit : .quiet))
         }
         if !rates.isEmpty { Text(rates).font(.house(.caption)).foregroundStyle(.secondary) }
         Button { macOpenRoute("/invoices/\(invoiceId)") } label: {

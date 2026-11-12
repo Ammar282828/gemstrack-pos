@@ -82,14 +82,52 @@ extension Machine: Decodable {
     }
 }
 
+/// A rule the apps derive instead of storing (machines.json `derived`): the invoice's settlement. Its states, labels and
+/// tones are the server's; the rule itself is ported (Settlement.swift) and the `rule` text is only for reading.
+public struct DerivedState: Equatable, Sendable {
+    public let name: String
+    public let field: String
+    public let states: [String]
+    public let labels: [String: String]
+    public let tones: [String: String]
+    public let rule: String
+
+    public init(name: String, field: String = "", states: [String] = [], labels: [String: String] = [:],
+                tones: [String: String] = [:], rule: String = "") {
+        self.name = name
+        self.field = field
+        self.states = states
+        self.labels = labels
+        self.tones = tones
+        self.rule = rule
+    }
+}
+
+extension DerivedState: Decodable {
+    private enum Keys: String, CodingKey { case name, field, states, labels, tones, rule }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        self.name = c.string(.name, default: "")
+        self.field = c.string(.field, default: "")
+        self.states = c.strings(.states)
+        self.labels = (try? c.decodeIfPresent([String: String].self, forKey: .labels)) ?? [:]
+        self.tones = (try? c.decodeIfPresent([String: String].self, forKey: .tones)) ?? [:]
+        self.rule = c.string(.rule, default: "")
+    }
+}
+
 /// The whole file. `Machines.shared` is the app's copy, read once from the bundle; empty when the file is missing.
 public struct Machines: Equatable, Sendable {
     public let version: Int
     public let machines: [Machine]
+    /// The derived rules (a file from before them has none).
+    public let derived: [DerivedState]
 
-    public init(version: Int = 1, machines: [Machine]) {
+    public init(version: Int = 1, machines: [Machine], derived: [DerivedState] = []) {
         self.version = version
         self.machines = machines
+        self.derived = derived
     }
 
     /// Reads the file's bytes; nil when it is not the file.
@@ -112,6 +150,19 @@ public struct Machines: Equatable, Sendable {
     public func machine(_ name: String) -> Machine? { machines.first { $0.name == name } }
 
     public var isEmpty: Bool { machines.isEmpty }
+
+    public func derivedRule(_ name: String) -> DerivedState? { derived.first { $0.name == name } }
+
+    /// A derived state's words; nil where the rule or state is unknown, so the caller keeps its own.
+    public func derivedLabel(_ name: String, _ state: String) -> String? {
+        guard let said = derivedRule(name)?.labels[state], !said.isEmpty else { return nil }
+        return said
+    }
+
+    public func derivedTone(_ name: String, _ state: String) -> String? {
+        guard let said = derivedRule(name)?.tones[state], !said.isEmpty else { return nil }
+        return said
+    }
 
     public func has(_ name: String) -> Bool { machine(name) != nil }
 
@@ -172,12 +223,13 @@ extension Machines {
 }
 
 extension Machines: Decodable {
-    private enum Keys: String, CodingKey { case version, machines }
+    private enum Keys: String, CodingKey { case version, machines, derived }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         self.version = c.int(.version) ?? 1
         self.machines = c.list(.machines, of: Machine.self)
+        self.derived = c.list(.derived, of: DerivedState.self)
     }
 }
 

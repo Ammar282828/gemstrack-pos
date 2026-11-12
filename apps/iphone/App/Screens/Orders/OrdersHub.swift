@@ -892,6 +892,8 @@ struct OrdersHub: View {
     }
 
     private func setStatus(_ order: Order, _ status: String) {
+        // The status the person saw when they chose, taken before the screen moves (a queued change carries it).
+        let from = localStatus[order.id] ?? order.status.rawValue
         Motion.run(Motion.enter, reduce: reduceMotion) { localStatus[order.id] = status }
         savedTick += 1
         if status == "Completed" {
@@ -901,7 +903,7 @@ struct OrdersHub: View {
         } else {
             Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
         }
-        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status],
+        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status, "from": from],
                            business: House.business, label: "\(order.id) status")
     }
 

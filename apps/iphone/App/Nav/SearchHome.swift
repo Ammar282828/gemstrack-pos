@@ -347,7 +347,9 @@ struct SearchView: View {
                     Text(invoiceLine(i)).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                RowAmount(amount: i.balanceDue > 0 ? i.balanceDue : i.grandTotal, tone: i.balanceDue > 0 ? Tone.owed.color : Color.primary)
+                // Owing by the settlement rule: a refunded invoice owes nothing and under 1 rupee is settled.
+                let owing = balanceLineOf(i).state == .due
+                RowAmount(amount: owing ? i.balanceDue : i.grandTotal, tone: owing ? Tone.owed.color : Color.primary)
             }
         }
     }
