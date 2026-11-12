@@ -92,7 +92,7 @@ final class OrderPaymentTests: XCTestCase {
         XCTAssertNil(withoutOrderAdvance(advancedOrder, lineIndex: -1))
     }
 
-    // MARK: getOrderPaymentStatus (no TS test; the cases are the ones its comment names)
+    // MARK: getOrderPaymentStatus (order-payment.test.ts "getOrderPaymentStatus", case for case, and the cases its comment names)
 
     func testPaymentStatusIsDecidedByTheBalanceAlone() {
         // 100,000 with 60,000 down is stored as a grandTotal of 40,000: Partial, never Paid.
@@ -100,7 +100,26 @@ final class OrderPaymentTests: XCTestCase {
         XCTAssertEqual(getOrderPaymentStatus(order(["grandTotal": 100_000, "advancePayment": 0])), .unpaid)
         XCTAssertEqual(getOrderPaymentStatus(order(["grandTotal": 0, "advancePayment": 100_000])), .paid)
         XCTAssertEqual(getOrderPaymentStatus(order(["grandTotal": 70_000, "advancePayment": 0, "advanceInExchangeValue": 30_000])), .partial)
-        XCTAssertEqual(getOrderPaymentStatus(order([:])), .paid)
+    }
+
+    func testOwingIsUnpaidOrPartialOnceAnAdvanceIsDown() {
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 40_000, "advancePayment": 0])), .unpaid)
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 40_000, "advancePayment": 60_000])), .partial)
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 40_000, "advancePayment": 0, "advanceInExchangeValue": 5_000])), .partial)
+    }
+
+    func testNothingLeftAfterMoneyWasPaidIsPaid() {
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 0, "advancePayment": 100_000])), .paid)
+        // Under a rupee is settled (whole rupees).
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 0.4, "advancePayment": 100_000])), .paid)
+        // An invoiced order's balance follows its invoice: settled there, so Paid.
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 0, "advancePayment": 0, "invoiceId": "INV-1"])), .paid)
+    }
+
+    func testAZeroTotalOrderWithNothingPaidIsNothingDueNotPaid() {
+        XCTAssertEqual(getOrderPaymentStatus(order(["id": "O", "grandTotal": 0, "advancePayment": 0])), .nothingDue)
+        XCTAssertEqual(getOrderPaymentStatus(order([:])), .nothingDue)
+        XCTAssertEqual(PaymentStatus.allFilterWords, ["Paid", "Partial", "Unpaid", "Nothing due"])
     }
 
     // MARK: Gold handed over with an advance

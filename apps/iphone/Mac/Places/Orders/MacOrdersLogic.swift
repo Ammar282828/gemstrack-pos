@@ -198,7 +198,7 @@ extension MacOrdersLogic {
 
     @MainActor
     static func base(orders: [Order], invoices: [Invoice], karigars: [Karigar], localStatus: [String: String],
-                     query: String, takenBy: String, list: String?, now: Date) -> MacOrdersBase {
+                     query: String, takenBy: String, payment: String = "", list: String?, now: Date) -> MacOrdersBase {
         let owedOn = OrdersLogic.owedOnInvoices(invoices)
         var byInvoice: [String: Invoice] = [:]
         for inv in invoices where byInvoice[inv.id] == nil { byInvoice[inv.id] = inv }
@@ -215,6 +215,8 @@ extension MacOrdersLogic {
         rows.reserveCapacity(scoped.count)
         for o in scoped {
             if !takenBy.isEmpty && o.takenBy != takenBy { continue }
+            // Paid, Partial, Unpaid or Nothing due, as the hub's filter reads it (ERPCore getOrderPaymentStatus).
+            if !payment.isEmpty && getOrderPaymentStatus(o).rawValue != payment { continue }
             if !OrdersLogic.matches(o, query) { continue }
             let invoice = o.invoiceId.flatMap { byInvoice[$0] }
             let st = stage(o, owedOn: owedOn, local: localStatus[o.id])

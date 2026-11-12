@@ -3,7 +3,11 @@
 import Foundation
 
 public enum PaymentStatus: String, Hashable {
-    case paid = "Paid", partial = "Partial", unpaid = "Unpaid"
+    /// `nothingDue`: no balance and nothing ever paid (a 0-total order), which is not the same as paid (2026-11-11).
+    case paid = "Paid", partial = "Partial", unpaid = "Unpaid", nothingDue = "Nothing due"
+
+    /// The Orders filter's choices after "Any payment", in the web's order (orders-hub.tsx).
+    public static let allFilterWords: [String] = [PaymentStatus.paid, .partial, .unpaid, .nothingDue].map(\.rawValue)
 }
 
 /// Whether an order has been paid, from the one number that already knows.
@@ -19,10 +23,16 @@ public enum PaymentStatus: String, Hashable {
 /// order whose advance covered half the price was mislabelled, on the badge and
 /// in the list's payment filter. The balance decides it on its own.
 public func getOrderPaymentStatus(_ order: Order) -> PaymentStatus {
-    let balance = order.grandTotal
+    let balance = order.grandTotal.isNaN ? 0 : order.grandTotal
     let totalAdvance = order.advancePayment + (order.advanceInExchangeValue ?? 0)
 
-    if balance <= 0 { return .paid }
+    // Whole rupees, as everywhere: under 1 rupee either way is settled (MoneyRound, lib/money.ts). An invoiced order's
+    // balance follows its invoice (payments taken there leave the advance at 0): settled, so Paid. Settled with nothing
+    // ever paid is Nothing due, not Paid.
+    if !owesMoney(balance) {
+        let invoiced = !(order.invoiceId ?? "").isEmpty
+        return totalAdvance > 0 || balance < 0 || invoiced ? .paid : .nothingDue
+    }
     if totalAdvance > 0 { return .partial }
     return .unpaid
 }

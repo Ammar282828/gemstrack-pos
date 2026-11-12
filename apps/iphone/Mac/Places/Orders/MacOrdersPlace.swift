@@ -37,6 +37,8 @@ struct MacOrdersPlace: View {
     @State private var selection = Set<String>()
     @State private var query = ""
     @State private var takenBy = ""
+    /// The Payment filter (getOrderPaymentStatus's words: Paid, Partial, Unpaid, Nothing due); "" is any payment.
+    @State private var payment = ""
     @State private var made = Memo<MacOrdersBase>()
     /// Statuses just chosen, shown before the shelf's copy catches up (order id to status).
     @State private var localStatus: [String: String] = [:]
@@ -57,7 +59,7 @@ struct MacOrdersPlace: View {
         let key = baseKey
         let base = made(key) {
             MacOrdersLogic.base(orders: MacLists.ordersHere(book.orders.items), invoices: book.invoices.items, karigars: book.karigars.items,
-                                localStatus: localStatus, query: query, takenBy: takenBy, list: list, now: Date())
+                                localStatus: localStatus, query: query, takenBy: takenBy, payment: payment, list: list, now: Date())
         }
         ShelfState(
             loaded: book.orders.loaded && book.invoices.loaded,
@@ -106,7 +108,7 @@ struct MacOrdersPlace: View {
     /// What the rows were made from: a change of any makes them again.
     private var baseKey: [Int] {
         [book.orders.revision, book.invoices.revision, book.karigars.revision, query.hashValue, takenBy.hashValue,
-         (list ?? "").hashValue, localStatus.hashValue, ERPDate.karachiDay(Date()).hashValue]
+         payment.hashValue, (list ?? "").hashValue, localStatus.hashValue, ERPDate.karachiDay(Date()).hashValue]
     }
 
     // MARK: The content
@@ -137,6 +139,18 @@ struct MacOrdersPlace: View {
     private func empty(_ base: MacOrdersBase) -> some View {
         if !query.trimmingCharacters(in: .whitespaces).isEmpty {
             ContentUnavailableView.search(text: query)
+        } else if !takenBy.isEmpty || !payment.isEmpty {
+            // A filter hid them: say so, not "No Orders Yet", and offer the way back.
+            // "Taken by Ayesha · Nothing due": the filters as the menu names them.
+            let said = [takenBy.isEmpty ? nil : "Taken by \(takenBy)", payment.isEmpty ? nil : payment]
+                .compactMap { $0 }.joined(separator: " \u{00B7} ")
+            ContentUnavailableView {
+                Label("No Matching Orders", systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text("Nothing here matches \(said).")
+            } actions: {
+                Button("Clear Filters") { takenBy = ""; payment = "" }
+            }
         } else {
             ContentUnavailableView(list == nil ? "No Orders Yet" : "Nothing in \(title)", systemImage: "list.clipboard",
                                    description: Text(list == nil ? "Make an order with \u{21E7}\u{2318}N." : "No order is in this list now."))
@@ -190,14 +204,20 @@ struct MacOrdersPlace: View {
                 ForEach(people, id: \.self) { (p: String) in Text(p).tag(p) }
             }
             .pickerStyle(.inline)
+            // The hub's Payment filter (the web's and the iPhone's): what is owed on each order, not its stage.
+            Picker("Payment", selection: $payment) {
+                Text("Any payment").tag("")
+                ForEach(OrdersLogic.filterPayments, id: \.self) { (p: String) in Text(p).tag(p) }
+            }
+            .pickerStyle(.inline)
             Picker("Sort by", selection: $sortRaw) {
                 ForEach(MacOrdersSort.allCases) { (o: MacOrdersSort) in Text(o.title).tag(o.rawValue) }
             }
             .pickerStyle(.inline)
         } label: {
-            Label("Filter", systemImage: takenBy.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            Label("Filter", systemImage: takenBy.isEmpty && payment.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
-        .help("Show one person's orders, or change the order of the list")
+        .help("Show one person's orders or one payment state, or change the order of the list")
     }
 
     // MARK: The inspector

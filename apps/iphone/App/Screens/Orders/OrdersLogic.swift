@@ -103,7 +103,7 @@ enum OrdersLogic {
     static let filterStatuses = ["Pending", "In Progress", "Completed", "Cancelled", "Refunded"]
 
     /// The hub's payment filter: Any payment, then these (getOrderPaymentStatus).
-    static let filterPayments = ["Paid", "Partial", "Unpaid"]
+    static let filterPayments = PaymentStatus.allFilterWords
 
     /// Cancelling asks first, on the list and on the order page alike.
     static let cancelWords = "It leaves the Workshop and its Shopify draft is cancelled. It can be set back to Pending later."
