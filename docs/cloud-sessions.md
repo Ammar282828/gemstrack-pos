@@ -31,7 +31,9 @@ Claude Code runs these repos in the cloud too, with no Mac.
   Manager: a fine-grained GitHub token on both repositories, contents, workflows and commit statuses), as the service account
   `cloud-deploy@gemstrack-pos`. In a cloud session: commit, push the branch, then read the commit's **`deploy (Cloud Build)`**
   status (`gh api repos/Ammar282828/taheri-pos/commits/<sha>/statuses`) or the build (`gcloud builds list --region us-central1`,
-  `gcloud builds log <id> --region us-central1`); on a conflict, rebase on `origin/main` and push again. About 4 minutes a deploy,
+  `gcloud builds log <id> --region us-central1`); on a conflict, rebase on `origin/main` and push again. "could not fetch main,
+  taheri-next or Mina's main" after green tests is GitHub failing the build's fetch, not the change: push the next real commit
+  (never an empty one, never a force-push to retry; the classifier refuses both). About 4 minutes a deploy,
   inside Cloud Build's 2,500 free minutes a month. Set up once by the owner in Cloud Shell: `scripts/cloud/cloudbuild-setup.sh`.
 - **Why not GitHub Actions any more:** this repo is private, so every Actions job counts against the account's free 2,000
   minutes a month (each job rounded up to a minute, a Mac minute as ten). They ran out on 2026-10-24 and every deploy stopped
