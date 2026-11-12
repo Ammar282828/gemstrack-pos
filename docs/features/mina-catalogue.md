@@ -22,3 +22,18 @@ sorted by its file name). Add Photos names and links to **this house's** website
 Since 2026-09-25 the catalogue has **customer accounts** like taheri.shop's (Google sign-in on hom-pos's own Firebase
 project; `catalogue.houseofmina.store` added to its authorised domains), talking to Mina's POS `/api/public/me` — no POS
 change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the table above for the key shape).
+
+## The ERP keeps the last good list (2026-11-12)
+
+Owner: "whenever I add new products to the catalogue the post feature stops loading the photos properly and doesn't
+load at all". Publishing new pieces keeps the catalogue's shared Hostinger host busy, and from the ERP's servers (Google,
+us-central1) it then took over 8 s to answer: Mina's log showed `/api/website/site-pieces` 502 after 16.8 s (two 8 s tries)
+while `catalog-pieces.json` was replaced (12:01-12:02, file dated 12:02:52) and again at 13:20, and the Posts page's health
+check timing out at 8 s each time. The ERP held the list only in each server's memory for ten minutes, so a server that had
+just started had nothing to fall back on: the page failed, and every photo with it (`site-pieces/image` reads the list).
+
+`lib/website/site-pieces.ts` now serves the last good list at once and asks the site in the background once it is a minute
+old (one read at a time per server); the list is also kept in Firestore (`site_pieces_cache`, gzipped, ~90 KB) for a server
+that has just started. A slow or failing catalogue only makes the list a little older; the page waits for the site only when
+there has never been a list. A photo asked for a piece this server has not heard of yet (another server's copy is newer)
+asks the site once before answering 404. New pieces appear within about a minute of the site answering, not ten.

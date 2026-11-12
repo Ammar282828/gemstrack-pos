@@ -17,12 +17,14 @@
  * Both lists carry the site's own words; the counter's changes to a piece
  * (Website → Edit a piece: site-edits.ts) are laid over them here, live, so a
  * renamed piece posts under its new name and a hidden one isn't offered.
- * The site's list is cached ten minutes per instance, like the attributes
- * themselves; the counter's changes thirty seconds.
+ * The site's list is served from the last good copy and re-read in the background once it is a minute old
+ * (listed(), below); the counter's changes are cached thirty seconds.
  *
  * Server-only.
  */
 
+import { createHash } from 'node:crypto';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { adminDb } from '@/lib/firebase-admin';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
 import { mergeWeights, type PosWeight } from '@/lib/website/weights';
@@ -88,8 +90,15 @@ export interface SitePiece {
   hidden: boolean;
 }
 
-const TTL_MS = 10 * 60 * 1000;
+/** How old the site's list may be before it is read again (in the background: the last copy is served meanwhile). */
+const FRESH_MS = 60 * 1000;
 let cache: { at: number; site: string; pieces: Listed[] } | null = null;
+/** The read under way, so many requests at once (a page's thumbnails) ask the site once. */
+let reading: { site: string; p: Promise<Listed[]> } | null = null;
+/** Whether this instance has looked for the kept copy yet (it is read once per instance). */
+let keptLooked = '';
+/** The kept copy's checksum, so an unchanged list is not written again. */
+let keptSum = '';
 /** A piece as the site lists it, before the counter's changes. */
 // `labelGrams`: the weight taheri.shop read off the photograph itself, kept apart so the counter's weight can be
 // laid over it fresh on every read (getSitePieces) rather than frozen into the ten-minute list.
@@ -300,26 +309,81 @@ export function leanPiece(p: SitePiece): Omit<SitePiece, 'own' | 'words' | 'chan
 }
 
 /** After a weight is typed: the next read lists the site again. */
-export function forgetSitePieces() { cache = null; }
+export function forgetSitePieces() { cache = null; reading = null; keptLooked = ''; keptSum = ''; }
 
-async function listed(site: string): Promise<Listed[]> {
-  if (cache && cache.site === site && Date.now() - cache.at < TTL_MS) return cache.pieces;
+/*
+ * The site's list: the last good copy at once, read again in the background when it is a minute old.
+ *
+ * Owner, 2026-11-12: "whenever I add new products to the catalogue the post feature stops loading the photos and
+ * doesn't load at all". Publishing new pieces keeps catalogue.houseofmina.store's shared host busy, and from the ERP's
+ * servers it then took over 8 s to answer (Mina's log: site-pieces 502 after 16.8 s, two 8 s tries, at 12:01 while the
+ * list was replaced and again at 13:20). The list was kept only in each server's memory for ten minutes, so a server
+ * that had just started (after any deploy, or a quiet spell) had nothing to fall back on and the page failed, and every
+ * photo (site-pieces/image reads the list too) failed with it. Now the last good list is also kept in Firestore
+ * (`site_pieces_cache`, gzipped, ~90 KB), served at once, and the site is asked in the background; a slow or failing
+ * site only ever makes the list a little older. The page waits for the site only when there has never been a list.
+ */
+const keptRef = (site: string) => adminDb.collection('site_pieces_cache').doc(createHash('sha1').update(site).digest('hex').slice(0, 20));
+
+async function loadKept(site: string): Promise<{ at: number; pieces: Listed[] } | null> {
+  if (keptLooked === site) return null;
+  keptLooked = site;
+  try {
+    const d = (await keptRef(site).get()).data() as { site?: string; at?: number; gz?: Buffer | Uint8Array } | undefined;
+    if (!d?.gz || d.site !== site) return null;
+    const pieces = JSON.parse(gunzipSync(Buffer.from(d.gz)).toString('utf8')) as Listed[];
+    return Array.isArray(pieces) && pieces.length ? { at: Number(d.at) || 0, pieces } : null;
+  } catch { return null; }
+}
+
+async function keep(site: string, pieces: Listed[]): Promise<void> {
+  try {
+    const json = JSON.stringify(pieces);
+    const sum = createHash('sha1').update(json).digest('hex');
+    if (sum === keptSum) return;
+    await keptRef(site).set({ site, at: Date.now(), sum, gz: gzipSync(json) });
+    keptSum = sum;
+  } catch { /* the kept copy is a fallback: never fail a read for it */ }
+}
+
+/** Ask the site for its list (one read at a time per instance); on success it becomes the copy served and kept. */
+async function readSite(site: string): Promise<Listed[]> {
   const read = await fromCatalogPieces(site);
   const host = site.replace(/^https?:\/\//, '');
   let all: Listed[];
   if (read.kind === 'ok') all = read.pieces;
-  else if (read.kind === 'failed') {
-    // The site did not answer well: keep showing what it last said (however old) over showing nothing, and ask again in a minute.
-    if (cache && cache.site === site) { cache = { ...cache, at: Date.now() - TTL_MS + 60_000 }; return cache.pieces; }
-    throw new Error(`${host} did not give its list of pieces just now (${read.why}). Try again in a minute.`);
-  } else {
+  else if (read.kind === 'failed') throw new Error(`${host} did not give its list of pieces just now (${read.why}). Try again in a minute.`);
+  else {
     try { all = await fromAttributes(site); }
     catch (e) { throw new Error(`${host} publishes no list of pieces the ERP can read (${e instanceof Error ? e.message : e}).`); }
   }
   const fresh = newArrivalIds(all.filter(p => p.url));
   const pieces = all.map(p => ({ ...p, newArrival: fresh.has(p.id) })).sort(byNewest);
   cache = { at: Date.now(), site, pieces };
+  void keep(site, pieces);
   return pieces;
+}
+
+function refresh(site: string): Promise<Listed[]> {
+  if (reading?.site !== site) {
+    const p = readSite(site).finally(() => { if (reading?.p === p) reading = null; });
+    reading = { site, p };
+  }
+  return reading.p;
+}
+
+async function listed(site: string): Promise<Listed[]> {
+  if (cache && cache.site === site && Date.now() - cache.at < FRESH_MS) return cache.pieces;
+  if (!cache || cache.site !== site) {
+    const kept = await loadKept(site);
+    if (kept) cache = { at: kept.at, site, pieces: kept.pieces };
+  }
+  if (cache && cache.site === site) {
+    // Served now; the site is asked behind it (a failure keeps this copy, and the next request asks again).
+    refresh(site).catch(e => console.warn('[site-pieces] kept the last list:', e instanceof Error ? e.message : e));
+    return cache.pieces;
+  }
+  return refresh(site);
 }
 
 /**
@@ -338,6 +402,12 @@ export async function getSitePieces(opts: { all?: boolean; fresh?: boolean } = {
 }
 
 export async function getSitePiece(id: string, opts: { all?: boolean; fresh?: boolean } = {}): Promise<SitePiece | null> {
+  const found = (await getSitePieces(opts)).pieces.find(p => p.id === id);
+  if (found) return found;
+  // Not in the copy this server holds: a piece just added, listed by another server whose copy is newer. Ask the
+  // site once before saying it doesn't exist (its photo would otherwise fail until this copy caught up).
+  const site = siteOrigin();
+  if (!site || !(await refresh(site).then(() => true, () => false))) return null;
   return (await getSitePieces(opts)).pieces.find(p => p.id === id) ?? null;
 }
 

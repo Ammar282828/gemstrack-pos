@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
+// The kept copy (site_pieces_cache): one document in memory, so a "new server" can find what an earlier one kept.
+const kept: { doc: Record<string, unknown> | null } = { doc: null };
+vi.mock('@/lib/firebase-admin', () => ({ adminDb: { collection: () => ({ doc: () => ({
+  get: async () => ({ data: () => kept.doc ?? undefined }),
+  set: async (d: Record<string, unknown>) => { kept.doc = d; },
+}) }) } }));
 vi.mock('@/lib/website/catalog-source', () => ({ getCatalogAttributes: async () => ({}) }));
 vi.mock('@/lib/website/piece-weights', () => ({ getPieceWeights: async () => ({}) }));
 vi.mock('@/lib/website/site-edits', () => ({ getSiteOverrides: async () => ({}), imagePathOf: () => null }));
@@ -90,6 +95,7 @@ describe('parseCatalogPieces (Mina-shaped catalogue)', () => {
 describe('getSitePieces on the catalogue when its host blips', () => {
   const reply = (status: number, body?: unknown) => ({ ok: status < 400, status, json: async () => body }) as Response;
   const run = async (answers: Response[]) => {
+    kept.doc = null;
     forgetSitePieces();
     process.env.WEBSITE_ORIGIN = 'https://catalogue.houseofmina.store';
     const f = vi.fn(async (_url: string) => answers.shift() ?? reply(503));
@@ -122,6 +128,47 @@ describe('getSitePieces on the catalogue when its host blips', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(Date.now() + 11 * 60 * 1000);
     try { expect((await getSitePieces()).pieces.length).toBe(3); } finally { vi.useRealTimers(); }
+  });
+});
+
+describe('getSitePieces when the catalogue is slow (owner, 2026-11-12)', () => {
+  const reply = (status: number, body?: unknown) => ({ ok: status < 400, status, json: async () => body }) as Response;
+  const settle = () => new Promise(r => setTimeout(r, 0));
+
+  it('a new server serves the kept copy at once while the site does not answer', async () => {
+    kept.doc = null;
+    forgetSitePieces();
+    process.env.WEBSITE_ORIGIN = 'https://catalogue.houseofmina.store';
+    vi.stubGlobal('fetch', vi.fn(async () => reply(200, minaFile)));
+    await getSitePieces();
+    await settle();
+    expect(kept.doc).not.toBeNull();
+    // A server that has just started: nothing in memory, and the site hangs.
+    forgetSitePieces();
+    const hang = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal('fetch', hang);
+    expect((await getSitePieces()).pieces.length).toBe(3);
+    expect(hang).toHaveBeenCalled();
+  });
+
+  it('asks the site once for many requests at once', async () => {
+    kept.doc = null;
+    forgetSitePieces();
+    const f = vi.fn(async () => reply(200, minaFile));
+    vi.stubGlobal('fetch', f);
+    await Promise.all([getSitePieces(), getSitePieces(), getSitePieces()]);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it('finds a piece this server has not heard of yet by asking the site', async () => {
+    kept.doc = null;
+    forgetSitePieces();
+    const one = { ...minaFile, pieces: minaFile.pieces.slice(0, 1) };
+    vi.stubGlobal('fetch', vi.fn(async () => reply(200, one)));
+    await getSitePieces();
+    vi.stubGlobal('fetch', vi.fn(async () => reply(200, minaFile)));
+    const { getSitePiece } = await import('./site-pieces');
+    expect(await getSitePiece('mina/piece/local-dsc09787-sq')).not.toBeNull();
   });
 });
 
