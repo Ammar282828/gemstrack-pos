@@ -64,6 +64,31 @@ fun isCreditPayback(p: Payment?): Boolean = p != null && p.kind == "credit-payba
 fun creditPaidBack(history: List<Payment>?): Double =
     (history ?: emptyList()).fold(0.0) { s, p -> s + if (isCreditPayback(p)) -p.amount else 0.0 }
 
+/**
+ * Where an invoice's money stands, derived and never stored (src/lib/machines/settlement.ts, machines.json `derived`
+ * "Invoice settlement"): status Refunded is refunded whatever its balance says; else in whole rupees (under 1 settled) a
+ * balance of 1 or more is partly when anything was paid, else due; -1 or less is the customer's credit; otherwise paid.
+ * The words and tones are the table's ([LABELS], [TONES] its defaults).
+ */
+data class Settlement(val state: String, val amountDue: Double, val credit: Double) {
+    val label: String get() = LABELS.getValue(state)
+    val tone: String get() = TONES.getValue(state)
+
+    companion object {
+        val STATES = listOf("due", "partly", "paid", "credit", "refunded")
+        val LABELS = mapOf("due" to "Balance due", "partly" to "Balance due", "paid" to "Paid in full", "credit" to "Credit to customer", "refunded" to "Refunded")
+        val TONES = mapOf("due" to "late", "partly" to "owed", "paid" to "settled", "credit" to "credit", "refunded" to "quiet")
+
+        fun of(status: String?, balanceDue: Double?, amountPaid: Double? = null): Settlement {
+            if (status == "Refunded") return Settlement("refunded", 0.0, 0.0)
+            val b = balance(balanceDue)
+            if (owesMoney(b)) return Settlement(if ((amountPaid ?: 0.0) > 0) "partly" else "due", b, 0.0)
+            if (isCredit(b)) return Settlement("credit", 0.0, -b)
+            return Settlement("paid", 0.0, 0.0)
+        }
+    }
+}
+
 enum class BalanceState { due, paid, credit }
 
 /** How an invoice's balance reads, everywhere it is shown, printed or sent. */

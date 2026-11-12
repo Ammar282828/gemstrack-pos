@@ -16,8 +16,13 @@ class MachinesTests {
     private val coreDir = File(System.getProperty("erp.coreDir") ?: System.getProperty("user.dir")).absoluteFile
     private val t = Machines.parse(File(coreDir, "../../iphone/App/Resources/machines.json").canonicalFile.readText())
 
-    @Test fun carriesTheFiveMachines() {
-        assertEquals(listOf("Order", "Repair", "Payment link", "Website order", "TCS booking"), t.all.map { it.name })
+    @Test fun carriesEveryMachine() {
+        // Round two (2026-11-11) added the karigar's pay batch, the post queue and Order WhatsApp.
+        assertEquals(
+            listOf("Order", "Repair", "Payment link", "Website order", "TCS booking", "Pay batch", "Post queue", "Order WhatsApp"),
+            t.all.map { it.name },
+        )
+        assertEquals(listOf(Machines.INVOICE_SETTLEMENT), t.derived.map { it.name })
     }
 
     @Test fun everyMachineIsWellFormed() {

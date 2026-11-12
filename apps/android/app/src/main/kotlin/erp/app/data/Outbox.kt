@@ -245,13 +245,14 @@ class OutboxEngine(
                     throw e
                 } catch (e: Exception) {
                     val status = (e as? ErpApi.Failure)?.status ?: 0
-                    if (status == 409 && (e as? ErpApi.Failure)?.refusal == null) {
-                        // "Already recorded": the earlier try went through.
+                    if (status == 409 && (e as? ErpApi.Failure)?.message?.startsWith("This was already sent") == true) {
+                        // "Already recorded": the earlier try of this same named change went through (idempotency.ts's busy answer).
                         finish(id, null)
                         return@launch
                     }
-                    // A 409 that names a machine is a move the ERP refused (an order cannot go from Refunded to Pending): it was NOT
-                    // recorded. It falls to the refusal below, which says the ERP's reason and puts the screen back as the books have it.
+                    // Any other 409 is a refusal and was NOT recorded: a state machine's "can't go from … to …", an order invoiced
+                    // meanwhile, not in stock, a stale `from`. It falls to the refusal below, which says the ERP's reason and puts
+                    // the screen back as the books have it (the iPhone's Outbox.swift, 2026-11-11).
                     // No line is not a failure: a change waits for it as long as it takes (a named write is the same change however
                     // often it is sent). A post that may have gone out is not repeated; only one that never left.
                     val lost = if (posts.containsKey(id)) Connection.neverLeft(e) else (e is ErpApi.Failure && Connection.lost(e))
@@ -274,7 +275,13 @@ class OutboxEngine(
     private fun retryAfter(id: String, e: Exception, status: Int, attempt: Int): Boolean {
         // 4xx other than a timeout, a rate limit or an expired token is a refusal: no retry will change it.
         val refused = status in 400..499 && status !in listOf(401, 408, 425, 429)
-        entries[id]?.let { it.attempts = attempt; persist() }
+        entries[id]?.let {
+            it.attempts = attempt
+            // Kept as refused, so the next launch does not send it again: a status move refused this morning must not land by
+            // itself this afternoon because its order's invoice was undone meanwhile.
+            if (refused) it.refusal = e.message ?: "Not saved."
+            persist()
+        }
         if (refused || attempt > backoffSeconds.size) {
             running.remove(id)
             fail(id, item(id)?.label ?: "", e.message ?: "Not saved.")
@@ -471,9 +478,10 @@ class OutboxEngine(
             )
             entries[id] = e
             val refusal = e.refusal
-            if (durable && refusal != null) {
-                // Refused before the app was closed: kept as it was, said again in Waiting to send, not sent at every launch.
-                _items.update { it + Item(id, label, Status.Failed, refusal, summary = summary, business = businessId, createdAt = e.createdAt, durable = true) }
+            if (refusal != null) {
+                // Refused before the app was closed: kept as it was, said again in Waiting to send, not sent at every launch (a
+                // kept creation or payment, and since 2026-11-12 a status or piece change too).
+                _items.update { it + Item(id, label, Status.Failed, refusal, summary = summary, business = businessId, createdAt = e.createdAt, durable = durable) }
                 continue
             }
             _items.update { it + Item(id, label, if (durable) Status.Waiting else Status.Saving, summary = summary, business = businessId, createdAt = e.createdAt, durable = durable) }

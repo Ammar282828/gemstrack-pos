@@ -237,7 +237,10 @@ object InvoiceFacts {
         val name = clean(inv.customerName)
         val who = if (name.isEmpty() || isWalkInName(name)) "Customer" else name
         val lines = mutableListOf("Dear $who,", "", "Your invoice from $shopName is at the link below.", "", "*Total:* ${Money.pkr(inv.grandTotal)}")
-        if (inv.amountPaid > 0) {
+        if (erp.core.logic.Settlement.of(inv.status?.rawValue, inv.balanceDue).state == "refunded") {
+            // A voided or refunded invoice owes nothing, whatever its balance still says (machines/settlement.ts).
+            lines.add("*Status:* Refunded")
+        } else if (inv.amountPaid > 0) {
             lines.add("*Paid:* ${Money.pkr(inv.amountPaid)}")
             lines.add(if (line.state == BalanceState.credit) "*Credit to you:* ${Money.pkr(line.amount)}" else "*Balance due:* ${Money.pkr(inv.balanceDue)}")
         }

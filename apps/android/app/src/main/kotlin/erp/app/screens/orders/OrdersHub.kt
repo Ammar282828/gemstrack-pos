@@ -224,10 +224,12 @@ fun OrdersHub(shopify: Boolean = false) {
     fun message(e: Throwable) = ordersSay(e)
 
     fun setStatus(order: Order, status: String) {
+        // `from`: the status the person saw (machines/expected.ts): a stale queued change is refused, not replayed over a newer one.
+        val from = localStatus[order.id] ?: order.status.rawValue
         localStatus[order.id] = status
         if (status == "Cancelled") haptics.warning() else haptics.success()
         note.show(Note(OrdersLocal.said(status), order.id))
-        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
+        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status, "from" to from), "${order.id} status")
     }
 
     // One set of actions for the life of the screen: the cards compare it by identity, so a change to the books or to a filter

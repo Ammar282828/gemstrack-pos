@@ -75,8 +75,8 @@ class Machine(
 }
 
 /** The whole table, by machine name. */
-class Machines(val all: List<Machine>) {
-    private val byName = all.associateBy { it.name }
+class Machines(val all: List<Machine>, /** Derived states, never stored (machines.json `derived`: Invoice settlement): words and tones only. */ val derived: List<Machine> = emptyList()) {
+    private val byName = all.associateBy { it.name } + derived.associateBy { it.name }
 
     fun machine(name: String): Machine? = byName[name]
 
@@ -101,11 +101,19 @@ class Machines(val all: List<Machine>) {
         const val PAYMENT_LINK = "Payment link"
         const val WEBSITE_ORDER = "Website order"
         const val TCS_BOOKING = "TCS booking"
+        const val INVOICE_SETTLEMENT = "Invoice settlement"
 
         /** machines.json, or [EMPTY] for text that is not the table. */
         fun parse(text: String): Machines {
             val root = Json.parse(text) as? Map<*, *> ?: return EMPTY
-            val list = (root["machines"] as? List<*>).orEmpty().mapNotNull { m ->
+            val list = machines(root["machines"])
+            // A derived machine has states, words and tones, and no moves: nothing ever sets it.
+            val derived = machines(root["derived"])
+            return Machines(list, derived)
+        }
+
+        private fun machines(v: Any?): List<Machine> =
+            (v as? List<*>).orEmpty().mapNotNull { m ->
                 val o = m as? Map<*, *> ?: return@mapNotNull null
                 val name = o["name"] as? String ?: return@mapNotNull null
                 Machine(
@@ -123,8 +131,6 @@ class Machines(val all: List<Machine>) {
                     },
                 )
             }
-            return Machines(list)
-        }
 
         private fun strings(v: Any?): List<String> = (v as? List<*>).orEmpty().filterIsInstance<String>()
 
