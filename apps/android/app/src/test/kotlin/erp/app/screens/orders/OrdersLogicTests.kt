@@ -185,7 +185,8 @@ class OrdersLogicTests {
     }
 
     @Test fun theFiltersNarrowByPaymentMonthAndWhoTookIt() {
-        val paid = order("id" to "P", "grandTotal" to 0.0, "takenBy" to "Sana", "createdAt" to "2026-09-30T05:00:00.000Z")
+        // Paid in full by its advance (a 0 total with nothing paid is Nothing due, order-payment.ts).
+        val paid = order("id" to "P", "grandTotal" to 0.0, "advancePayment" to 100.0, "takenBy" to "Sana", "createdAt" to "2026-09-30T05:00:00.000Z")
         val partial = order("id" to "H", "grandTotal" to 100.0, "advancePayment" to 50.0, "takenBy" to "Omar")
         val unpaid = order("id" to "U", "grandTotal" to 100.0, "takenBy" to "Sana")
         val all = listOf(paid, partial, unpaid)
@@ -194,6 +195,8 @@ class OrdersLogicTests {
         assertEquals(listOf("P"), OrdersLogic.scope(all, "", "2026-09", "", "All").map { it.id })
         assertEquals(listOf("H"), OrdersLogic.scope(all, "", "", "Omar", "All").map { it.id })
         assertEquals(listOf("P", "H", "U"), OrdersLogic.scope(all, "", "", "", "All").map { it.id })
+        val free = order("id" to "Z", "grandTotal" to 0.0, "takenBy" to "Sana")
+        assertEquals(listOf("Z"), OrdersLogic.scope(all + free, "", "", "", "Nothing due").map { it.id })
     }
 
     // MARK: Whose, search, names
