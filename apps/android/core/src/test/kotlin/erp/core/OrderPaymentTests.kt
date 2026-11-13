@@ -150,7 +150,7 @@ class OrderPaymentTests {
         assertEquals(1, gone?.advances?.size)
     }
 
-    // MARK: getOrderPaymentStatus (no TS test; the cases are the ones its comment names)
+    // MARK: getOrderPaymentStatus (order-payment.test.ts "getOrderPaymentStatus", case for case, and the cases its comment names)
 
     @Test
     fun testPaymentStatusIsDecidedByTheBalanceAlone() {
@@ -159,6 +159,25 @@ class OrderPaymentTests {
         assertEquals(PaymentStatus.unpaid, getOrderPaymentStatus(order(mapOf("grandTotal" to 100_000, "advancePayment" to 0))))
         assertEquals(PaymentStatus.paid, getOrderPaymentStatus(order(mapOf("grandTotal" to 0, "advancePayment" to 100_000))))
         assertEquals(PaymentStatus.partial, getOrderPaymentStatus(order(mapOf("grandTotal" to 70_000, "advancePayment" to 0, "advanceInExchangeValue" to 30_000))))
-        assertEquals(PaymentStatus.paid, getOrderPaymentStatus(order(emptyMap())))
+    }
+
+    @Test fun owingIsUnpaidOrPartialOnceAnAdvanceIsDown() {
+        assertEquals(PaymentStatus.unpaid, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 40_000, "advancePayment" to 0))))
+        assertEquals(PaymentStatus.partial, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 40_000, "advancePayment" to 60_000))))
+        assertEquals(PaymentStatus.partial, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 40_000, "advancePayment" to 0, "advanceInExchangeValue" to 5_000))))
+    }
+
+    @Test fun nothingLeftAfterMoneyWasPaidIsPaid() {
+        assertEquals(PaymentStatus.paid, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 0, "advancePayment" to 100_000))))
+        // Under a rupee is settled (whole rupees).
+        assertEquals(PaymentStatus.paid, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 0.4, "advancePayment" to 100_000))))
+        // An invoiced order's balance follows its invoice: settled there, so Paid.
+        assertEquals(PaymentStatus.paid, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 0, "advancePayment" to 0, "invoiceId" to "INV-1"))))
+    }
+
+    @Test fun aZeroTotalOrderWithNothingPaidIsNothingDueNotPaid() {
+        assertEquals(PaymentStatus.nothingDue, getOrderPaymentStatus(order(mapOf("id" to "O", "grandTotal" to 0, "advancePayment" to 0))))
+        assertEquals(PaymentStatus.nothingDue, getOrderPaymentStatus(order(emptyMap())))
+        assertEquals(listOf("Paid", "Partial", "Unpaid", "Nothing due"), PaymentStatus.allFilterWords)
     }
 }

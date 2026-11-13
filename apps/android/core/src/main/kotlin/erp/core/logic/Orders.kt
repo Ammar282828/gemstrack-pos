@@ -107,7 +107,14 @@ fun pieceCounts(items: List<OrderItem>?): PieceCounts {
 
 // MARK: Payment (order-payment.ts)
 
-enum class PaymentStatus(val rawValue: String) { paid("Paid"), partial("Partial"), unpaid("Unpaid") }
+enum class PaymentStatus(val rawValue: String) {
+    paid("Paid"), partial("Partial"), unpaid("Unpaid"), nothingDue("Nothing due");
+
+    companion object {
+        /** The hub's Payment filter, in the web's order (orders-hub.tsx). */
+        val allFilterWords: List<String> = entries.map { it.rawValue }
+    }
+}
 
 /**
  * Whether an order has been paid, from the one number that already knows.
@@ -127,7 +134,9 @@ fun getOrderPaymentStatus(order: Order): PaymentStatus {
     val balance = order.grandTotal
     val totalAdvance = order.advancePayment + (order.advanceInExchangeValue ?: 0.0)
 
-    if (balance <= 0) return PaymentStatus.paid
+    // Whole rupees, as everywhere: under 1 rupee either way is settled (order-payment.ts). An invoiced order's balance follows
+    // its invoice (payments taken there leave the advance at 0): settled, so Paid. A 0-total order with nothing paid is Nothing due.
+    if (!owesMoney(balance)) return if (totalAdvance > 0 || balance < 0 || !order.invoiceId.isNullOrEmpty()) PaymentStatus.paid else PaymentStatus.nothingDue
     if (totalAdvance > 0) return PaymentStatus.partial
     return PaymentStatus.unpaid
 }

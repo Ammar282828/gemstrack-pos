@@ -245,7 +245,7 @@ object OrdersLogic {
     val filterStatuses = listOf("Pending", "In Progress", "Completed", "Cancelled", "Refunded")
 
     /** The hub's payment filter: Any payment, then these (getOrderPaymentStatus). */
-    val filterPayments = listOf("Paid", "Partial", "Unpaid")
+    val filterPayments = erp.core.logic.PaymentStatus.allFilterWords
 
     /** Cancelling asks first, on the list and on the order page alike. */
     const val cancelWords = "It leaves the Workshop and its Shopify draft is cancelled. It can be set back to Pending later."
