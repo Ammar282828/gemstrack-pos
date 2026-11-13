@@ -26,7 +26,7 @@ import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib
 import { createOrder } from '@/lib/writes/create-order';
 import { moveRefusedResponse } from '@/lib/machines/http';
 import { InputError, checkIsoDate, checkMoney } from '@/lib/writes/validate';
-import { updateOrder } from '@/lib/writes/update-order';
+import { OrderMoneyRefusal, updateOrder } from '@/lib/writes/update-order';
 import { finalizeOrder } from '@/lib/writes/finalize-order';
 import { RATE_FIELDS, type FinalizedItem, type RateField } from '@/lib/order-finalize';
 import type { ExchangeEntry } from '@/lib/exchange';
@@ -367,8 +367,17 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
             if (piece.karigarId === null) delete merged.karigarId;
             return merged;
           });
-          const out = await updateOrder(adminPort, { orderId, edit: edit as never }, { clean: cleanObject },
-            { log, notifyStatus: (id, status) => alert({ event: 'order-status', id, status }) });
+          // The advance the form opened on: an advance typed lower is then a correction (update-order.ts reconcileOrderMoney).
+          const seen = Number(sent.advanceSeen);
+          if (sent.advanceSeen != null && Number.isFinite(seen)) edit.advanceSeen = seen;
+          let out;
+          try {
+            out = await updateOrder(adminPort, { orderId, edit: edit as never }, { clean: cleanObject },
+              { log, notifyStatus: (id, status) => alert({ event: 'order-status', id, status }) });
+          } catch (e) {
+            if (e instanceof OrderMoneyRefusal) return NextResponse.json({ error: e.message }, { status: 409 });
+            throw e;
+          }
           return NextResponse.json({ ok: true, order: out, followUps });
         }
 

@@ -35,6 +35,12 @@ class NewOrderEdit(o: Order) {
     /** Invoiced already: the invoice keeps its own copy of the pieces, so a change here does not reach it. */
     val invoiced: Boolean = !(o.invoiceId ?: "").isEmpty()
 
+    /**
+     * The advance on file as the form opened: sent with the edit (`advanceSeen`), so an advance typed lower is a
+     * correction the ERP makes, not a stale form it ignores (lib/writes/update-order.ts reconcileOrderMoney).
+     */
+    val advanceSeen: Double = o.advancePayment
+
     init {
         val d = NewOrderDraft()
         val origin = LinkedHashMap<UUID, Int>()

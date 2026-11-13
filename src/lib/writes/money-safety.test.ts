@@ -3,7 +3,7 @@ import type { DbPort, TxCtx } from '@/lib/db-port';
 import { recordInvoicePayment } from './invoice-payment';
 import { recordOrderAdvance } from './order-advance';
 import { recordRepairPayment } from './repairs';
-import { reconcileOrderMoney, updateOrder } from './update-order';
+import { OrderMoneyRefusal, reconcileOrderMoney, updateOrder } from './update-order';
 import { createOrder } from './create-order';
 import { deleteInvoice } from './invoice-delete';
 import { cleanObject } from './create-invoice';
@@ -133,6 +133,49 @@ describe('editing an order never puts a stale form over money another phone took
     await recordOrderAdvance(db, { orderId: 'ORD-1', amount: 5_000 });
     await updateOrder(db, { orderId: 'ORD-1', edit: { ...staleForm, discountAmount: 2_000 } as never }, { clean });
     expect(data.orders['ORD-1'].grandTotal).toBe(43_000);
+  });
+
+  // The owner, 2026-11-13: an advance typed wrong (50,000 for 5,000) could not be put right from the apps' Edit order.
+  const withAdvance = (): Seed => ({
+    orders: { 'ORD-1': { status: 'Pending', customerName: 'Before', subtotal: 100_000, discountAmount: 0, advancePayment: 50_000, grandTotal: 50_000, advances: [], items: [{ description: 'A' }] } },
+  });
+  const form = (advance: number, seen?: number) => ({
+    customerName: 'Before', subtotal: 100_000, discountAmount: 0, advancePayment: advance, grandTotal: 100_000 - advance, items: [{ description: 'A' }],
+    ...(seen == null ? {} : { advanceSeen: seen }),
+  });
+
+  it('an advance typed lower on a form opened on the stored one is a correction: the advance and balance follow', async () => {
+    const { db, data } = fakeDb(withAdvance());
+    const logs: string[] = [];
+    await updateOrder(db, { orderId: 'ORD-1', edit: form(5_000, 50_000) as never }, { clean }, { log: async (_k, title, detail) => { logs.push(`${title}: ${detail}`); } });
+    const o = data.orders['ORD-1'];
+    expect(o.advancePayment).toBe(5_000);
+    expect(o.grandTotal).toBe(95_000);
+    expect(o).not.toHaveProperty('advanceSeen');
+    expect(logs.some(l => l.startsWith('Advance corrected for Order ORD-1: From 50,000 to 5,000'))).toBe(true);
+  });
+
+  it('a lower advance from a form opened on another figure is refused, nothing written', async () => {
+    const { db, data } = fakeDb(withAdvance());
+    await expect(updateOrder(db, { orderId: 'ORD-1', edit: form(5_000, 40_000) as never }, { clean })).rejects.toBeInstanceOf(OrderMoneyRefusal);
+    expect(data.orders['ORD-1'].advancePayment).toBe(50_000);
+  });
+
+  it('a correction never cuts into an advance recorded later: that is deleted on the order page', async () => {
+    const { db, data } = fakeDb(withAdvance());
+    await recordOrderAdvance(db, { orderId: 'ORD-1', amount: 10_000 });
+    // 60,000 on file: 50,000 with the order, 10,000 listed. Down to 45,000 fits the 50,000; down to 5,000 would cut the listed 10,000.
+    await expect(updateOrder(db, { orderId: 'ORD-1', edit: form(5_000, 60_000) as never }, { clean })).rejects.toThrow(/recorded later/);
+    await updateOrder(db, { orderId: 'ORD-1', edit: form(45_000, 60_000) as never }, { clean });
+    expect(data.orders['ORD-1'].advancePayment).toBe(45_000);
+    expect(data.orders['ORD-1'].grandTotal).toBe(55_000);
+  });
+
+  it('without advanceSeen (an older app) a lower advance is still a stale form and ignored', async () => {
+    const { db, data } = fakeDb(withAdvance());
+    await updateOrder(db, { orderId: 'ORD-1', edit: form(5_000) as never }, { clean });
+    expect(data.orders['ORD-1'].advancePayment).toBe(50_000);
+    expect(data.orders['ORD-1'].grandTotal).toBe(50_000);
   });
 
   it('an invoiced order keeps its balance and advance: the invoice is where money is taken', () => {

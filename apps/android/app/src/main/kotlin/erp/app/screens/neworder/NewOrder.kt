@@ -335,6 +335,9 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
                 if (edit != null) {
                     // The form's edit path: the ERP lays these fields over the order on file and its pieces.
                     val request = NewOrderMath.editRequest(draft, edit, s, people)
+                    // The advance the form opened on: a lower one typed is then corrected, not silently ignored (update-order.ts).
+                    @Suppress("UNCHECKED_CAST")
+                    (request["order"] as? MutableMap<String, Any?>)?.put("advanceSeen", edit.advanceSeen)
                     try {
                         ErpApi.shared.write("updateOrder", request)
                         savedEdit = true

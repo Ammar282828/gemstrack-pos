@@ -37,8 +37,13 @@ export interface OrderEdit {
   advancePayment?: number;
   advanceMethod?: string | null;
   advances?: Advance[];
+  /** The advance on file when the form opened (the apps send it): an advance typed lower is then a correction, not a stale form. Never written. */
+  advanceSeen?: number;
   [k: string]: unknown;
 }
+
+/** An edit the order's money cannot take as sent: said to the person (409), nothing written. */
+export class OrderMoneyRefusal extends Error {}
 
 /**
  * The patch the edit writes: the form's fields, with the status the pieces now call for and an added
@@ -82,13 +87,19 @@ export interface UpdatedOrder {
  * Another phone may have recorded an advance since; the form's copy of the totals is then stale, and writing
  * it back would undo that money while its entry stays in `advances`. So:
  * - an invoiced order's balance is the invoice's (followBalance): the form never sets it;
- * - an advance typed LOWER than what is stored is a stale form, not a refund (deleting an advance is its own
- *   operation): it is ignored; one typed higher is more money taken, joined to the advances (orderEditPatch);
+ * - an advance typed LOWER than what is stored is a correction when the form says it opened on what is stored
+ *   (`advanceSeen`, the apps since 2026-11-13: an advance typed wrong could not be put right, found by the owner):
+ *   it lowers the advance taken with the order; the part listed as advances taken later is deleted on the order page
+ *   (deleting an advance is its own operation), so cutting into it is refused, as is a form opened on another figure.
+ *   Without `advanceSeen` (an older app) a lower advance is still taken for a stale form and ignored;
+ * - one typed higher is more money taken, joined to the advances (orderEditPatch);
  * - the balance (grandTotal) is never taken from the form: it is recomputed from the stored advance and the
  *   subtotal, discount and exchange as they will stand after the edit, the formula "Record an advance" uses.
  */
 export function reconcileOrderMoney(existing: OrderOnFile, edit: OrderEdit): OrderEdit {
   const out: OrderEdit = { ...edit };
+  const seen = out.advanceSeen;
+  delete out.advanceSeen;
   if (existing.invoiceId) {
     delete out.advancePayment;
     delete out.grandTotal;
@@ -99,7 +110,19 @@ export function reconcileOrderMoney(existing: OrderOnFile, edit: OrderEdit): Ord
   const delivery = Math.max(0, rupees(existing.deliveryCharge as number | undefined));
   if ('subtotal' in out && delivery > 0 && !('deliveryCharge' in out)) out.subtotal = rupees(out.subtotal as number) + delivery;
   const stored = rupees(existing.advancePayment);
-  if ('advancePayment' in out && !(rupees(out.advancePayment) > stored)) delete out.advancePayment;
+  if ('advancePayment' in out && rupees(out.advancePayment) < stored && typeof seen === 'number' && Number.isFinite(seen)) {
+    const typed = rupees(out.advancePayment);
+    if (rupees(seen) !== stored) {
+      throw new OrderMoneyRefusal(`The advance on this order has changed since it was opened (it is now ${stored.toLocaleString('en-PK')}). Open it again and try once more.`);
+    }
+    // Advances recorded after the order was made are listed with their dates; what the list does not hold was taken
+    // with the order (order-payment.ts orderAdvanceLines). Only that part is corrected here.
+    const listed = rupees((existing.advances || []).reduce((n, a) => n + (Number(a?.amount) || 0), 0));
+    const withOrder = Math.max(0, stored - listed);
+    if (stored - typed > withOrder) {
+      throw new OrderMoneyRefusal(`${listed.toLocaleString('en-PK')} of this advance was recorded later, as its own lines: delete the wrong one on the order page instead.`);
+    }
+  } else if ('advancePayment' in out && !(rupees(out.advancePayment) > stored)) delete out.advancePayment;
   const touchesMoney = ['advancePayment', 'subtotal', 'discountAmount', 'advanceInExchangeValue'].some((k) => k in edit);
   // The form always sends the parts; a bare total with none of them is an explicit figure and stays.
   if (touchesMoney) {
@@ -126,7 +149,10 @@ export async function updateOrder(
   const result = await db.runTransaction(async tx => {
     const existing = await tx.get<OrderOnFile>(ORDERS, orderId);
     if (!existing) throw new Error(`Order ${orderId} not found.`);
-    let { patch, addedAdvance, movedTo } = orderEditPatch(existing, reconcileOrderMoney(existing, edit), now, deps.clean);
+    const money = reconcileOrderMoney(existing, edit);
+    const before = rupees(existing.advancePayment);
+    const lowered = typeof money.advancePayment === 'number' && rupees(money.advancePayment) < before ? rupees(money.advancePayment) : null;
+    let { patch, addedAdvance, movedTo } = orderEditPatch(existing, money, now, deps.clean);
     // A picture sent again unchanged (a copy of the order that holds it inline, an old app build) must
     // not become another document: an item whose stored document already holds these bytes, but was
     // filed before documents carried a hash, is recognised by reading that one document.
@@ -163,10 +189,14 @@ export async function updateOrder(
     for (const ph of split?.photos ?? []) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: now });
     // The documents this edit let go of (a replaced or removed picture), in the same commit.
     if (split) for (const id of droppedPhotoIds(existing.items as never[], split.items as never[])) tx.delete(ORDER_PHOTOS, id);
-    return { addedAdvance, movedTo, status: movedTo ?? (patch.status as string | undefined) ?? existing.status };
+    return { addedAdvance, movedTo, correctedFrom: lowered == null ? null : before, correctedTo: lowered, status: movedTo ?? (patch.status as string | undefined) ?? existing.status };
   });
-  const { addedAdvance, movedTo } = result;
+  const { addedAdvance, movedTo, correctedFrom, correctedTo } = result;
   await fx.log?.('order.update', `Updated order: ${orderId}`, 'Details updated', orderId);
+  if (correctedFrom != null && correctedTo != null) {
+    await fx.log?.('order.update', `Advance corrected for Order ${orderId}`,
+      `From ${correctedFrom.toLocaleString()} to ${correctedTo.toLocaleString()} | in the order form`, orderId);
+  }
   if (addedAdvance) {
     await fx.log?.('order.update', `Advance recorded for Order ${orderId}`,
       `Amount: ${addedAdvance.amount.toLocaleString()}${addedAdvance.method ? ` (${addedAdvance.method})` : ''} | in the order form`, orderId);
