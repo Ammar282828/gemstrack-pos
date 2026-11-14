@@ -711,6 +711,15 @@ invoices and completed orders."
     Search / More / the iPad sidebar); the apps detect the section by the nav entry id `shopify` in the exported map
     (`npm run nav:export`), no new API field.
 
+### Shopify orders to Uzair
+
+- **Every Shopify order's pieces go to one karigar** (owner, 2026-11-14: "assign all shopify orders to uzair automatically";
+  Uzair is House of Mina's karigar). `SHOPIFY_ORDER_KARIGAR` (apphosting.mina.yaml, "Uzair") names him; the karigar book is
+  read when an order comes in (`lib/shopify-karigar.ts` `matchKarigar`: the same name, else the only one with that first name,
+  never a removed karigar, never a guess between two), so a new Shopify order starts In Progress with him on every piece.
+  The open Shopify orders already in the book had their unassigned pieces given to him once, by the tick
+  (`shopifyKarigarBackfill`, remembered in `app_settings/shopify_karigar`); a piece moved to someone else later stays moved.
+
 ### Send to karigar
 
 - **Never twice** (owner, 2026-11-03: "sending to karigar is hella buggy, it keeps retrying or double sending"; the log showed

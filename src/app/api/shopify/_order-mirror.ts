@@ -20,6 +20,7 @@ import { isPosPushedOrder, paymentLinkInvoiceId, withDeliveredCod, type ShopifyT
 import { mirrorShopifyOrder, type ShopifyMirrorResult } from '@/lib/writes/invoice-payment';
 import { importShopifyAsOrder, mirrorShopifyToOrder, shopifyOrderId, type ShopifyOrderMirror, type ShopifyWebOrder } from '@/lib/writes/shopify-order';
 import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { shopifyKarigarId } from '@/lib/shopify-karigar-server';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { stripUndefined } from '@/lib/website/checkout';
 import { mapInvoice, shopifyRequest } from './_lib';
@@ -54,6 +55,8 @@ export async function importShopifyOrder(order: { id: number | string; order_num
   if (STORE_SHOPIFY_SECTION && !(await erpHasShopifyOrder(order))) {
     return (await importShopifyAsOrder(adminPort, order as ShopifyWebOrder, {
       createCustomer: async () => null, normalizePhone: normalizePhoneNumber, clean: stripUndefined, metal: STORE_CONFIG.defaultMetal,
+      // The house's Shopify karigar on every piece (lib/shopify-karigar.ts; Mina: Uzair). A failed lookup assigns no one.
+      karigarId: await shopifyKarigarId().catch(() => null),
     }, { log })).created;
   }
   if (STORE_SHOPIFY_SECTION && await orderFor(order)) return false;

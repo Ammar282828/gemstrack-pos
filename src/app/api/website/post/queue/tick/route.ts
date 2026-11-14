@@ -38,6 +38,7 @@ import { syncSafepayFees } from '@/lib/safepay-fees-server';
 import { syncShopifyBills } from '@/lib/shopify-bills-server';
 import { syncTcsPayments } from '@/lib/tcs-payments-server';
 import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
+import { shopifyKarigarBackfill } from '@/lib/shopify-karigar-server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -75,6 +76,8 @@ export async function POST(req: NextRequest) {
   const onlineOrders = await online(dry);
   // House of Mina's Shopify orders, read from Shopify every tick (lib/shopify-order-sweep.ts): imported and their
   // WhatsApp started even when Shopify's notices are refused. Never in the way of the rest.
+  // Once: the open Shopify orders' unassigned pieces to the house's Shopify karigar (lib/shopify-karigar-server.ts).
+  if (!dry) await shopifyKarigarBackfill().catch(e => console.warn('[queue/tick] shopify karigar:', e instanceof Error ? e.message : e));
   const shopifyOrders = dry ? null : await sweepShopifyOrders().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyOrders && 'imported' in shopifyOrders && (shopifyOrders.imported.length || shopifyOrders.whatsapp.length || shopifyOrders.errors.length)) console.log('[queue/tick] shopify orders', JSON.stringify(shopifyOrders));
   // Safepay payment links: a paid one's money onto its invoice or order (lib/writes/payment-links.ts).

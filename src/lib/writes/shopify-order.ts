@@ -55,7 +55,7 @@ const notesOf = (li: LineItem): string[] =>
     .map(p => `${p.name}: ${String(p.value).trim()}`);
 
 /** The order's pieces: one per unit, described as the invoice line was (name · what was chosen), priced at the line's price. */
-export function shopifyPieces(order: ShopifyWebOrder, metal: 'gold' | 'silver'): Record<string, unknown>[] {
+export function shopifyPieces(order: ShopifyWebOrder, metal: 'gold' | 'silver', karigarId?: string | null): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
   for (const li of order.line_items || []) {
     const price = Math.round(parseFloat(String(li.price ?? '0')) || 0);
@@ -68,6 +68,8 @@ export function shopifyPieces(order: ShopifyWebOrder, metal: 'gold' | 'silver'):
         makingCharges: price, diamondCharges: 0, stoneCharges: 0, totalEstimate: price,
         // The price the customer paid: Finalize & invoice starts from it.
         isManualPrice: true, manualPrice: price, sampleGiven: false, isCompleted: false,
+        // The house's Shopify karigar (lib/shopify-karigar.ts), when it names one.
+        ...(karigarId && { karigarId }),
       });
     }
   }
@@ -82,12 +84,12 @@ const customerNameOf = (o: ShopifyWebOrder) =>
 export async function importShopifyAsOrder(
   db: DbPort,
   order: ShopifyWebOrder,
-  deps: Omit<CreateOrderDeps, 'fixedId' | 'extra'> & { metal: 'gold' | 'silver' },
+  deps: Omit<CreateOrderDeps, 'fixedId' | 'extra'> & { metal: 'gold' | 'silver'; karigarId?: string | null },
   fx: SideEffects = {},
 ): Promise<{ order: CreatedOrder; created: boolean }> {
   const id = shopifyOrderId(order);
-  const { metal, ...orderDeps } = deps;
-  const items = shopifyPieces(order, metal);
+  const { metal, karigarId, ...orderDeps } = deps;
+  const items = shopifyPieces(order, metal, karigarId);
   const discount = Math.round(parseFloat(String(order.total_discounts ?? '0')) || 0);
   const total = Math.round(parseFloat(String(order.total_price ?? '0')) || 0);
   // The order's full amount is Shopify's total (delivery included): the pieces are the lines, the difference rides in the subtotal.
