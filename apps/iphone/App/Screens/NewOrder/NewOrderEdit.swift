@@ -17,9 +17,13 @@ struct NewOrderEdit: Equatable {
     let origin: [UUID: Int]
     /// Invoiced already: the invoice keeps its own copy of the pieces, so a change here does not reach it.
     let invoiced: Bool
+    /// The advance on file as the form opened: sent with the edit (`advanceSeen`), so an advance typed lower is a
+    /// correction the ERP makes, not a stale form it ignores (lib/writes/update-order.ts reconcileOrderMoney).
+    let advanceSeen: Double
 
     init(_ o: Order) {
         orderId = o.id
+        advanceSeen = o.advancePayment
         invoiced = !(o.invoiceId ?? "").isEmpty
         var d = NewOrderDraft()
         var origin: [UUID: Int] = [:]
@@ -157,6 +161,7 @@ extension NewOrderMath {
         if o["delivery"] == nil { o["delivery"] = NSNull() }
         if o["promisedDate"] == nil { o["promisedDate"] = NSNull() }
         if o["notes"] == nil { o["notes"] = "" }
+        o["advanceSeen"] = edit.advanceSeen
         return ["orderId": edit.orderId, "order": o]
     }
 }

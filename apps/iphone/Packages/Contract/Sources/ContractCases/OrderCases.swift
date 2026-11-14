@@ -38,6 +38,8 @@ enum OrderCases {
         expect(sent(draft)["sampleImageDataUri"] is NSNull, "edit", "inline photo removal not sent")
         draft.pieces[0].photo = Data([1, 2, 3])
         expect((sent(draft)["sampleImageDataUri"] as? String)?.hasPrefix("data:image/jpeg;base64,") == true, "edit", "replacement photo not sent")
+        let whole = NewOrderMath.editRequest(draft, edit: edit, settings: settings, customers: [])
+        expect((whole["order"] as! [String: Any])["advanceSeen"] as? Double == order.advancePayment, "edit", "the advance the form opened on not sent")
         let legacy = try! JSONDecoder().decode(NewOrderPieceDraft.self, from: Data("{}".utf8))
         expect(!legacy.isCompleted && !legacy.removePhoto && legacy.samplePhotoId == nil, "edit", "old draft defaults changed")
     }
