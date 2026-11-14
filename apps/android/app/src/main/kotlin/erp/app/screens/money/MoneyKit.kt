@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -276,8 +278,9 @@ fun <T> PickerRow(label: String, options: List<Pair<T, String>>, selected: T, on
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Text(shown, style = MaterialTheme.typography.bodyLarge, color = ErpColors.accent, textAlign = TextAlign.End, maxLines = 2)
+            // The label keeps its own width; the choice takes the rest and wraps (never a label cut into syllables).
+            Text(label, Modifier.widthIn(max = 168.dp), style = MaterialTheme.typography.bodyLarge.copy(hyphens = androidx.compose.ui.text.style.Hyphens.None))
+            Text(shown, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = ErpColors.accent, textAlign = TextAlign.End, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Icon(Symbols.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {

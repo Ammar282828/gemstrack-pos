@@ -386,10 +386,14 @@ fun AdsProblemsSection(problems: List<String>, setup: Boolean = true) {
 
 /** The range as a menu in the bar (the web's chip row), remembered on the phone. */
 @Composable
-fun RowScope.AdsRangeMenu() {
+fun RowScope.AdsRangeMenu(compact: Boolean = false) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { open = true }, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget).semantics { contentDescription = "Range: ${AdsRange.label(AdsRangeStore.key)}" }) {
+        // On a tab's first screen of a phone the bar also holds the rate chip, the business and the title: the range is then
+        // the calendar alone (the page says which days it shows), so the title is never cut.
+        if (compact) {
+            erp.app.ui.IconButton(onClick = { open = true }) { Icon(Symbols.CalendarMonth, "Range: ${AdsRange.label(AdsRangeStore.key)}") }
+        } else TextButton(onClick = { open = true }, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget).semantics { contentDescription = "Range: ${AdsRange.label(AdsRangeStore.key)}" }) {
             Icon(Symbols.CalendarMonth, contentDescription = null, Modifier.size(18.dp))
             Text(AdsRange.label(AdsRangeStore.key), Modifier.padding(start = 6.dp), maxLines = 1)
         }

@@ -267,13 +267,20 @@ private fun Stage(model: DesignWorkspaceModel, w: DesignWork, safe: Boolean, onS
     var layouts by remember { mutableStateOf(false) }
     LaunchedEffect(page.id, page.rev, model.tick) { model.refreshPreview(page.id) }
     Column(modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The name, the size and the Safe zones switch share a line while they fit, and wrap (never run into each other) when they do not.
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(page.label, style = MaterialTheme.typography.titleSmall)
             Text("${page.w.toInt()}×${page.h.toInt()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Box(Modifier.weight(1f))
             if (zone.first > 0) {
-                Text("Safe zones", style = MaterialTheme.typography.labelMedium)
-                Switch(safe, onSafe, colors = SwitchDefaults.colors(checkedTrackColor = ErpColors.accent, checkedThumbColor = ErpColors.onAccent))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Safe zones", style = MaterialTheme.typography.labelMedium)
+                    Switch(safe, onSafe, colors = SwitchDefaults.colors(checkedTrackColor = ErpColors.accent, checkedThumbColor = ErpColors.onAccent))
+                }
             }
         }
         if (fill) {

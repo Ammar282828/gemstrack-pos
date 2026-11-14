@@ -305,7 +305,7 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                     for (g in DesignSizes.groups) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(g.title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            erp.app.ui.ChipFlow {
                                 for (s in g.sizes) FilterChip(s.ratio + (if (s.w == own.first && s.h == own.second) " (this)" else ""), chosen = s.id in r.picked, onClick = { r.toggle(s.id) })
                             }
                         }
@@ -325,7 +325,7 @@ fun DesignResizeSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                         OutlinedButton(onClick = r::addCustom) { Icon(Symbols.Add, null, Modifier.size(18.dp)); Text("Add", Modifier.padding(start = 4.dp)) }
                     }
                     if (r.customs.isNotEmpty()) {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        erp.app.ui.ChipFlow {
                             for (c in r.customs) FilterChip(c.ratio, chosen = c.id in r.picked, onClick = { r.toggle(c.id) })
                         }
                     }

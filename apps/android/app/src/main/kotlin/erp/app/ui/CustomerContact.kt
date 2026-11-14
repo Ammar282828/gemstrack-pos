@@ -162,7 +162,7 @@ fun CustomerContactActions(
         quick.share(d.pdfPath, d.fileName, d.fileName)
     }
 
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
         if (number.isNotEmpty()) {
             QuickAction("Call", Symbols.Call, { openUri(context, Intent.ACTION_DIAL, CustomerContactLinks.tel(number)) }, Modifier.weight(1f), prominent = doc == null)
             QuickAction("WhatsApp", Symbols.Chat, { openUri(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number, message)) }, Modifier.weight(1f))

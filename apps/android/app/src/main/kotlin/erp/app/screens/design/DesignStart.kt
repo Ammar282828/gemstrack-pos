@@ -374,7 +374,7 @@ private fun Making(start: DesignStartModel, cards: List<DesignKindCard>) {
             for (g in DesignSizes.groups) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(g.title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    erp.app.ui.ChipFlow {
                         for (s in g.sizes) FilterChip(s.ratio, chosen = s.id in start.sizes, onClick = { start.toggle(s.id) })
                     }
                 }

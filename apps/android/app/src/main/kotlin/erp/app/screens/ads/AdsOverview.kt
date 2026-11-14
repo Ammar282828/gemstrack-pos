@@ -101,7 +101,8 @@ fun AdsOverviewScreen() {
     var refreshing by remember { mutableStateOf(false) }
 
     ScreenTitle("Ads")
-    if (mayRead) ScreenActions { AdsRangeMenu() }
+    val compactBar = erp.app.nav.LocalBottomBar.current
+    if (mayRead) ScreenActions { AdsRangeMenu(compactBar) }
 
     suspend fun load(fresh: Boolean) {
         try {

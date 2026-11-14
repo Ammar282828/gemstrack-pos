@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -185,7 +186,7 @@ fun RootScaffold() {
                         val badge = if (e.count == "online" && role == "owner" && shop.websiteSelling) waiting else 0
                         BadgedBox(badge = { PoppingBadge(badge) }) { TabIcon(NavIcon.vector(e.icon), NavIcon.filled(e.icon), selected == e.id) }
                     },
-                    label = { Text(if (e.id == "home") "Home" else e.label) },
+                    label = { NavLabel(if (e.id == "home") "Home" else e.label) },
                 )
             }
             // Search is also the way to everything else: idle, it lists the ERP's whole map with Settings and the account.
@@ -196,7 +197,7 @@ fun RootScaffold() {
                 selected = selected == SEARCH_TAB,
                 onClick = { if (selected == SEARCH_TAB) popToRoot(stacks[SEARCH_TAB]) else chosen = SEARCH_TAB },
                 icon = { TabIcon(Symbols.Search, Symbols.Fill.Search, selected == SEARCH_TAB) },
-                label = { Text("Search") },
+                label = { NavLabel("Search") },
             )
         },
     ) {
@@ -304,4 +305,21 @@ private fun PoppingBadge(count: Int) {
     ) {
         Badge { Text(if (shown > 99) "99+" else shown.toString()) }
     }
+}
+
+/**
+ * A tab's name under its icon: one line that shrinks to the item's width (a phone's five tabs are about 80 dp each, and at
+ * a large system font "Customers" must not be broken into "Cus-tomers" or cut). It takes the item's own colour and style.
+ */
+@Composable
+internal fun NavLabel(text: String) {
+    val style = androidx.compose.material3.LocalTextStyle.current
+    androidx.compose.foundation.text.BasicText(
+        text,
+        Modifier.padding(horizontal = 2.dp),
+        style = style.copy(color = androidx.compose.material3.LocalContentColor.current, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = style.fontSize),
+    )
 }

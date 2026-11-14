@@ -39,7 +39,7 @@ import org.robolectric.Shadows.shadowOf
 // `verifyRoborazziTaheriDebug` fails on a screen that changed. Fake nothing: if a screen needs data, the demo has it.
 
 /** One way to look at a screen. [qualifiers] is the Robolectric configuration; [label] names the file. */
-class ShotConfig(val label: String, val qualifiers: String, val dark: Boolean) {
+class ShotConfig(val label: String, val qualifiers: String, val dark: Boolean, val fontScale: Float = 1f) {
     override fun toString() = label
 }
 
@@ -54,6 +54,9 @@ object ShotConfigs {
         ShotConfig("tablet-light", "$TABLET-notnight-hdpi", dark = false),
         ShotConfig("tablet-dark", "$TABLET-night-hdpi", dark = true),
     )
+
+    /** The densest screens at the largest comfortable system font (1.3x), a phone in light: where Inter's width shows. */
+    val largeText: List<ShotConfig> = listOf(ShotConfig("phone-light-x13", "$PHONE-notnight-xhdpi", dark = false, fontScale = 1.3f))
 }
 
 /**
@@ -82,6 +85,7 @@ abstract class ShotBase(protected val config: ShotConfig) {
     /** Draws [content] under the house's theme with the session and a toast, and lets the books arrive. */
     protected fun show(content: @Composable () -> Unit) {
         RuntimeEnvironment.setQualifiers(config.qualifiers)
+        RuntimeEnvironment.setFontScale(config.fontScale)
         // Skeletons shimmer forever: the clock is stepped by hand so the screen can be called settled.
         compose.mainClock.autoAdvance = false
         // A test that shows several screens in turn (the real-orders sweep) must not find the last one's nodes.
@@ -110,9 +114,12 @@ abstract class ShotBase(protected val config: ShotConfig) {
      * A screen at [path] on its own back stack; [below] are the places under it (so Back shows); [sheet] is the
      * create sheet's first screen (it has a Close instead of a tab bar).
      */
-    protected fun showPlace(path: String, below: List<String> = emptyList(), sheet: Boolean = false) = show {
+    protected fun showPlace(path: String, below: List<String> = emptyList(), sheet: Boolean = false, bottomBar: Boolean = false) = show {
         val stack = rememberNavBackStack(*(below + path).mapIndexed { i, p -> Route(p, i) }.toTypedArray())
-        StackHost(stack, Modifier.fillMaxSize(), onClose = if (sheet) ({}) else null)
+        // A phone's tab root sits over the shell's bottom bar (LocalBottomBar); a screen drawn alone says so when its look depends on it.
+        CompositionLocalProvider(erp.app.nav.LocalBottomBar provides bottomBar) {
+            StackHost(stack, Modifier.fillMaxSize(), onClose = if (sheet) ({}) else null)
+        }
     }
 
     /**

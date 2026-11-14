@@ -128,7 +128,8 @@ fun SearchScreen() {
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).focusRequester(fieldFocus),
-                placeholder = { Text("Customers, invoices, orders, stock, places", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                // The hint is long: it wraps to a second line on a narrow phone rather than being cut mid-word.
+                placeholder = { Text("Customers, invoices, orders, stock, places", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Symbols.Search, null) },
                 trailingIcon = { if (text.isNotEmpty()) IconButton({ text = "" }) { Icon(Symbols.Clear, "Clear") } },
             )

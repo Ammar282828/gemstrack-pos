@@ -112,7 +112,7 @@ fun PostsHub() {
                     Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) { right.forEach { it() } }
                 }
             } else {
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = maxOf(8.dp, erp.app.nav.LocalFabClearance.current)), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     left.forEach { it() }
                     right.forEach { it() }
                 }
