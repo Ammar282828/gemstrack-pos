@@ -141,6 +141,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — on the final bill only: off the order slip and the order PDF since 2026-11-14
 - [Card order slip](docs/decisions.md#card-order-slip) — Taheri prints the shop's card on A5 (`lib/order-card-slip.ts`, Futura, the logo, every contact's name and number at the foot); `NEXT_PUBLIC_STORE_ORDER_SLIP=classic` brings back the detailed slip
+- [To collect](docs/decisions.md#to-collect) — `/collect`: who still owes on an invoice or a completed uninvoiced order (never the khata's own entries), grouped or sorted by Taken by; owners only (`lib/collect.ts`)
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's
 - [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece; Taheri: "Invoice - <customer>"; invoice and order PDFs to the customer from each house's own line (`/api/app/whatsapp/send-doc`, both houses)

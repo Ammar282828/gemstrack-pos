@@ -11,7 +11,7 @@ object NavIcon {
     private val icons: Map<String, () -> ImageVector> = mapOf(
         "ArchiveRestore" to { Symbols.Unarchive }, "Banknote" to { Symbols.Payments }, "Bell" to { Symbols.Notifications },
         "BookUser" to { Symbols.ContactPage }, "Bot" to { Symbols.AutoAwesome }, "Radio" to { Symbols.Sensors }, "Boxes" to { Symbols.Inventory2 }, "Briefcase" to { Symbols.BusinessCenter },
-        "Calendar" to { Symbols.CalendarMonth }, "LifeBuoy" to { Symbols.HelpOutline }, "Camera" to { Symbols.PhotoCamera }, "ChartColumn" to { Symbols.BarChart },
+        "Calendar" to { Symbols.CalendarMonth }, "LifeBuoy" to { Symbols.HelpOutline }, "HandCoins" to { Symbols.Payments }, "Camera" to { Symbols.PhotoCamera }, "ChartColumn" to { Symbols.BarChart },
         "ChartPie" to { Symbols.PieChart }, "CirclePlus" to { Symbols.AddCircleOutline }, "ClipboardList" to { Symbols.Assignment },
         "Coins" to { Symbols.Paid }, "Contact" to { Symbols.Contacts }, "Database" to { Symbols.Storage },
         "FileClock" to { Symbols.PendingActions }, "Gem" to { Symbols.Diamond }, "Globe" to { Symbols.Language },
@@ -32,7 +32,7 @@ object NavIcon {
     private val selected: Map<String, () -> ImageVector> = mapOf(
         "ArchiveRestore" to { Symbols.Fill.Unarchive }, "Banknote" to { Symbols.Fill.Payments }, "Bell" to { Symbols.Fill.Notifications },
         "BookUser" to { Symbols.Fill.ContactPage }, "Bot" to { Symbols.Fill.AutoAwesome }, "Radio" to { Symbols.Fill.Sensors }, "Boxes" to { Symbols.Fill.Inventory2 }, "Briefcase" to { Symbols.Fill.BusinessCenter },
-        "Calendar" to { Symbols.Fill.CalendarMonth }, "LifeBuoy" to { Symbols.HelpOutline }, "Camera" to { Symbols.Fill.PhotoCamera }, "ChartColumn" to { Symbols.Fill.BarChart },
+        "Calendar" to { Symbols.Fill.CalendarMonth }, "LifeBuoy" to { Symbols.HelpOutline }, "HandCoins" to { Symbols.Fill.Payments }, "Camera" to { Symbols.Fill.PhotoCamera }, "ChartColumn" to { Symbols.Fill.BarChart },
         "ChartPie" to { Symbols.Fill.PieChart }, "CirclePlus" to { Symbols.Fill.AddCircleOutline }, "ClipboardList" to { Symbols.Fill.Assignment },
         "Coins" to { Symbols.Fill.Paid }, "Contact" to { Symbols.Fill.Contacts }, "Database" to { Symbols.Fill.Storage },
         "FileClock" to { Symbols.Fill.PendingActions }, "Gem" to { Symbols.Fill.Diamond }, "Globe" to { Symbols.Fill.Language },

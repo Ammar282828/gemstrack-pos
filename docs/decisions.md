@@ -367,6 +367,19 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   HERE. ONLY IN FINAL BILL"): the order slip (card and detailed, `buildOrderItemBlocks`) and the order PDF sent to the
   customer (`orderCustomerBlocks`) print the estimated weight and no wastage; the invoice keeps it, in grams.
 
+### To collect
+
+The owner, 2026-11-14: "create a separate page to see people who still owe money in invoices or completed orders. allow
+to sort by who took the order", and then: "if I just added it in the khata, that shouldn't show there. This is only for
+invoices and completed orders."
+
+- `/collect` (Sales, owners only — what customers owe is the books): one row per bill still owed on — an invoice not refunded
+  with a balance (`isOwing`, lib/owed.ts), or an order marked Completed, not yet invoiced, with a balance (`grandTotal`). An
+  invoiced order's debt is its invoice's, never counted twice. **Never the hisaab's own entries**: unlike "Owed to you" on
+  Home, which adds the khata, this page reads bills only (`lib/collect.ts`).
+- Sorted by Taken by (grouped under each person with their total; nobody recorded last), Oldest or Largest; a chip per person
+  narrows to theirs. Each row: customer, bill and date, days waiting, who took it, what is due (red past 30 days), Contact.
+
 ### Repairs
 
 - **Repairs** (`/repairs`, under Invoices): a ticket = one customer + **any number of pieces** (piece, what to do,

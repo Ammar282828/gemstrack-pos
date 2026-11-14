@@ -10,7 +10,7 @@ import { within } from '@/lib/nav';
 /** Never for staff: the books, settings, analytics, stock and the lists of what the shop earns. */
 const BLOCKED = [
   '/analytics', '/expenses', '/additional-revenue', '/overheads', '/hisaab', '/shareholders', '/settings', '/activity-log', '/today',
-  '/products', '/ads/setup', '/ads/audiences', '/ads/rules', '/ads/tests',
+  '/products', '/collect', '/ads/setup', '/ads/audiences', '/ads/rules', '/ads/tests',
 ] as const;
 
 /** Only for marketing: reachable by a staff member listed in the marketing list too. */

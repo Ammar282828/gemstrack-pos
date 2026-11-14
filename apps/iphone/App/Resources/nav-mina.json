@@ -125,6 +125,23 @@
       ]
     },
     {
+      "id": "collect",
+      "group": "sales",
+      "href": "/collect",
+      "label": "To collect",
+      "icon": "HandCoins",
+      "keywords": [
+        "owed",
+        "owing",
+        "unpaid",
+        "balance due",
+        "receivables",
+        "outstanding",
+        "udhaar",
+        "who owes"
+      ]
+    },
+    {
       "id": "shopify",
       "group": "sales",
       "href": "/shopify",

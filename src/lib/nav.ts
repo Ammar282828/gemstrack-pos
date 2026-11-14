@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale, Heart,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio, PiggyBank, Weight, LifeBuoy, ShoppingBag,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio, PiggyBank, Weight, LifeBuoy, HandCoins, ShoppingBag,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -128,6 +128,9 @@ export const NAV: NavEntry[] = [
   { id: 'orders', group: 'sales', staff: true, href: '/orders', label: 'Orders', icon: ClipboardList, count: 'online', keywords: ['custom order', 'order', 'online order', 'website order', 'to confirm'] },
   // /invoices/new, /invoices/<id> and its /edit sit under it; /cart only redirects there (old links).
   { id: 'invoices', group: 'sales', staff: true, href: '/invoices', label: 'Invoices', icon: Receipt, keywords: ['bills', 'estimate', 'unpaid'], match: ['/cart'] },
+  // Who still owes on an invoice or a completed order, by who took it (the owner, 2026-11-14). Never the khata's own
+  // entries ("if I just added it in the khata, that shouldn't show there"). Owners only: what customers owe is the books.
+  { id: 'collect', group: 'sales', href: '/collect', label: 'To collect', icon: HandCoins, keywords: ['owed', 'owing', 'unpaid', 'balance due', 'receivables', 'outstanding', 'udhaar', 'who owes'] },
   // House of Mina's Shopify orders, a section of their own (owner, 2026-11-09); Taheri has none. Invoices drops them where this shows.
   { id: 'shopify', group: 'sales', staff: true, href: '/shopify', label: 'Shopify', icon: ShoppingBag, when: () => STORE_SHOPIFY_SECTION, keywords: ['shopify', 'web orders', 'online store', 'website orders', 'cod'] },
   { id: 'repairs', group: 'sales', staff: true, href: '/repairs', label: 'Repairs', icon: Wrench, keywords: ['repair', 'fix'] },
