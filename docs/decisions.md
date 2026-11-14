@@ -377,8 +377,15 @@ invoices and completed orders."
   with a balance (`isOwing`, lib/owed.ts), or an order marked Completed, not yet invoiced, with a balance (`grandTotal`). An
   invoiced order's debt is its invoice's, never counted twice. **Never the hisaab's own entries**: unlike "Owed to you" on
   Home, which adds the khata, this page reads bills only (`lib/collect.ts`).
-- Sorted by Taken by (grouped under each person with their total; nobody recorded last), Oldest or Largest; a chip per person
-  narrows to theirs. Each row: customer, bill and date, days waiting, who took it, what is due (red past 30 days), Contact.
+- Sorted by Taken by (grouped under each person with their total; nobody recorded last), Oldest or Largest. Each row:
+  customer, bill and date, days waiting, who took it, what is due (red past 30 days), Contact.
+- **Several filters at once, Taken by the main one** (the owner, same day: "allow multi-filtering. Just keep the main filter as
+  the person who took the order"). Taken by is its own row at the top: any number of people chosen, Everyone clears them.
+  Below it a search (customer, number or bill) and three groups: Invoices / Completed orders; Under 30 / 30–90 / Over 90 days;
+  Nothing paid / Part paid. Within a group any chosen value passes, across groups all must (`passes`, `filterRows`). Every
+  chip counts what it would show with the other filters on (`countBy`), the people's chips their total too, so a chip at 0
+  says choosing it empties the list. The people keep one order (by what they are owed overall) so chips never jump.
+  "5 of 79 · PKR …" and Clear while anything is on; filters live only on the page, not saved.
 
 ### Repairs
 

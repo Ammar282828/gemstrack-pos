@@ -75,3 +75,62 @@ export function byTakenBy(rows: readonly CollectRow[]): { takenBy: string; count
   return [...m.entries()].map(([takenBy, v]) => ({ takenBy, ...v }))
     .sort((a, b) => (a.takenBy === NOBODY ? 1 : 0) - (b.takenBy === NOBODY ? 1 : 0) || b.due - a.due);
 }
+
+/**
+ * Filters, several at once (the owner, 2026-11-14: "allow multi-filtering. Just keep the main filter as the person who took
+ * the order"). The person is the main one; bill, age and paid narrow it. Within a group any chosen value passes (Mansoor OR
+ * Murtaza); across groups all must (Mansoor's AND over 90 days). An empty group lets everything through.
+ */
+export type CollectKind = CollectRow['kind'];
+export type CollectAge = 'under30' | '30to90' | 'over90';
+export type CollectPaid = 'nothing' | 'part';
+
+export interface CollectFilters {
+  people: ReadonlySet<string>;
+  kinds: ReadonlySet<CollectKind>;
+  ages: ReadonlySet<CollectAge>;
+  paid: ReadonlySet<CollectPaid>;
+  /** A customer's name or number, or the bill's id. */
+  query: string;
+}
+
+export const NO_FILTERS: CollectFilters = { people: new Set(), kinds: new Set(), ages: new Set(), paid: new Set(), query: '' };
+
+const DAY = 86_400_000;
+export function ageOf(r: CollectRow, now = Date.now()): CollectAge {
+  const days = Math.floor((now - new Date(r.date).getTime()) / DAY);
+  return days > 90 ? 'over90' : days >= 30 ? '30to90' : 'under30';
+}
+export const paidOf = (r: CollectRow): CollectPaid => (r.due >= r.total ? 'nothing' : 'part');
+
+type Group = 'people' | 'kinds' | 'ages' | 'paid' | 'query';
+
+/** Does a row pass every filter but `skip` (so each chip can count what choosing it would add)? */
+export function passes(r: CollectRow, f: CollectFilters, skip?: Group, now = Date.now()): boolean {
+  if (skip !== 'people' && f.people.size && !f.people.has(r.takenBy)) return false;
+  if (skip !== 'kinds' && f.kinds.size && !f.kinds.has(r.kind)) return false;
+  if (skip !== 'ages' && f.ages.size && !f.ages.has(ageOf(r, now))) return false;
+  if (skip !== 'paid' && f.paid.size && !f.paid.has(paidOf(r))) return false;
+  const q = f.query.trim().toLowerCase();
+  if (skip !== 'query' && q) {
+    const digits = q.replace(/\D/g, '');
+    const hay = `${r.customerName} ${r.id}`.toLowerCase();
+    if (!hay.includes(q) && !(digits.length >= 3 && (r.phone || '').replace(/\D/g, '').includes(digits))) return false;
+  }
+  return true;
+}
+
+export const filterRows = (rows: readonly CollectRow[], f: CollectFilters, now = Date.now()) => rows.filter(r => passes(r, f, undefined, now));
+
+/** How many rows each value of a group would show, with the other groups' filters on. */
+export function countBy<V extends string>(rows: readonly CollectRow[], f: CollectFilters, group: Exclude<Group, 'query'>, valueOf: (r: CollectRow) => V, now = Date.now()) {
+  const m = new Map<V, { count: number; due: number }>();
+  for (const r of rows) {
+    if (!passes(r, f, group, now)) continue;
+    const v = valueOf(r); const e = m.get(v) ?? { count: 0, due: 0 };
+    e.count++; e.due += r.due; m.set(v, e);
+  }
+  return m;
+}
+
+export const filtersOn = (f: CollectFilters) => f.people.size + f.kinds.size + f.ages.size + f.paid.size + (f.query.trim() ? 1 : 0);
