@@ -13,4 +13,9 @@ describe('dropPath — a drop\'s address, by taheri.shop\'s own rules', () => {
   it('a key without a collection has no address', () => {
     expect(dropPath('loose.webp')).toBeNull();
   });
+  it('takes the name address the site gives a named drop', () => {
+    const slugs = { 'rings/DSC09982': 'ruby-bow-ring' };
+    expect(dropPath('Rings & Bands/Rings/DSC09982.webp', slugs)).toBe('/rings/ruby-bow-ring');
+    expect(dropPath('Rings & Bands/Rings/DSC09983.webp', slugs)).toBe('/rings/dsc09983');
+  });
 });

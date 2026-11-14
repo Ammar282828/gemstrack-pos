@@ -189,9 +189,17 @@ export async function listDrops(site: string): Promise<{ key: string; name: stri
   });
 }
 
+/** taheri.shop's name addresses for named drops (drop-slugs.json, written by its `npm run slugs`); none → file-name addresses. */
+async function dropSlugsOf(site: string): Promise<Record<string, string>> {
+  const res = await fetch(`${site}/drop-slugs.json`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
+  if (!res?.ok) return {};
+  const d = (await res.json().catch(() => null)) as unknown;
+  return d && typeof d === 'object' && !Array.isArray(d) ? (d as Record<string, string>) : {};
+}
+
 async function fromAttributes(site: string): Promise<Listed[]> {
   // Never the counter's weights cached: a weight typed a moment ago shows at once.
-  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch((): Record<string, PosWeight> => ({})), dropsOf(site)]);
+  const [catalog, pos, drops, dropSlugs] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch((): Record<string, PosWeight> => ({})), dropsOf(site), dropSlugsOf(site)]);
   const merged = mergeWeights(catalog, pos);
   const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
   // A drop is keyed like the photograph it becomes ("…/DSC09213.jpg" → "…/DSC09213.webp"); an adopted one is listed below.
@@ -199,7 +207,7 @@ async function fromAttributes(site: string): Promise<Listed[]> {
     .filter(({ key }) => !merged[key])
     .map(({ dr, key }) => {
       const name = key.split('/').pop()!.replace(/\.webp$/i, '');
-      const path = dropPath(key);
+      const path = dropPath(key, dropSlugs);
       return {
         id: key, name, url: path ? `${site}${path}` : '', image: abs(dr.full), thumb: abs(dr.thumb), collection: collectionOfKey(key),
         // A new upload has no label; its weight is the counter's (getSitePieces lays it on).
