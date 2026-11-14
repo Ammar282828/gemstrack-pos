@@ -665,7 +665,8 @@ object SaleDraftStore {
  * edit-cart-item-dialog.tsx), and the line with those edits applied (its `toPatch`). Pure, so the contract tests edit
  * a sale's lines through the very code the sheet runs.
  */
-class SaleLineFields(l: SaleLine) {
+class SaleLineFields(private val origin: SaleLine) {
+    private val l: SaleLine get() = origin
     var name: String = l.name
     var categoryId: String = l.categoryId
     var size: String = l.size ?: ""
@@ -698,6 +699,20 @@ class SaleLineFields(l: SaleLine) {
     private fun nilIfBlank(s: String): String? {
         val t = swiftTrimNewlines(s)
         return if (t.isEmpty()) null else t
+    }
+
+    /**
+     * A copy that shares nothing with this one. A screen that edits these fields makes one per change and shows the copy: the
+     * fields are plain (not observable), so a composable handed the *same* object is skipped as unchanged however much was
+     * typed into it, and a new object is what tells it to draw again.
+     */
+    fun copy(): SaleLineFields = SaleLineFields(origin).also { o ->
+        o.name = name; o.categoryId = categoryId; o.size = size; o.metalType = metalType; o.karat = karat; o.weight = weight
+        o.hasStones = hasStones; o.stoneWeight = stoneWeight; o.wastage = wastage; o.making = making; o.hasDiamonds = hasDiamonds
+        o.diamondCharges = diamondCharges; o.stoneCharges = stoneCharges; o.miscCharges = miscCharges; o.stoneDetails = stoneDetails
+        o.diamondDetails = diamondDetails; o.billDescription = billDescription; o.platingType = platingType; o.platingNote = platingNote
+        o.nickelFree = nickelFree; o.silverRate = silverRate; o.fixed = fixed; o.customPrice = customPrice
+        o.referenceImage = referenceImage; o.printReference = printReference
     }
 
     /** The line with these edits (the web's `toPatch`). */
