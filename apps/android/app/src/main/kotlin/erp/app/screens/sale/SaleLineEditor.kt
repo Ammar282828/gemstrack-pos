@@ -19,9 +19,7 @@ import erp.app.ui.SegmentedButtonDefaults
 import erp.app.ui.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,14 +76,12 @@ import erp.app.screens.neworder.WastagePicks
  */
 @Composable
 internal fun SaleLineEditor(line: SaleLine, rates: PricingRates, onApply: (SaleLine) -> Unit, onDismiss: () -> Unit, create: Boolean = false) {
-    // The fields are core's plain class (the contract tests run the same code): the screen follows them by a count.
-    val fields = remember { SaleLineFields(line) }
-    var rev by remember { mutableIntStateOf(0) }
+    // The fields are core's plain class (the contract tests run the same code), so every change makes a new copy and the screen
+    // follows that: a composable handed the same object would be skipped however much was typed (the wastage chips stayed on 10%).
+    var fields by remember { mutableStateOf(SaleLineFields(line)) }
     fun edit(change: SaleLineFields.() -> Unit) {
-        fields.change()
-        rev += 1
+        fields = fields.copy().also { it.change() }
     }
-    @Suppress("UNUSED_EXPRESSION") rev
     val preview = calculateProductCosts(fields.applied(line).priced, rates).totalPrice
 
     FullScreenSheet(
@@ -105,12 +101,12 @@ internal fun SaleLineEditor(line: SaleLine, rates: PricingRates, onApply: (SaleL
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    PieceSection(fields, create, rev, ::edit)
-                    if (fields.metalType == "silver") FinishSection(fields, rev, ::edit)
-                    SizeSection(fields, rev, ::edit)
-                    PriceSection(fields, rev, ::edit)
-                    StonesSection(fields, rev, ::edit)
-                    BillSection(fields, line, rev, ::edit)
+                    PieceSection(fields, create, ::edit)
+                    if (fields.metalType == "silver") FinishSection(fields, ::edit)
+                    SizeSection(fields, ::edit)
+                    PriceSection(fields, ::edit)
+                    StonesSection(fields, ::edit)
+                    BillSection(fields, line, ::edit)
                     TotalSection(preview, create)
                 }
             },
@@ -131,8 +127,7 @@ internal fun SaleLineEditor(line: SaleLine, rates: PricingRates, onApply: (SaleL
 }
 
 @Composable
-@NonSkippableComposable
-private fun PieceSection(f: SaleLineFields, create: Boolean, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun PieceSection(f: SaleLineFields, create: Boolean, edit: (SaleLineFields.() -> Unit) -> Unit) {
     val allowed = karatsFor(f.metalType).map { it.rawValue }
     // A karat the piece already carries stays selectable even if the metal's list no longer offers it.
     val karatOptions = if (f.karat.isNotEmpty() && !allowed.contains(f.karat) && metalHasKarat(f.metalType)) allowed + f.karat else allowed
@@ -168,8 +163,7 @@ private fun PieceSection(f: SaleLineFields, create: Boolean, rev: Int, edit: (Sa
  * "Ring: 10 · Bangle: 2.4" in one string); any other category takes the size as typed.
  */
 @Composable
-@NonSkippableComposable
-private fun SizeSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun SizeSection(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> Unit) {
     val scale = NewOrderSizes.scale(f.categoryId)
     if (scale != null) {
         FormSection("Size", footer = { Text(if (scale.multi) scale.label + ". Leave either blank if not applicable." else scale.label) }) {
@@ -212,8 +206,7 @@ private fun SaleSizeField(title: String, options: List<String>, value: String, o
 }
 
 @Composable
-@NonSkippableComposable
-private fun FinishSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun FinishSection(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> Unit) {
     FormSection("925 Sterling Silver finish") {
         PickerRow("Plating", f.platingType, listOf("" to "No plating") + platingTypes.map { it to it }) { v -> edit { platingType = v } }
         if (f.platingType == "Other") {
@@ -224,8 +217,7 @@ private fun FinishSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
 }
 
 @Composable
-@NonSkippableComposable
-private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun PriceSection(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> Unit) {
     val silver = f.metalType == "silver"
     FormSection("Price", footer = if (f.fixed) ({ Text("The weight is printed on the bill; the price stays as typed.") }) else null) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -267,8 +259,7 @@ private fun WastageRows(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> 
 }
 
 @Composable
-@NonSkippableComposable
-private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun StonesSection(f: SaleLineFields, edit: (SaleLineFields.() -> Unit) -> Unit) {
     FormSection("Diamonds and stones") {
         ToggleRow("Has diamonds", f.hasDiamonds, { v -> edit { hasDiamonds = v } })
         if (f.hasDiamonds) {
@@ -285,8 +276,7 @@ private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
 }
 
 @Composable
-@NonSkippableComposable
-private fun BillSection(f: SaleLineFields, line: SaleLine, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
+private fun BillSection(f: SaleLineFields, line: SaleLine, edit: (SaleLineFields.() -> Unit) -> Unit) {
     FormSection("On the bill") {
         FieldRow(
             "Description", f.billDescription, { v -> edit { billDescription = v } },
