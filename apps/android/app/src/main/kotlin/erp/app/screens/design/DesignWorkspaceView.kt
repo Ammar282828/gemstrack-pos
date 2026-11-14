@@ -208,7 +208,7 @@ private fun Strip(model: DesignWorkspaceModel, w: DesignWork, onRemove: (DesignP
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         for (p in w.pages) PageCell(model, w, p, onRemove)
         Column(
-            Modifier.width(84.dp).height(116.dp).border(BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)), Radius.chipShape).clip(Radius.chipShape)
+            Modifier.width(84.dp).height(116.dp).border(BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline), Radius.chipShape).clip(Radius.chipShape)
                 .clickable(onClickLabel = "Resize: add a size") { DesignHooks.resize(model) },
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
@@ -228,7 +228,7 @@ private fun PageCell(model: DesignWorkspaceModel, work: DesignWork, page: Design
     val stale = page.id in work.stale
     Column(
         Modifier.clip(Radius.chipShape).background(if (on) ErpColors.accent.copy(alpha = 0.12f) else ErpColors.card)
-            .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)), Radius.chipShape)
+            .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (on) ErpColors.accent else MaterialTheme.colorScheme.outline), Radius.chipShape)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {

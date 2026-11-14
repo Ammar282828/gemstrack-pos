@@ -188,7 +188,7 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
                 // Only while it is being swiped: drawn at rest, the red showed as a fringe at a rounded card's corners.
                 if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
                     Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Symbols.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Symbols.Delete, contentDescription = null, tint = erp.app.ui.theme.ErpContrast.onFill(Tone.late.fill()))
                     }
                 }
             },
@@ -407,7 +407,7 @@ internal fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit
         backgroundContent = {
             if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
                 Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Symbols.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                    Icon(Symbols.Delete, contentDescription = null, tint = erp.app.ui.theme.ErpContrast.onFill(Tone.late.fill()))
                 }
             }
         },

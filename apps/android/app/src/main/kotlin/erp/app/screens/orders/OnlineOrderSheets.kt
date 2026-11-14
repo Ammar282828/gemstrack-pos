@@ -100,7 +100,7 @@ private fun OnlineBottomButton(
     destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val colors = if (destructive) ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White)
+    val colors = if (destructive) ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = erp.app.ui.theme.ErpContrast.onFill(Tone.problem.color()))
     else ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)
     Button(onClick = onClick, enabled = !disabled && !busy, modifier = Modifier.fillMaxWidth(), colors = colors) {
         BusyLabel(busy, color = colors.contentColor) { Icon(icon, null, Modifier.size(18.dp)) }

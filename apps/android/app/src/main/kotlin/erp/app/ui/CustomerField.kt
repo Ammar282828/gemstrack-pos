@@ -207,7 +207,7 @@ private fun HitRow(hit: CustomerSearch.Hit, note: String?, onClick: () -> Unit) 
                 )
             }
         }
-        Icon(Symbols.NorthWest, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.NorthWest, contentDescription = null, Modifier.size(16.dp), tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 

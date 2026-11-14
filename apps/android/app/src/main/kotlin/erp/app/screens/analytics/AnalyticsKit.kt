@@ -137,7 +137,7 @@ fun AnaKpiTile(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            Icon(Symbols.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            Icon(Symbols.ChevronRight, contentDescription = null, tint = erp.app.ui.theme.ErpColors.faint)
         }
         NumericText(value, number, style = ErpType.tileValue, color = tint, maxLines = Int.MAX_VALUE)
         if (delta != null) DeltaPill(delta, against)

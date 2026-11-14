@@ -133,7 +133,7 @@ private fun Hero(l: SiteLive) {
         horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(10.dp).clip(CircleShape).background(if (l.visitors > 0) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+            Modifier.size(10.dp).clip(CircleShape).background(if (l.visitors > 0) Tone.settled.color() else erp.app.ui.theme.ErpColors.faint)
                 .clearAndSetSemantics {},
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

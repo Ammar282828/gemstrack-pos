@@ -203,7 +203,7 @@ fun PhoneSettings() {
             footer = if (canLock) "Asks for your fingerprint, face or the phone's screen lock when the app is opened after a minute away. The recent apps screen never shows the books."
             else "Set a screen lock on this phone to lock the app.",
         ) {
-            Column(Modifier.alpha(if (canLock) 1f else 0.5f)) {
+            Column(Modifier.alpha(if (canLock) 1f else 0.6f)) {
                 ToggleRow("Lock with fingerprint or screen lock", lockOn && canLock, { on -> if (canLock) { lockOn = on; AppLock.enabled = on } })
             }
         }

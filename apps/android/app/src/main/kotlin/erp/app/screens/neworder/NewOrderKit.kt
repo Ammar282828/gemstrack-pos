@@ -165,7 +165,7 @@ internal fun QuietField(
                 if (value.isEmpty() && placeholder.isNotEmpty()) {
                     Text(
                         placeholder,
-                        style = style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
+                        style = style.copy(color = erp.app.ui.theme.ErpColors.quiet),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

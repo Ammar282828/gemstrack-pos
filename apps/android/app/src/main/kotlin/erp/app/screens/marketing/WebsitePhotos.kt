@@ -566,7 +566,7 @@ private fun PhotoRow(m: WebsitePhotosModel, item: WebsitePhotoItem, siteName: St
 private fun Picture(item: WebsitePhotoItem) {
     Box(
         Modifier.size(72.dp).clip(Radius.tileShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .alpha(if (item.status == WebsitePhotoItem.Status.Done) 0.7f else 1f),
+            .alpha(if (item.status == WebsitePhotoItem.Status.Done) 0.85f else 1f),
         contentAlignment = Alignment.Center,
     ) {
         val thumb = item.thumb

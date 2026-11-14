@@ -56,7 +56,7 @@ fun TextField(
     )
 }
 
-/** The filled field's colours: the highest container tone, no resting line, a primary indicator while focused. */
+/** The filled field's colours: the highest container tone, a resting line in the outline (3:1, so a field reads in dark too), a primary indicator while focused. */
 @Composable
 fun erpTextFieldColors(): TextFieldColors {
     val scheme = MaterialTheme.colorScheme
@@ -66,7 +66,8 @@ fun erpTextFieldColors(): TextFieldColors {
         disabledContainerColor = scheme.surfaceContainerHighest.copy(alpha = 0.5f),
         errorContainerColor = scheme.surfaceContainerHighest,
         focusedIndicatorColor = scheme.primary,
-        unfocusedIndicatorColor = Color.Transparent,
+        // A resting line (outline, 3:1) so the field is a field in dark as well as light; the filled tone alone is ~1.2:1 on a card.
+        unfocusedIndicatorColor = scheme.outline,
         disabledIndicatorColor = Color.Transparent,
         errorIndicatorColor = scheme.error,
     )

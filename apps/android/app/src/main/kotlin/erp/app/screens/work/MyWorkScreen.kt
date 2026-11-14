@@ -365,7 +365,7 @@ private fun OrderHeader(g: KarigarPortalGroup) {
     val pieces = "$n piece" + (if (n == 1) "" else "s")
     val handed = if (given.isEmpty()) "" else " · given $given"
     val age = " · ${g.ageDays} day" + (if (g.ageDays == 1) "" else "s") + " ago"
-    Row(Modifier.fillMaxWidth().alpha(if (allDone) 0.55f else 1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().alpha(if (allDone) 0.8f else 1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (g.isStock) {
                 Text("Stock piece", style = MaterialTheme.typography.titleMedium)
@@ -380,7 +380,7 @@ private fun OrderHeader(g: KarigarPortalGroup) {
 
 @Composable
 private fun PieceRow(j: KarigarPortalJob, readOnly: Boolean, busy: String?, toggle: (KarigarPortalJob) -> Unit) {
-    Row(Modifier.fillMaxWidth().alpha(if (j.isDone) 0.6f else 1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+    Row(Modifier.fillMaxWidth().alpha(if (j.isDone) 0.8f else 1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
         Tick(j, readOnly, busy, toggle)
         Column(Modifier.weight(1f).padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -414,7 +414,7 @@ private fun Tick(j: KarigarPortalJob, readOnly: Boolean, busy: String?, toggle: 
         readOnly -> Box(box.semantics { contentDescription = if (j.isDone) "Done" else "Not done" }, contentAlignment = Alignment.Center) {
             Icon(
                 if (j.isDone) Symbols.CheckCircle else Symbols.RadioButtonUnchecked, null, Modifier.size(28.dp),
-                tint = if (j.isDone) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = if (j.isDone) Tone.settled.color() else erp.app.ui.theme.ErpColors.faint,
             )
         }
         else -> IconButton(onClick = { toggle(j) }, modifier = box) {

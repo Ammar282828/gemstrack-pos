@@ -314,7 +314,7 @@ private fun RepairRow(
 @Composable
 private fun RepairRowBody(r: Repair, now: Instant, busy: Boolean) {
     val greyed = r.status == RepairStatus.collected || r.status == RepairStatus.cancelled
-    Column(Modifier.fillMaxWidth().groupRowFill().alpha(if (greyed) 0.55f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().groupRowFill().alpha(if (greyed) 0.8f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
             Text(
                 repairSummary(r), Modifier.weight(1f),

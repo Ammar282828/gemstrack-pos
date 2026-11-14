@@ -307,7 +307,7 @@ private fun AddWeightsSection(pasted: String, setPasted: (String) -> Unit, onAdd
 
 @Composable
 private fun LinkLine(text: String, icon: ImageVector, enabled: Boolean, onClick: () -> Unit) {
-    val ink = if (enabled) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val ink = if (enabled) ErpColors.accent else erp.app.ui.theme.ErpColors.faint
     Row(
         Modifier.fillMaxWidth().clickable(enabled = enabled, role = Role.Button, onClick = onClick).formRow(),
         verticalAlignment = Alignment.CenterVertically,

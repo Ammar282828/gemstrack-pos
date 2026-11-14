@@ -550,7 +550,7 @@ private fun Pieces(order: Order, ticking: Int?, isOwner: Boolean, onGiveOut: () 
                 progress = { counts.done.toFloat() / counts.total.toFloat() },
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = "${counts.done} of ${counts.total} pieces done" },
                 color = if (counts.done == counts.total) Tone.settled.color() else ErpColors.accent,
-                trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+                trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
             )
         }
         // Each piece is its own tile (the group's joints are the line between two), not a card with rules.

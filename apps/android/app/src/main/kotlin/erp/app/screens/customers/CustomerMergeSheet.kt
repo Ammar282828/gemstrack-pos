@@ -326,7 +326,7 @@ private fun ManualSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                val ink = if (can) Tone.problem.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                val ink = if (can) Tone.problem.color() else erp.app.ui.theme.ErpColors.faint
                 Icon(Symbols.CallMerge, contentDescription = null, tint = ink)
                 Text("Merge and delete the duplicate", style = MaterialTheme.typography.bodyLarge, color = ink)
             }

@@ -454,7 +454,7 @@ fun WorkshopDeleteCodeSheet(deletion: WorkshopDeletion, onDismiss: () -> Unit, o
                 onClick = { scope.launch { submit(code, false) } },
                 enabled = !busy && code.length >= 4,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.color(), contentColor = erp.app.ui.theme.ErpContrast.onFill(Tone.problem.color())),
             ) {
                 BusyLabel(busy) { Text("Delete") }
             }

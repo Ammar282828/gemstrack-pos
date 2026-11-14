@@ -56,7 +56,7 @@ fun PaidBar(paid: Double, total: Double, modifier: Modifier = Modifier) {
         progress = { progress },
         modifier = modifier.fillMaxWidth().height(4.dp).clearAndSetSemantics { contentDescription = spoken },
         color = if (done) Tone.settled.fill() else ErpColors.accent,
-        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
         gapSize = 0.dp,
         drawStopIndicator = {},
     )
@@ -72,7 +72,7 @@ fun PaidRing(paid: Double, total: Double, modifier: Modifier = Modifier, size: D
     val fraction = if (total > 0) (paid / total).coerceIn(0.0, 1.0).toFloat() else 0f
     val motion = rememberErpMotion()
     val colour = if (settled) Tone.settled.fill() else ErpColors.accent
-    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
+    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
     val sweep by animateFloatAsState(fraction, motion.slowEffects(), label = "paidRing")
 
     // The tick is always in the tree so the bounce has an image to play on when it turns on.

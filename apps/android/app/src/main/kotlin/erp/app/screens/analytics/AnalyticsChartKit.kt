@@ -180,7 +180,7 @@ fun AnaWaterfall(steps: List<AnaStep>, modifier: Modifier = Modifier, height: Dp
     val gain = Tone.settled.fill()
     val loss = Tone.owed.fill()
     val bad = Tone.late.fill()
-    val link = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val link = erp.app.ui.theme.ErpColors.faint
 
     // Where each bar starts and ends.
     val from = ArrayList<Double>()
@@ -359,7 +359,7 @@ fun AnaStackBar100(parts: List<AnaPart>, modifier: Modifier = Modifier, format: 
     val shown = parts.filter { it.value > 0 }
     val total = shown.sumOf { it.value }
     val reveal = rememberReveal()
-    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
     val spoken = shown.joinToString(", ") { it.label + " " + format(it.value) + ", " + percentOf(it.value, total) + " percent" }
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = spoken }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Canvas(Modifier.fillMaxWidth().height(height).clearAndSetSemantics {}) {
@@ -406,7 +406,7 @@ class AnaHBar(val label: String, val value: Double, val color: Color? = null, va
 fun AnaHBars(rows: List<AnaHBar>, modifier: Modifier = Modifier, format: (Double) -> String = { Money.lacCrore(it) }, spokenFormat: (Double) -> String = { Money.pkrLac(it) }) {
     val top = max(rows.maxOfOrNull { it.value } ?: 0.0, 0.0)
     val reveal = rememberReveal()
-    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
     val accent = ErpColors.accent
     val spoken = rows.joinToString(", ") { it.label + " " + spokenFormat(it.value) + (it.chip?.let { c -> ", $c" } ?: "") }
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = spoken }, verticalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -498,7 +498,7 @@ private fun StatusIcon(s: DesignPublishModel.Status) {
         DesignPublishModel.Status.Failed -> Icon(Symbols.Cancel, "Failed", tint = Tone.problem.color())
         DesignPublishModel.Status.Running -> Loading(Modifier.size(30.dp))
         DesignPublishModel.Status.Manual -> Icon(Symbols.TouchApp, "Waiting for you", tint = Tone.owed.color())
-        DesignPublishModel.Status.Waiting -> Icon(Symbols.CheckCircle, "Waiting", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+        DesignPublishModel.Status.Waiting -> Icon(Symbols.CheckCircle, "Waiting", tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 

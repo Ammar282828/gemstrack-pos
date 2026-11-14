@@ -215,7 +215,7 @@ fun AdsTonalButton(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 /** A row that is only a button: a link-styled action in the accent (or a tone). */
 @Composable
 fun AdsActionRow(text: String, onClick: () -> Unit, icon: ImageVector? = null, enabled: Boolean = true, tone: Tone = Tone.house, busy: Boolean = false) {
-    val ink = if (enabled) tone.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val ink = if (enabled) tone.color() else erp.app.ui.theme.ErpColors.faint
     Row(
         Modifier.fillMaxWidth().clickable(enabled = enabled, role = Role.Button, onClick = onClick).ledgerRow(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -529,7 +529,7 @@ fun AdsMeter(value: Double, total: Double, spoken: String, modifier: Modifier = 
         progress = { (value.coerceIn(0.0, whole) / whole).toFloat() },
         modifier = modifier.fillMaxWidth().height(4.dp).semantics { contentDescription = spoken },
         color = ErpColors.accent,
-        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
         gapSize = 0.dp,
         drawStopIndicator = {},
     )

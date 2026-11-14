@@ -64,6 +64,11 @@ iPhone app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold
      `RowAmount`, `PaidRing`/`PaidBar`, `FigureTile/Row/Grid`, `LedgerHeading`, `Monogram`, `TwoLine`, `ShelfState`/`SkeletonLoading`,
      `NotAvailableState`, `FailureAlert`, the `Note` banner (`LocalNoteState`), `PaymentSheet`, `EntrySteps`/`TransactionWorkspace`,
      `CustomerField`, `PdfDocumentScreen`, `Haptics`/`MoneyFeedback`/`DestructiveFeedback`, `readableColumn`.
+   - **Contrast (2026-11-14, dark mode): never fade words or icons with alpha.** `onSurfaceVariant.copy(alpha = 0.6f)` on a dark card is
+     about 3:1. Quiet words say `ErpColors.quiet` (4.5:1 on every ground), a placeholder `ErpColors.hint`, a chevron or an off control
+     `ErpColors.faint` (3:1), a faded caption `ErpColors.faded(a)`; words on a solid fill (a destructive button, a swipe's background)
+     `ErpContrast.onFill(bg)`. A fade is for a fill, a track or a hairline. `ContrastTests` holds every role and tone, both houses, light
+     and dark, to WCAG AA and fails on an alpha fade of a text or icon colour.
    - **Icons are Material Symbols Rounded** (weight 400, grade 0, optical size 24), never `Icons.*` (material-icons-extended is gone from
      the app). Say `Symbols.Add` (`erp.app.ui.icons.Symbols`, outline); `Symbols.Fill.Home` is the filled axis, for a selected or
      active state (the navigation bar's chosen tab, a toggled button). Symbols is generated: add a line to `scripts/symbols.txt`

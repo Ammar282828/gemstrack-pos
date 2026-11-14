@@ -143,7 +143,7 @@ fun LabelSegments(options: List<Pair<String, String>>, selected: String, onSelec
                 onClick = { onSelect(value) },
                 shape = SegmentedButtonDefaults.itemShape(i, options.size),
                 enabled = enabled,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) { Text(text, maxLines = 1) }
         }
     }
@@ -153,7 +153,7 @@ fun LabelSegments(options: List<Pair<String, String>>, selected: String, onSelec
 @Composable
 fun LabelTapRow(title: String, onClick: () -> Unit, sub: String? = null, enabled: Boolean = true, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, danger: Boolean = false) {
     val ink = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        !enabled -> erp.app.ui.theme.ErpColors.faint
         danger -> Tone.problem.color()
         else -> ErpColors.accent
     }

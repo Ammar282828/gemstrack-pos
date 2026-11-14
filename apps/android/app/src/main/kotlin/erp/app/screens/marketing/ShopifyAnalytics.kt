@@ -371,7 +371,7 @@ private fun ShopLiveHero(l: ShopLive) {
         Modifier.ledgerCard().semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) Tone.settled.color() else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)).clearAndSetSemantics {})
+        Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) Tone.settled.color() else erp.app.ui.theme.ErpColors.faint).clearAndSetSemantics {})
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             NumericText(n?.toString() ?: "–", (n ?: 0).toDouble(), style = ErpType.tileValue.copy(fontSize = 34.sp, lineHeight = 40.sp))
             Text("sessions on the store in the last ${l.windowMinutes} minutes", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -452,7 +452,7 @@ private fun ShopBars(values: List<Double>, spoken: String, height: Int, picked: 
         values.forEachIndexed { i, v ->
             val h = if (top > 0) ((v / top).toFloat() * (floor - 2.dp.toPx())).coerceAtLeast(0f) else 0f
             if (h > 0f) {
-                val color = if (picked == i) accent else accent.copy(alpha = if (picked < 0) 0.85f else 0.4f)
+                val color = if (picked == i) accent else accent.copy(alpha = if (picked < 0) 0.85f else 0.7f)
                 drawRoundRect(color, Offset(slot * i + (slot - bar) / 2, floor - h), Size(bar, h), CornerRadius(minOf(bar / 2, 3.dp.toPx())))
             }
         }

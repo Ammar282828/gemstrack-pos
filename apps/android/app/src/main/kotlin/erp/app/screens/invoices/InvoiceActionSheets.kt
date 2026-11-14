@@ -459,7 +459,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
                 onClick = ::ask,
                 enabled = full || after != null,
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.fill(), contentColor = androidx.compose.ui.graphics.Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = Tone.problem.fill(), contentColor = erp.app.ui.theme.ErpContrast.onFill(Tone.problem.fill())),
             ) {
                 Icon(Symbols.Undo, contentDescription = null)
                 Spacer(Modifier.size(8.dp))

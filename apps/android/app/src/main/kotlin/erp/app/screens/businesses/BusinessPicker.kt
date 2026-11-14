@@ -247,7 +247,7 @@ private fun Card(b: Business, last: Boolean, sideBySide: Boolean, chosen: String
         ) {
             Wordmark(b, ink)
             Text(
-                BandLogic.caption(b, state), style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.6f),
+                BandLogic.caption(b, state), style = MaterialTheme.typography.labelSmall, color = ink,
                 maxLines = 1, overflow = TextOverflow.MiddleEllipsis, textAlign = TextAlign.Center,
             )
         }

@@ -290,7 +290,7 @@ private fun DaySection(events: List<ShopCalendarEvent>, selected: String) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(e.docId, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(e.customerName.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(ShopCalendar.clock(e.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                            Text(ShopCalendar.clock(e.createdAt), style = MaterialTheme.typography.bodySmall, color = erp.app.ui.theme.ErpColors.quiet)
                         }
                         if (money) Text(Money.pkr(e.grandTotal), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"))
                     }

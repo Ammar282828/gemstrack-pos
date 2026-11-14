@@ -3,7 +3,9 @@ package erp.app.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.runtime.Immutable
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
@@ -48,7 +50,35 @@ object ErpColors {
     val onAccent: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.onPrimary
     val elevated: Color @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceContainerHigh
     val dark: Boolean @Composable @ReadOnlyComposable get() = LocalErpDark.current
+
+    // Captions, placeholders and chevrons that read on every ground in light and dark (ErpContrast; ContrastTests holds them to WCAG).
+    // Never `onSurfaceVariant.copy(alpha = ...)` for words or icons: a fade of a colour already near 4.5:1 falls under it.
+    val quiet: Color @Composable @ReadOnlyComposable get() = LocalQuietColors.current.quiet
+    val hint: Color @Composable @ReadOnlyComposable get() = LocalQuietColors.current.hint
+    val faint: Color @Composable @ReadOnlyComposable get() = LocalQuietColors.current.faint
+
+    /** A faded caption (what `onSurfaceVariant.copy(alpha = a)` was) that still reads. */
+    @Composable
+    fun faded(alpha: Float): Color {
+        val scheme = MaterialTheme.colorScheme
+        return remember(scheme, alpha) { ErpContrast.faded(scheme, alpha) }
+    }
+
+    fun quietOf(s: ColorScheme): Color = ErpContrast.quiet(s)
+    fun hintOf(s: ColorScheme): Color = ErpContrast.hint(s)
+    fun faintOf(s: ColorScheme): Color = ErpContrast.faint(s)
+    fun fadedOf(s: ColorScheme, alpha: Float): Color = ErpContrast.faded(s, alpha)
 }
+
+/** The quiet colours of the current scheme, made once per theme. */
+@Immutable
+class QuietColors(val quiet: Color, val hint: Color, val faint: Color) {
+    companion object {
+        fun of(s: ColorScheme) = QuietColors(ErpContrast.quiet(s), ErpContrast.hint(s), ErpContrast.faint(s))
+    }
+}
+
+val LocalQuietColors = staticCompositionLocalOf { QuietColors(Color.Gray, Color.Gray, Color.Gray) }
 
 /** Whether the theme is the dark one (the device's choice or the shop's). */
 val LocalErpDark = staticCompositionLocalOf { false }
@@ -163,6 +193,7 @@ fun ErpTheme(themeOverride: String? = null, wallpaperColors: Boolean = false, co
         }
     }
     val tones = remember(scheme, dark) { ToneColors.of(scheme, dark) }
+    val quiet = remember(scheme) { QuietColors.of(scheme) }
     val reduce = rememberSystemReduceMotion()
 
     // A forced scheme needs the bars' icons to follow it, not the device.
@@ -179,7 +210,7 @@ fun ErpTheme(themeOverride: String? = null, wallpaperColors: Boolean = false, co
         }
     }
 
-    CompositionLocalProvider(LocalErpDark provides dark, LocalToneColors provides tones, LocalReduceMotion provides reduce) {
+    CompositionLocalProvider(LocalErpDark provides dark, LocalToneColors provides tones, LocalQuietColors provides quiet, LocalReduceMotion provides reduce) {
         MaterialExpressiveTheme(
             colorScheme = scheme,
             motionScheme = MotionScheme.expressive(),

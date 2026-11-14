@@ -360,7 +360,7 @@ private fun Making(start: DesignStartModel, cards: List<DesignKindCard>) {
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         Text(c.title, style = MaterialTheme.typography.titleMedium, color = if (on) ErpColors.onAccent else MaterialTheme.colorScheme.onSurface)
-                        Text(c.note, style = MaterialTheme.typography.bodySmall, color = (if (on) ErpColors.onAccent else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.8f))
+                        Text(c.note, style = MaterialTheme.typography.bodySmall, color = if (on) ErpColors.onAccent else MaterialTheme.colorScheme.onSurface)
                     }
                 }
                 if (row.size == 1) Box(Modifier.weight(1f))
@@ -450,7 +450,7 @@ private fun Investments(role: String) {
     ) {
         Icon(Symbols.ShowChart, null, tint = ErpColors.accent)
         Text("Gold investment posts: Investments", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 
@@ -481,7 +481,7 @@ fun DesignDraftLine(row: DesignDraftRow) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 
@@ -500,6 +500,6 @@ fun DesignRecordLine(record: DesignRecord) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Icon(Symbols.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }

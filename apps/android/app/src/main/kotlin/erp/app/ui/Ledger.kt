@@ -65,7 +65,10 @@ fun Pill(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.quiet, i
 /** A colour no tone has (older [StatusBadge] call sites); new code passes a [Tone]. */
 @Composable
 fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    PillBody(text, color, color.copy(alpha = 0.16f).compositeOver(MaterialTheme.colorScheme.surfaceContainer), modifier, icon)
+    val scheme = MaterialTheme.colorScheme
+    val wash = color.copy(alpha = 0.16f).compositeOver(scheme.surfaceContainer)
+    // A colour with no tone of its own is moved toward the scheme's on-colour until its words read on their own wash (4.5:1).
+    PillBody(text, erp.app.ui.theme.ErpContrast.readable(color, 1f, scheme.onSurface, listOf(wash), 4.5), wash, modifier, icon)
 }
 
 /** A tonal container with its on-container words (Material's own roles), as a small capsule. */
@@ -195,7 +198,7 @@ fun DateLeaf(date: Instant?, modifier: Modifier = Modifier, tone: Tone = Tone.qu
             )
             Text(monthFormat.format(date).uppercase(), fontSize = fixed(0.16f), lineHeight = fixed(0.2f), fontWeight = FontWeight.SemiBold, color = quiet, maxLines = 1)
         } else {
-            Icon(Symbols.CalendarToday, contentDescription = null, Modifier.size(size * 0.36f), tint = quiet.copy(alpha = 0.6f))
+            Icon(Symbols.CalendarToday, contentDescription = null, Modifier.size(size * 0.36f), tint = ErpColors.faint)
         }
     }
 }
@@ -243,7 +246,7 @@ fun StageTrack(stage: OrderStage, modifier: Modifier = Modifier, labels: Boolean
     val at = StageSteps.index(stage)
     val motion = rememberErpMotion()
     // Inactive bars a little firmer in dark, where 0.18 of grey nearly vanishes on the card.
-    val idle = MaterialTheme.colorScheme.outlineVariant
+    val idle = ErpColors.faint
     val accent = ErpColors.accent
     val spoken = if (at < 0) "Closed" else "Stage: " + StageSteps.names[minOf(at, StageSteps.names.size - 1)]
     Row(

@@ -66,7 +66,7 @@ fun InsightBars(points: List<InsightPoint>, what: String, spoken: String, modifi
             points.forEachIndexed { i, p ->
                 val h = if (top > 0) ((p.value / top).toFloat() * (floor - 2.dp.toPx())).coerceAtLeast(0f) else 0f
                 if (h > 0f) {
-                    val color = if (picked == i) accent else accent.copy(alpha = if (picked < 0) 0.85f else 0.45f)
+                    val color = if (picked == i) accent else accent.copy(alpha = if (picked < 0) 0.85f else 0.7f)
                     drawRoundRect(color, Offset(slot * i + (slot - bar) / 2, floor - h), Size(bar, h), CornerRadius(minOf(bar / 2, 3.dp.toPx())))
                 }
             }

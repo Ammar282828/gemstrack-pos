@@ -124,7 +124,7 @@ fun RowScope.ValueInput(
         decorationBox = { inner ->
             Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget), contentAlignment = Alignment.CenterEnd) {
                 if (value.isEmpty()) {
-                    Text(prompt, style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(prompt, style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End), color = erp.app.ui.theme.ErpColors.quiet, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 inner()
             }
@@ -196,7 +196,7 @@ fun PickerRow(label: String, selected: String, options: List<Pair<String, String
 /** A row that does something: an icon, its words, in the accent unless it says otherwise. */
 @Composable
 fun ActionRow(label: String, onClick: () -> Unit, icon: ImageVector? = null, enabled: Boolean = true, tone: Tone = Tone.house) {
-    val ink = if (enabled) (if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurface else tone.color()) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val ink = if (enabled) (if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurface else tone.color()) else erp.app.ui.theme.ErpColors.faint
     Row(
         Modifier.fillMaxWidth().ledgerRow().clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(12.dp),

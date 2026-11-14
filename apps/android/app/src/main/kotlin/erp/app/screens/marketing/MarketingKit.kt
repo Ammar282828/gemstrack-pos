@@ -234,7 +234,7 @@ fun MarketingLink(title: String, symbol: ImageVector, path: String, subtitle: St
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (!subtitle.isNullOrEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 

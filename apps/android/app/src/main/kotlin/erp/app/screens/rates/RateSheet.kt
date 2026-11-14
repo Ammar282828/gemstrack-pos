@@ -328,7 +328,7 @@ private fun RateField(label: String, value: String, prompt: String, bold: Boolea
             decorationBox = { inner ->
                 Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget), contentAlignment = Alignment.CenterEnd) {
                     if (value.isEmpty()) {
-                        Text(prompt, style = style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(prompt, style = style.copy(color = erp.app.ui.theme.ErpColors.quiet, fontWeight = FontWeight.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     inner()
                 }

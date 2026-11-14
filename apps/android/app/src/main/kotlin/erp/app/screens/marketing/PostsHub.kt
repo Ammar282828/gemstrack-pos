@@ -326,7 +326,7 @@ private fun QueueRow(e: PostQueueEntry, state: PostsState, open: () -> Unit) {
         StockImage(e.thumb, e.headline, e.id, Modifier.size(44.dp).clip(Radius.thumbShape), decodeDataUri = true)
         TwoLine(e.headline.ifEmpty { "A piece" }, Modifier.weight(1f), subtitle = queueNote(e, state))
         QueueBadge(e)
-        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 

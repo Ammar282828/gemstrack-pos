@@ -68,7 +68,7 @@ fun OrderPieceRow(
         // The first reference picture, "+n" for the rest; a tap opens them all full screen (PieceGallery.kt).
         PieceGalleryRow(remember(item) { PieceGallery.sources(item) }, title = item.description)
         // A finished piece sits quieter than one still to make.
-        Column(Modifier.weight(1f).alpha(if (item.isCompleted) 0.7f else 1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f).alpha(if (item.isCompleted) 0.85f else 1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Heading(index, item)
             FactLine(item)
             KarigarLine(item, karigar)

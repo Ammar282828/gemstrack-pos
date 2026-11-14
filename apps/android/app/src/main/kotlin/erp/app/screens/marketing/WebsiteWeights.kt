@@ -417,7 +417,7 @@ private fun WeightSection(
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             TextField(
                 value = value, onValueChange = setValue, singleLine = true, modifier = Modifier.weight(1f).focusRequester(typing),
-                placeholder = { Text("0.00", style = ErpType.heroNumber, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+                placeholder = { Text("0.00", style = ErpType.heroNumber, color = erp.app.ui.theme.ErpColors.quiet) },
                 textStyle = ErpType.heroNumber,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
@@ -447,7 +447,7 @@ private fun CaratsField(label: String, value: String, set: (String) -> Unit, mod
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextField(
             value = value, onValueChange = set, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("0.00", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            placeholder = { Text("0.00", color = erp.app.ui.theme.ErpColors.quiet) },
             suffix = { Text("ct") },
             textStyle = MaterialTheme.typography.titleLarge,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

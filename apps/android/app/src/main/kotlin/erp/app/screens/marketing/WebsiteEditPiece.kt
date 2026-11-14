@@ -422,7 +422,7 @@ private fun WordsField(label: String, own: String, now: String, reset: () -> Uni
 @Composable
 private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, minLines: Int = 1, maxLines: Int = 1) {
     TextField(
-        value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth(), placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
+        value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth(), placeholder = { Text(placeholder, color = erp.app.ui.theme.ErpColors.quiet) },
         singleLine = maxLines == 1, minLines = minLines, maxLines = maxLines,
     )
 }

@@ -292,12 +292,12 @@ private fun PieceRow(r: WebsiteInterestPiece, rank: Int, list: WebsiteInterestLi
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("$rank", Modifier.padding(end = 0.dp), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+            Text("$rank", Modifier.padding(end = 0.dp), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = erp.app.ui.theme.ErpColors.quiet)
             StockImage(r.thumb, name, r.piece, Modifier.size(44.dp).clip(Radius.thumbShape))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = MaterialTheme.typography.bodyLarge)
                 Text(list.say(r), style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (r.collection.isNotEmpty()) Text(r.collection, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                if (r.collection.isNotEmpty()) Text(r.collection, style = MaterialTheme.typography.labelSmall, color = erp.app.ui.theme.ErpColors.quiet)
             }
         }
         if (hasLink) {

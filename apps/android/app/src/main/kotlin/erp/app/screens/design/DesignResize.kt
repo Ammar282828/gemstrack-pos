@@ -395,8 +395,8 @@ private fun ResultCard(r: DesignResizeModel, id: String) {
     val zone = DesignSizes.safeZone(e.h)
     Column(
         Modifier.glassRow(Radius.chipShape, ErpColors.card)
-            .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (on) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)), Radius.chipShape)
-            .alpha(if (on) 1f else 0.7f).padding(8.dp),
+            .border(BorderStroke(if (on) 1.5.dp else 1.dp, if (on) ErpColors.accent else MaterialTheme.colorScheme.outline), Radius.chipShape)
+            .alpha(if (on) 1f else 0.85f).padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val image = r.images[id]

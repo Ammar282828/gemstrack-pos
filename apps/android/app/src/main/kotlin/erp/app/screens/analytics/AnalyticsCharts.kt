@@ -129,7 +129,7 @@ fun AnaBarChart(bars: List<AnaBar>, modifier: Modifier = Modifier, tint: Color =
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
                     )
                 }
-                val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+                val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 Canvas(Modifier.fillMaxWidth().height(8.dp).clearAndSetSemantics {}) {
                     drawRoundRect(track, size = size, cornerRadius = CornerRadius(size.height / 2))
                     if (share > 0f) {
@@ -367,7 +367,7 @@ fun AnaShareChart(rows: List<AnaBreakdown.CategoryRow>, modifier: Modifier = Mod
     val total = rows.sumOf { it.revenue }
     val top = max(1.0, rows.maxOf { it.revenue })
     val reveal = rememberReveal()
-    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
     Column(modifier.fillMaxWidth().semantics { contentDescription = "Share of revenue by category, largest first" }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         for (c in rows) {
             val muted = c.id == "uncategorized"
@@ -392,7 +392,7 @@ fun AnaShareChart(rows: List<AnaBreakdown.CategoryRow>, modifier: Modifier = Mod
                     val fraction = (max(0.0, c.revenue) / top).toFloat() * reveal
                     Box(
                         Modifier.fillMaxWidth(fraction).height(8.dp).clip(CircleShape)
-                            .background(if (muted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else ErpColors.accent.copy(alpha = 0.75f)),
+                            .background(if (muted) erp.app.ui.theme.ErpColors.faint else ErpColors.accent.copy(alpha = 0.75f)),
                     )
                 }
             }

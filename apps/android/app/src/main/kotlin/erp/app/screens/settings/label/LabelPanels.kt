@@ -163,7 +163,7 @@ fun LayersPanel(state: DesignerState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(fieldGlyph(f.type), Modifier.size(22.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(layerTitle(f), Modifier.weight(1f).padding(vertical = 14.dp), maxLines = 1, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (f.hidden) 0.5f else 1f))
+                Text(layerTitle(f), Modifier.weight(1f).padding(vertical = 14.dp), maxLines = 1, color = if (f.hidden) erp.app.ui.theme.ErpColors.quiet else MaterialTheme.colorScheme.onSurface)
                 IconButton({ model.setHidden(f.id, !f.hidden) }, Modifier.size(MinTouchTarget)) {
                     Icon(if (f.hidden) Symbols.VisibilityOff else Symbols.Visibility, if (f.hidden) "Show" else "Hide", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

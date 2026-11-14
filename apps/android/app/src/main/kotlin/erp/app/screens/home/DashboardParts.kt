@@ -107,7 +107,7 @@ fun DashLabel(text: String, modifier: Modifier = Modifier, large: Boolean = fals
 /** The quiet arrow on whatever opens a place. */
 @Composable
 fun DashChevron() {
-    Icon(Symbols.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+    Icon(Symbols.ChevronRight, contentDescription = null, Modifier.size(16.dp), tint = erp.app.ui.theme.ErpColors.faint)
 }
 
 /** A tap target that reads as the one spoken line the iPhone gives it, and lets its words stay out of the reader's way. */
@@ -192,7 +192,7 @@ fun DashWeekBars(days: List<DashDay>, modifier: Modifier = Modifier) {
                 val h = if (top > 0) ((d.amount / top).toFloat() * (base - 2.dp.toPx())).coerceAtLeast(0f) else 0f
                 if (h > 0f) {
                     drawRoundRect(
-                        if (i == days.lastIndex) accent else accent.copy(alpha = 0.25f),
+                        if (i == days.lastIndex) accent else accent.copy(alpha = 0.7f),
                         Offset(slot * i + (slot - bar) / 2, base - h), Size(bar, h), CornerRadius(3.dp.toPx()),
                     )
                 }
@@ -200,7 +200,7 @@ fun DashWeekBars(days: List<DashDay>, modifier: Modifier = Modifier) {
             drawLine(hairline, Offset(0f, base), Offset(size.width, base), strokeWidth = 1.dp.toPx())
         }
         Row(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
-            val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            val quiet = erp.app.ui.theme.ErpColors.quiet
             Text("Last 7 days", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = quiet)
             Text("Today", style = MaterialTheme.typography.labelSmall, color = quiet)
         }
@@ -476,7 +476,7 @@ fun DashDueRow(due: DashDue, onOpen: (String) -> Unit, money: Boolean = true) {
                 Text(
                     dueRefText(due, money),
                     style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = TabularDigits),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = erp.app.ui.theme.ErpColors.quiet,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -605,7 +605,7 @@ private fun MonthChart(figures: DashFigures) {
             drawPath(line, accent, style = Stroke(width = 2.dp.toPx()))
         }
         Row(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
-            val quiet = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            val quiet = erp.app.ui.theme.ErpColors.quiet
             Text(DashDate.dayMonth(figures.days.firstOrNull()?.day ?: figures.now), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = quiet)
             Text("Today", style = MaterialTheme.typography.labelSmall, color = quiet)
         }

@@ -18,6 +18,17 @@ import androidx.compose.ui.graphics.Shape
 // draw a fixed shape unless they are given `shapes`; these take the stock arguments and give them, so a screen
 // imports the kit's `Button` and gets the press morph without saying so. Pass `shape` to keep one fixed shape.
 
+/**
+ * A button that is off keeps its words readable: Material draws them at 38% of the on-colour (about 2.5:1 on a dark card, so "Save"
+ * looked missing, not unavailable). Off is now a solid, quieter tone on the card tier above (words at 3:1), never a fade.
+ */
+@Composable
+internal fun readableWhenOff(base: ButtonColors): ButtonColors = base.copy(
+    disabledContainerColor = if (base.disabledContainerColor == androidx.compose.ui.graphics.Color.Transparent || base.disabledContainerColor.alpha == 0f) androidx.compose.ui.graphics.Color.Transparent
+    else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest,
+    disabledContentColor = erp.app.ui.theme.ErpColors.faint,
+)
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun Button(
@@ -25,7 +36,7 @@ fun Button(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape? = null,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    colors: ButtonColors = readableWhenOff(ButtonDefaults.buttonColors()),
     elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -43,7 +54,7 @@ fun FilledTonalButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape? = null,
-    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    colors: ButtonColors = readableWhenOff(ButtonDefaults.filledTonalButtonColors()),
     elevation: ButtonElevation? = ButtonDefaults.filledTonalButtonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -61,7 +72,7 @@ fun OutlinedButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape? = null,
-    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    colors: ButtonColors = readableWhenOff(ButtonDefaults.outlinedButtonColors()),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = ButtonDefaults.outlinedButtonBorder(enabled),
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -79,7 +90,7 @@ fun TextButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape? = null,
-    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+    colors: ButtonColors = readableWhenOff(ButtonDefaults.textButtonColors()),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
@@ -97,7 +108,7 @@ fun IconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
+    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(disabledContentColor = erp.app.ui.theme.ErpColors.faint),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {

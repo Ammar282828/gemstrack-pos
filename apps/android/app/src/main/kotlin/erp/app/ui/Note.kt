@@ -169,7 +169,7 @@ fun NoteBanner(note: Note, modifier: Modifier = Modifier, onAction: () -> Unit =
             Column(Modifier.weight(1f)) {
                 Text(note.title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
                 if (note.detail.isNotEmpty()) {
-                    Text(note.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.8f))
+                    Text(note.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.inverseOnSurface)
                 }
             }
             val act = note.action

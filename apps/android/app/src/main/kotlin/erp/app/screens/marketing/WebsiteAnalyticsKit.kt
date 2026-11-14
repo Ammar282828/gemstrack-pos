@@ -204,7 +204,7 @@ internal fun SiteBar(fraction: Double) {
         progress = { fraction.coerceIn(0.0, 1.0).toFloat() },
         modifier = Modifier.fillMaxWidth().height(4.dp).clearAndSetSemantics {},
         color = ErpColors.accent,
-        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
         gapSize = 0.dp,
         drawStopIndicator = {},
     )
@@ -320,7 +320,7 @@ private fun SiteHoursChart(hours: List<SiteHour>) {
             drawPath(area, grey.copy(alpha = 0.2f))
             hours.forEachIndexed { i, h ->
                 val ht = h.sessions / top * span
-                if (ht > 0f) drawRoundRect(if (picked == i || picked < 0) accent else accent.copy(alpha = 0.45f), Offset(slot * i + (slot - bar) / 2, floor - ht), Size(bar, ht), CornerRadius(minOf(bar / 2, 3.dp.toPx())))
+                if (ht > 0f) drawRoundRect(if (picked == i || picked < 0) accent else accent.copy(alpha = 0.7f), Offset(slot * i + (slot - bar) / 2, floor - ht), Size(bar, ht), CornerRadius(minOf(bar / 2, 3.dp.toPx())))
             }
             drawLine(grey.copy(alpha = 0.2f), Offset(0f, floor), Offset(size.width, floor), strokeWidth = 1.dp.toPx())
         }

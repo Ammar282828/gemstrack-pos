@@ -258,7 +258,7 @@ private fun PersonRow(
             Text(name.ifEmpty { id }, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 1)
             Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
             if (whenSaid.isNotEmpty()) {
-                Text("Removed $whenSaid", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                Text("Removed $whenSaid", style = MaterialTheme.typography.bodySmall, color = erp.app.ui.theme.ErpColors.quiet)
             }
         }
         TextButton(onClick = putBack, enabled = busy == null) {

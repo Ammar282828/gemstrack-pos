@@ -256,7 +256,7 @@ private fun DraftRowView(row: DraftRow, onDiscard: (DraftRow) -> Unit, open: (St
             if (d.detail.isNotEmpty()) {
                 Text(d.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Text(DraftsLogic.lastTyped(row, now), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+            Text(DraftsLogic.lastTyped(row, now), style = MaterialTheme.typography.bodySmall, color = erp.app.ui.theme.ErpColors.quiet)
         }
     }
 }

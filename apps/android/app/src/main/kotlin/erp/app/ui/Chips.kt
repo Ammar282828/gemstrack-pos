@@ -77,5 +77,7 @@ fun FilterChip(
             }
         },
         shape = MaterialTheme.shapes.small,
+        // The unchosen chip's outline is the one thing that says it is a button: `outline` (3:1 on every surface), not Material's outlineVariant.
+        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = chosen, borderColor = MaterialTheme.colorScheme.outline),
     )
 }

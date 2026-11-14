@@ -242,7 +242,7 @@ private fun ConflictRow(c: PendingContact, chosen: String, enabled: Boolean, onC
                 Text(c.phone ?: "no number", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Column(Modifier.alpha(if (enabled) 1f else 0.5f)) {
+        Column(Modifier.alpha(if (enabled) 1f else 0.6f)) {
             PickerRow("Answer", chosen, opts.map { it.value to it.label }) { if (enabled) onChoose(it) }
         }
         opts.firstOrNull { it.value == chosen }?.let {
@@ -254,7 +254,7 @@ private fun ConflictRow(c: PendingContact, chosen: String, enabled: Boolean, onC
 @Composable
 private fun FreshRow(f: PendingContact, off: Boolean, enabled: Boolean, toggle: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().ledgerRow().alpha(if (off) 0.45f else 1f),
+        Modifier.fillMaxWidth().ledgerRow().alpha(if (off) 0.6f else 1f),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(if (f.kind == "karigar") Symbols.Engineering else Symbols.People, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

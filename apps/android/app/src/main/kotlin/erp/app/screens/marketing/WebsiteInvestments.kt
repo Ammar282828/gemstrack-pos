@@ -304,7 +304,7 @@ private fun DayRow(p: WebsiteGoldPost, gold: WebsiteGoldState, open: () -> Unit)
             Text(p.headline, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         Text("$sent/${targets.size} sent", style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+        Icon(Symbols.KeyboardArrowRight, contentDescription = null, tint = erp.app.ui.theme.ErpColors.faint)
     }
 }
 

@@ -108,8 +108,8 @@ fun SwipeActions(
                     contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(action.icon, contentDescription = null, tint = Color.White)
-                        Text(action.label, color = Color.White, style = MaterialTheme.typography.labelLarge)
+                        Icon(action.icon, contentDescription = null, tint = erp.app.ui.theme.ErpContrast.onFill(action.tone.fill()))
+                        Text(action.label, color = erp.app.ui.theme.ErpContrast.onFill(action.tone.fill()), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

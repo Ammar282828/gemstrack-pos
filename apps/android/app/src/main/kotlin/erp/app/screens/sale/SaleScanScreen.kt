@@ -268,7 +268,7 @@ private fun LinesSection(r: SaleBillReading, onReading: (SaleBillReading) -> Uni
 
 @Composable
 private fun Box_(on: Boolean, content: @Composable () -> Unit) {
-    androidx.compose.foundation.layout.Box(Modifier.alpha(if (on) 1f else 0.45f)) { content() }
+    androidx.compose.foundation.layout.Box(Modifier.alpha(if (on) 1f else 0.6f)) { content() }
 }
 
 @Composable

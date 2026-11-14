@@ -144,7 +144,7 @@ private fun TakenChart(list: List<DashTakenDay>, chosenAt: Long?, range: DashTak
                 val h = if (top > 0) ((d.total / top).toFloat() * (floor - 2.dp.toPx())).coerceAtLeast(0f) else 0f
                 if (h > 0f) {
                     drawRoundRect(
-                        if (d.day.epochSecond == chosenAt) accent else accent.copy(alpha = 0.3f),
+                        if (d.day.epochSecond == chosenAt) accent else accent.copy(alpha = 0.7f),
                         Offset(slot * i + (slot - bar) / 2, floor - h), Size(bar, h), CornerRadius(minOf(bar / 2, 3.dp.toPx())),
                     )
                 }

@@ -354,7 +354,7 @@ fun OrderTrackingCard(order: Order, refreshKey: Int, quick: QuickPdf, onCancelle
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                         Box(
                             Modifier.padding(top = 6.dp).size(8.dp).clip(CircleShape)
-                                .background(if (i == 0) ErpColors.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)),
+                                .background(if (i == 0) ErpColors.accent else erp.app.ui.theme.ErpColors.faint),
                         )
                         Column(Modifier.weight(1f)) {
                             Text(e.status, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
