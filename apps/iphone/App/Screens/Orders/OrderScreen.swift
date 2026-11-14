@@ -265,12 +265,15 @@ struct OrderScreen: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "ORD-12 · taken Tue 6 Oct · by Sana": the order's number first, for finding it again.
+    /// "ORD-12 · taken Tue 6 Oct 3:42 pm · by Sana": the order's number first, for finding it again; the time it was taken
+    /// with the date (owner, 2026-11-14: "so that we know what time that order was taken"; on the ERP's screens only, never
+    /// the bill or slip). A record holding a date and no time (an import) gives no time rather than a made-up midnight.
     private func caption(_ order: Order) -> String {
         var parts = [order.id]
-        let said = ShopDate.say(order.createdAt)
+        let said = ShopDate.say(order.createdAt, withTime: order.createdAt.contains("T"))
         if !said.isEmpty {
-            parts.append("taken " + (["Today", "Yesterday", "Tomorrow"].contains(said) ? said.lowercased() : said))
+            let relative = ["Today", "Yesterday", "Tomorrow"].contains { said == $0 || said.hasPrefix($0 + " ") }
+            parts.append("taken " + (relative ? said.prefix(1).lowercased() + said.dropFirst() : said))
         }
         if let by = order.takenBy, !by.isEmpty { parts.append("by " + by) }
         return parts.joined(separator: " \u{00B7} ")

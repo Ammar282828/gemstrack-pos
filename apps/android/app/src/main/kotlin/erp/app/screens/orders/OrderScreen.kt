@@ -431,11 +431,16 @@ private fun Who(order: Order, phone: String, mine: Boolean) {
     }
 }
 
-/** "ORD-12 · taken Tue 6 Oct · by Sana": the order's number first, for finding it again. */
+/**
+ * "ORD-12 · taken Tue 6 Oct 3:42 pm · by Sana": the order's number first, for finding it again; the time it was taken with the
+ * date (owner, 2026-11-14: "so that we know what time that order was taken"; the ERP's screens only, never the bill or slip).
+ * A record holding a date and no time (an import) gives no time rather than a made-up midnight.
+ */
 internal fun caption(order: Order): String {
     val parts = arrayListOf(order.id)
-    val said = ShopDate.say(order.createdAt)
-    if (said.isNotEmpty()) parts.add("taken " + (if (said in listOf("Today", "Yesterday", "Tomorrow")) said.lowercase() else said))
+    val said = ShopDate.say(order.createdAt, withTime = order.createdAt.contains('T'))
+    val relative = listOf("Today", "Yesterday", "Tomorrow").any { said == it || said.startsWith("$it ") }
+    if (said.isNotEmpty()) parts.add("taken " + (if (relative) said.replaceFirstChar { it.lowercase() } else said))
     val by = order.takenBy
     if (!by.isNullOrEmpty()) parts.add("by $by")
     return parts.joinToString(" · ")

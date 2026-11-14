@@ -84,7 +84,7 @@ import { deleteErrorText } from '@/lib/delete-code';
 import { owesMoney } from '@/lib/money';
 import { BusyLabel } from '@/components/ui/busy';
 import { useShallow } from 'zustand/react/shallow';
-import { formatDate } from '@/lib/safe-date';
+import { formatDate, takenAt } from '@/lib/safe-date';
 import { deliveryLabel, isShippedOut } from '@/lib/shopify-delivery';
 import { BookTcsDialog, TrackingCard } from '@/components/order/tcs-shipping';
 import { useAuth } from '@/components/auth/google-auth-gate';
@@ -712,7 +712,7 @@ export default function OrderDetailPage() {
                               <p className="text-ios-sub text-muted-foreground">
                                 {order.id}
                                 {' · '}
-                                {formatDate(order.createdAt, 'd MMM yyyy')}
+                                {takenAt(order.createdAt)}
                                 {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
                                 {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                                   <> · <Link href={changeRateHref} className="text-primary underline-offset-2 hover:underline">Change rate</Link></>
