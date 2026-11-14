@@ -19,3 +19,19 @@ describe('safe-date', () => {
     expect(toDate(0)).toBeInstanceOf(Date);
   });
 });
+
+describe('takenAt (when an order was taken, ERP screens only)', () => {
+  it('gives the time with the date', async () => {
+    const { takenAt } = await import('./safe-date');
+    const d = new Date(); d.setHours(15, 42, 0, 0);
+    expect(takenAt(d.toISOString())).toMatch(/, 3:42 PM$/);
+  });
+  it('gives a date-only record its date and no made-up time', async () => {
+    const { takenAt } = await import('./safe-date');
+    expect(takenAt('2024-03-05')).toBe('5 Mar 2024');
+  });
+  it('answers a dash for nothing', async () => {
+    const { takenAt } = await import('./safe-date');
+    expect(takenAt(undefined)).toBe('–');
+  });
+});

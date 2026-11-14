@@ -185,12 +185,13 @@ struct MacOrderInspector: View {
         return worth >= 1 ? MacHeadline("Paid", Money.pkr(worth), tone: .settled) : nil
     }
 
-    /// "ORD-12 · taken Tue 6 Oct · by Sana".
+    /// "ORD-12 · taken Tue 6 Oct 3:42 pm · by Sana": with the time it was taken, as the iPhone's order page (OrderScreen).
     private func caption(_ order: Order) -> String {
         var parts = [order.id]
-        let said = ShopDate.say(order.createdAt)
+        let said = ShopDate.say(order.createdAt, withTime: order.createdAt.contains("T"))
         if !said.isEmpty {
-            parts.append("taken " + (["Today", "Yesterday", "Tomorrow"].contains(said) ? said.lowercased() : said))
+            let relative = ["Today", "Yesterday", "Tomorrow"].contains { said == $0 || said.hasPrefix($0 + " ") }
+            parts.append("taken " + (relative ? said.prefix(1).lowercased() + said.dropFirst() : said))
         }
         if let by = order.takenBy, !by.isEmpty { parts.append("by " + by) }
         return parts.joined(separator: " \u{00B7} ")

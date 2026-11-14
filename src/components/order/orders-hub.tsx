@@ -65,7 +65,7 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { isOwner, roleForEmail } from '@/lib/roles';
 import { MAX_CONVERT } from '@/lib/writes/shopify-invoice-to-order';
 import { MakeOrdersDialog, convertNote } from '@/components/shopify/make-orders-dialog';
-import { formatDate } from '@/lib/safe-date';
+import { formatDate, takenAt } from '@/lib/safe-date';
 import { useShallow } from 'zustand/react/shallow';
 
 type PaymentStatus = OrderPaymentStatus;
@@ -228,7 +228,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
               <Monogram name={customerOf(order)} size={36} />
               <div className="min-w-0 space-y-1">
                 <p className={cn('break-words text-ios-headline font-semibold', greyed ? 'text-muted-foreground' : 'text-foreground')}>{customerOf(order)}</p>
-                <p className="text-ios-cap text-muted-foreground">{order.id}</p>
+                <p className="text-ios-cap text-muted-foreground">{order.id} · {takenAt(order.createdAt)}</p>
                 <WhatsAppPill order={order} />
                 {(mine || (order.source === 'website' && order.website)) && (
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -357,7 +357,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
         <TableCell className="hidden lg:table-cell align-top">
           {/* Taken on top, promised underneath: the promise is the one you chase against, so it gets the colour when it has passed. */}
           <div className="whitespace-nowrap leading-tight">
-            <p className="text-ios-sub">{format(parseISO(order.createdAt), parseISO(order.createdAt).getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy')}</p>
+            <p className="text-ios-sub">{takenAt(order.createdAt)}</p>
             <PromiseLine order={order} icon={false} />
           </div>
         </TableCell>
