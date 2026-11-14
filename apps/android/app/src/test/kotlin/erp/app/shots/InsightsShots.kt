@@ -27,7 +27,7 @@ class InsightsShots(config: ShotConfig) : ShotBase(config) {
     }
 
     @Test fun insights_overview() {
-        showPlace("/insights")
+        showPlace("/insights", bottomBar = !config.label.startsWith("tablet"))
         shoot("insights-overview")
     }
 

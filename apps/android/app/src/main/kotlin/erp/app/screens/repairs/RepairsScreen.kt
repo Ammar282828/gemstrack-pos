@@ -139,7 +139,7 @@ fun RepairsScreen(path: String) {
         }
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = maxOf(32.dp, erp.app.nav.LocalFabClearance.current)),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             animatedItem(key = "search") {

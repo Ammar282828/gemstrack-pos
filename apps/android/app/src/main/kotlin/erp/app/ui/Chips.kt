@@ -23,6 +23,22 @@ import androidx.compose.ui.unit.dp
 import erp.app.ui.theme.TabularDigits
 
 /**
+ * Chips inside a card or a section, wrapping onto the next line where the width runs out. A set of choices that all
+ * matter (the sizes, the places a post goes) must be seen whole, not scrolled half out of its card; a bar of filters
+ * under the top bar is [ChipRow], which scrolls.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun ChipFlow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) { content() }
+}
+
+/**
  * A row of filter chips that scrolls with the list rather than floating over it (a bar pinned under the top bar
  * sat over the title and greyed it out). Put it first in the page's column or as the first item of a lazy list.
  */

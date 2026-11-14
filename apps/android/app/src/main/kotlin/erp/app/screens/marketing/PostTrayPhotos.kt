@@ -174,7 +174,7 @@ fun PostAlbumStrip(card: PostTrayCard, model: PostTrayModel, siteName: String, l
 @Composable
 private fun Tile(card: PostTrayCard, model: PostTrayModel, x: PostAlbumPhoto, locked: Boolean) {
     val number = card.album.indexOfFirst { it.id == x.id } + 1
-    Column(Modifier.width(132.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.width(144.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(Modifier.size(84.dp).clip(Radius.thumbShape).semantics { contentDescription = "Photo $number: ${x.label}" }) {
             val own = x.image ?: if (x.isLead) card.preview else null
             if (own != null) Image(own, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)

@@ -120,7 +120,7 @@ fun RateChip(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!today) Icon(Symbols.Warning, contentDescription = null, Modifier.size(14.dp), tint = ink)
-        Text(main.label, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = ink)
+        Text(main.label, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = ink, maxLines = 1, softWrap = false)
         NumericText(
             if (rate != null) Money.grouped(rate) else "—", rate ?: 0.0,
             style = MaterialTheme.typography.bodySmall, color = ink,

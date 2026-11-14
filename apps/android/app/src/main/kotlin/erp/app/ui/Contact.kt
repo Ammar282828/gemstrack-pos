@@ -20,6 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,13 +97,22 @@ fun QuickAction(
         ) {
             Icon(icon, contentDescription = null, Modifier.size(22.dp), tint = if (prominent) ErpColors.onAccent else accent)
         }
-        Text(
-            title,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+        // Five of these share a phone's width (Call, WhatsApp, Message, Send PDF, More): a word that is a little too wide for
+        // its cell shrinks to fit (never cut mid-word, never into the next cell).
+        val label = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.sp,
             color = if (prominent) accent else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        BasicText(
+            title,
+            // A little slack each side: the last letter's edge is drawn a pixel or two past the measured width.
+            Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+            style = label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
+            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = label.fontSize),
         )
     }
 }

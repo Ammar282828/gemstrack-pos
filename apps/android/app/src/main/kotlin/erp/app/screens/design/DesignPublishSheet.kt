@@ -394,7 +394,7 @@ private fun WhatsappBlock(p: DesignPublishModel, scope: kotlinx.coroutines.Corou
         ToggleLine("WhatsApp", Symbols.Message, p.waOn, { p.waOn = it }, enabled = targets.isNotEmpty())
         if (targets.isEmpty()) Text(wa?.reason ?: ch?.reason ?: "This shop has no WhatsApp community set.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (p.waOn && targets.isNotEmpty()) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            erp.app.ui.ChipFlow {
                 for (t in targets) FilterChip(t.label + (if (t.key == "channel") " (channel)" else ""), chosen = t.key in p.waKeys, onClick = { p.waKeys = if (t.key in p.waKeys) p.waKeys - t.key else p.waKeys + t.key })
             }
             if (p.whatsappChoice.isNotEmpty()) PictureLine(p, scope, if (p.whatsappChoice.any { it != "channel" }) "whatsapp" else "channel")

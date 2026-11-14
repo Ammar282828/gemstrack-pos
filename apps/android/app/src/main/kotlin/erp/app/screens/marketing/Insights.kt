@@ -103,10 +103,13 @@ object InsightsRangeStore {
 
 /** The range as a menu in the bar. */
 @Composable
-fun InsightRangeMenu() {
+fun InsightRangeMenu(compact: Boolean = false) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(
+        // On a phone's tab root the bar is full (rate chip, title, business): the range is the calendar alone there.
+        if (compact) {
+            erp.app.ui.IconButton(onClick = { open = true }) { Icon(Symbols.CalendarMonth, "Range: ${InsightRange.label(InsightsRangeStore.key)}") }
+        } else TextButton(
             onClick = { open = true },
             modifier = Modifier.defaultMinSize(minHeight = 48.dp).semantics { contentDescription = "Range: ${InsightRange.label(InsightsRangeStore.key)}" },
         ) {
@@ -160,7 +163,8 @@ fun InsightsOverviewScreen() {
     var refreshing by remember { mutableStateOf(false) }
 
     ScreenTitle("Insights")
-    if (mayRead) ScreenActions { InsightRangeMenu() }
+    val compactBar = erp.app.nav.LocalBottomBar.current
+    if (mayRead) ScreenActions { InsightRangeMenu(compactBar) }
 
     suspend fun load(fresh: Boolean) {
         try {

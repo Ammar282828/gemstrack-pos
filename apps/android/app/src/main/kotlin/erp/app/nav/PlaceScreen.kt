@@ -127,7 +127,7 @@ fun PlaceScreen(
     val large = !wide && (!isRoot || onClose != null)
     val behavior = if (large) TopAppBarDefaults.exitUntilCollapsedScrollBehavior() else TopAppBarDefaults.pinnedScrollBehavior()
     val barTitle: @Composable () -> Unit = {
-        TitleWithTabs(title, menuTabs, section = if (sections.size > 1) openSection else null, current = currentBare, onChoose = { chosen = it })
+        TitleWithTabs(title, menuTabs, section = if (sections.size > 1) openSection else null, current = currentBare, onChoose = { chosen = it }, maxLines = if (large) 2 else 1)
     }
     val barNavigation: @Composable () -> Unit = {
         when {
@@ -232,15 +232,15 @@ private fun CreateMenuButton(spec: CreateSpec) {
 }
 
 @Composable
-private fun TitleWithTabs(title: String, tabs: List<NavPlace>, section: String?, current: String, onChoose: (String) -> Unit) {
+private fun TitleWithTabs(title: String, tabs: List<NavPlace>, section: String?, current: String, onChoose: (String) -> Unit, maxLines: Int = 1) {
     if (tabs.size <= 1) {
-        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
         return
     }
     var open by remember { mutableStateOf(false) }
     Box {
         Row(Modifier.clickable { open = true }, verticalAlignment = Alignment.CenterVertically) {
-            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            Text(title, maxLines = maxLines, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             Icon(Symbols.ArrowDropDown, contentDescription = "Switch tab")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -280,7 +280,7 @@ private fun SectionPicker(sections: List<String>, open: String, onPick: (String)
                 selected = name == open,
                 onClick = { onPick(name) },
                 shape = SegmentedButtonDefaults.itemShape(i, sections.size),
-            ) { Text(name, maxLines = 1) }
+            ) { NavLabel(name) }
         }
     }
 }
