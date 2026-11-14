@@ -128,7 +128,8 @@ struct RepairsSheet: View {
         // The one Contact menu (CustomerContact.swift): Call, WhatsApp, Message, Copy number.
         ToolbarItem(placement: .trailingAction) {
             if let r = current {
-                CustomerContactMenu(phone: r.customerContact, customerId: r.customerId, customerName: r.customerName)
+                CustomerContactMenu(phone: r.customerContact, customerId: r.customerId, customerName: r.customerName,
+                                    message: CustomerMessages.repair(r, status: desk.status(r), shop: session.shop.name))
             }
         }
         ToolbarItem(placement: .trailingAction) { ticketMenu }

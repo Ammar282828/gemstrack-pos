@@ -220,7 +220,8 @@ struct RepairsScreen: View {
             Button { openURL(url) } label: { Label("Tell them it's ready", systemImage: "message") }
         }
         // The one Contact menu (CustomerContact.swift), as a submenu: Call, WhatsApp, Message, Copy number.
-        CustomerContactMenu(phone: r.customerContact, customerName: r.customerName)
+        CustomerContactMenu(phone: r.customerContact, customerName: r.customerName,
+                            message: CustomerMessages.repair(r, status: desk.status(r), shop: session.shop.name))
         if session.isOwner && desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0 {
             Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
         }

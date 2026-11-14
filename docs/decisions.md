@@ -452,6 +452,13 @@ invoices and completed orders."
   `lib/customer-contact.ts`; iPhone/iPad/Mac `App/UI/CustomerContact.swift` (`CustomerContactActions`, `CustomerContactMenu`,
   `SendDocSheet`); Android `ui/CustomerContact.kt`. Karigars keep the plain Call/WhatsApp/Message row (`ContactActions`).
   Status messages with words in them ("Tell them it's ready", the hisaab reminder, the order's notify sheet) stay where they are.
+- **Pre-typed messages** (owner, 2026-11-14: "if an order is done and I press the message on WhatsApp … a pre-typed message
+  that whatever your name is, your order is ready at Taheri, please collect it, or something professional"): the Contact
+  row's WhatsApp and Message open with words for where the record stands, in the repair desk's voice ("Assalam o Alaikum
+  <name>, …", the record's number, the balance when there is one) — order ready / being made (the promised day) / awaiting
+  transfer / invoiced and owing / done; invoice owing or paid; repair received / ready / collected; a cancelled record none.
+  Only typed, never sent: the person changes or sends it. One set of words: web `lib/customer-messages.ts`, iPhone/Mac
+  `App/UI/CustomerMessages.swift`, Android `ui/CustomerMessages.kt`. The customer's own page and the hisaab open blank.
 
 ### Exchange rows
 

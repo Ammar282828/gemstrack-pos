@@ -32,9 +32,13 @@ enum CustomerContactLinks {
         return n.isEmpty ? nil : URL(string: "tel:" + n)
     }
 
-    static func messageURL(_ phone: String?) -> URL? {
+    /// Messages opened on the number with `text` typed (`&body=`, as iOS reads it).
+    static func messageURL(_ phone: String?, text: String = "") -> URL? {
         let n = e164(phone)
-        return n.isEmpty ? nil : URL(string: "sms:" + n)
+        guard !n.isEmpty else { return nil }
+        var s = "sms:" + n
+        if !text.isEmpty, let q = text.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) { s += "&body=" + q }
+        return URL(string: s)
     }
 
     static func whatsAppURL(_ phone: String?, text: String = "") -> URL? {
@@ -113,6 +117,8 @@ struct CustomerContactActions: View {
     var customerId: String? = nil
     var customerName: String? = nil
     var doc: CustomerDoc? = nil
+    /// What WhatsApp and Message open with, typed and ready to change or send (CustomerMessages.swift).
+    var message: String = ""
     var onSend: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
     /// Said after a send from the row's own sheet ("Sent to Test Buyer").
@@ -130,8 +136,8 @@ struct CustomerContactActions: View {
         HStack(alignment: .top, spacing: pt(10)) {
             if !number.isEmpty {
                 QuickAction(title: "Call", symbol: "phone.fill", prominent: doc == nil) { open(CustomerContactLinks.callURL(number)) }
-                QuickAction(title: "WhatsApp", symbol: "message.fill") { open(CustomerContactLinks.whatsAppURL(number)) }
-                QuickAction(title: "Message", symbol: "text.bubble.fill") { open(CustomerContactLinks.messageURL(number)) }
+                QuickAction(title: "WhatsApp", symbol: "message.fill") { open(CustomerContactLinks.whatsAppURL(number, text: message)) }
+                QuickAction(title: "Message", symbol: "text.bubble.fill") { open(CustomerContactLinks.messageURL(number, text: message)) }
             } else if !walkIn, let id = customerId, !id.isEmpty {
                 QuickAction(title: "Add phone", symbol: "person.crop.circle.badge.plus") { addingPhone = id }
             }
@@ -209,7 +215,7 @@ struct CustomerContactMenu: View {
                     Section {
                         Button { open(CustomerContactLinks.callURL(number)) } label: { Label("Call", systemImage: "phone") }
                         Button { open(CustomerContactLinks.whatsAppURL(number, text: message)) } label: { Label("WhatsApp", systemImage: "message") }
-                        Button { open(CustomerContactLinks.messageURL(number)) } label: { Label("Message", systemImage: "text.bubble") }
+                        Button { open(CustomerContactLinks.messageURL(number, text: message)) } label: { Label("Message", systemImage: "text.bubble") }
                     }
                 } else if !walkIn, let id = customerId, !id.isEmpty {
                     Button { addingPhone = id } label: { Label("Add phone number", systemImage: "person.crop.circle.badge.plus") }

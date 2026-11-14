@@ -112,10 +112,13 @@ object CustomerDocSend {
     }
 }
 
-private fun openUri(context: Context, action: String, uri: String?) {
+/** `smsBody`: the words Messages opens with typed (Android reads them from the intent, not the smsto: link). */
+private fun openUri(context: Context, action: String, uri: String?, smsBody: String = "") {
     if (uri == null) return
     try {
-        context.startActivity(Intent(action, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val intent = Intent(action, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (smsBody.isNotEmpty()) intent.putExtra("sms_body", smsBody)
+        context.startActivity(intent)
     } catch (_: Exception) {
         // No app on the phone handles it: the button simply did not open anything.
     }
@@ -137,6 +140,8 @@ fun CustomerContactActions(
     customerId: String? = null,
     customerName: String? = null,
     doc: CustomerDoc? = null,
+    /** What WhatsApp and Message open with, typed and ready to change or send (CustomerMessages.kt). */
+    message: String = "",
     onSend: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
     onAddPhone: (() -> Unit)? = null,
@@ -160,8 +165,8 @@ fun CustomerContactActions(
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         if (number.isNotEmpty()) {
             QuickAction("Call", Symbols.Call, { openUri(context, Intent.ACTION_DIAL, CustomerContactLinks.tel(number)) }, Modifier.weight(1f), prominent = doc == null)
-            QuickAction("WhatsApp", Symbols.Chat, { openUri(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number)) }, Modifier.weight(1f))
-            QuickAction("Message", Symbols.Sms, { openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number)) }, Modifier.weight(1f))
+            QuickAction("WhatsApp", Symbols.Chat, { openUri(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number, message)) }, Modifier.weight(1f))
+            QuickAction("Message", Symbols.Sms, { openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number), message) }, Modifier.weight(1f))
         } else if (!walkIn && onAddPhone != null) {
             QuickAction("Add phone", Symbols.PersonAdd, onAddPhone, Modifier.weight(1f))
         }
@@ -325,7 +330,7 @@ fun CustomerContactDropdown(
                     when (item.kind) {
                         ContactMenuPlan.Kind.Call -> openUri(context, Intent.ACTION_DIAL, CustomerContactLinks.tel(number))
                         ContactMenuPlan.Kind.WhatsApp -> openUri(context, Intent.ACTION_VIEW, CustomerContactLinks.whatsApp(number, message))
-                        ContactMenuPlan.Kind.Message -> openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number))
+                        ContactMenuPlan.Kind.Message -> openUri(context, Intent.ACTION_SENDTO, CustomerContactLinks.sms(number), message)
                         ContactMenuPlan.Kind.AddPhone -> customerId?.let { navigator.open("/customers/$it/edit") }
                         ContactMenuPlan.Kind.SendPdf -> asking = true
                         ContactMenuPlan.Kind.SharePdf -> doc?.let { d -> quick.share(d.pdfPath, d.fileName, d.fileName) }

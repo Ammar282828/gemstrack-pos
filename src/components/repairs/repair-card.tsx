@@ -1,3 +1,4 @@
+import { repairMessage } from '@/lib/customer-messages';
 import * as React from 'react';
 import { format, parseISO } from 'date-fns';
 import { Printer, Edit, Trash2, MessageCircle, CheckCircle2, PackageCheck } from 'lucide-react';
@@ -83,7 +84,7 @@ export function RepairCard({ repair: r, late, whatsappHref, onEdit, onReady, onH
               </Button>
             )}
             {/* The one Contact menu (components/customer/contact-actions.tsx): Call, WhatsApp, Message, Copy number. */}
-            <ContactMenu phone={r.customerContact} customerId={r.customerId} customerName={r.customerName} />
+            <ContactMenu phone={r.customerContact} customerId={r.customerId} customerName={r.customerName} message={repairMessage(r, repairBalance(r))} />
             {r.status === 'ready' && <Button size="sm" className="h-8" onClick={onHandBack}><PackageCheck className="mr-1.5 h-3.5 w-3.5" />Hand back</Button>}
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Print the receipt" onClick={onPrint}><Printer className="h-4 w-4" /></Button>
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" onClick={onEdit}><Edit className="h-4 w-4" /></Button>

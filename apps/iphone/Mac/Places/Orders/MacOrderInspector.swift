@@ -83,7 +83,7 @@ struct MacOrderInspector: View {
                 PaidBar(paid: paidSoFar(order, invoice: invoice), total: worth)
             }
             if !buttons.isEmpty { MacActionButtons(actions: buttons) }
-            reach(order)
+            reach(order, stage: stage, owed: owed)
         }
         .padding(Metrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,9 +112,11 @@ struct MacOrderInspector: View {
 
     /// The one Contact row (App/UI/CustomerContact.swift), as the iPhone's order card has it: Call, WhatsApp, Message, the
     /// customer's order PDF from the shop's line (never the workshop slip), and More (the PDF, Copy number).
-    private func reach(_ order: Order) -> some View {
+    /// WhatsApp and Message open typed for where the order stands (App/UI/CustomerMessages.swift).
+    private func reach(_ order: Order, stage: OrderStage, owed: Double) -> some View {
         CustomerContactActions(phone: order.customerContact, customerId: order.customerId, customerName: order.customerName,
-                               doc: .order(order, byCustomer: session.shop.invoiceByCustomer))
+                               doc: .order(order, byCustomer: session.shop.invoiceByCustomer),
+                               message: CustomerMessages.order(order, stage: stage, balance: owed, shop: session.shop.name))
     }
 
     // MARK: The cards

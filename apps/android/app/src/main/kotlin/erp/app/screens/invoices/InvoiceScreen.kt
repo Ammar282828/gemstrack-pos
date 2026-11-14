@@ -502,6 +502,7 @@ private fun QuickRow(inv: Invoice, customers: List<erp.core.models.Customer>, by
     erp.app.ui.CustomerContactActions(
         phone, customerId = customer?.id, customerName = inv.customerName,
         doc = erp.app.ui.CustomerDoc(erp.app.ui.CustomerDoc.Kind.Invoice, inv.id, inv.items.size, target.fileName),
+        message = erp.app.ui.CustomerMessages.invoice(inv, erp.app.auth.LocalSession.current.shop.name),
         onSend = send, onShare = { openPdf(target) },
     )
 }

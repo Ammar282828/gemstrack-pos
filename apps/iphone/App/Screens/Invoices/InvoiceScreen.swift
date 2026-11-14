@@ -343,6 +343,7 @@ struct InvoiceScreen: View {
                 customerId: linkableCustomer(inv),
                 customerName: inv.customerName,
                 doc: CustomerDoc(kind: .invoice, id: inv.id, pieces: inv.items.count, fileName: target.fileName),
+                message: CustomerMessages.invoice(inv, shop: session.shop.name),
                 onSend: { sending = inv },
                 onShare: { quickPDF = target }
             )

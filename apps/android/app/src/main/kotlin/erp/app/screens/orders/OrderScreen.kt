@@ -395,12 +395,16 @@ private fun Hero(order: Order, stage: OrderStage, now: Instant, owed: Double, in
         StandingRow(order, stage)
         // The one Contact row (ui/CustomerContact.kt): Call, WhatsApp, Message, the customer's order PDF from the shop's
         // line (never the workshop slip), More.
-        val byCustomer = erp.app.auth.LocalSession.current.shop.invoiceByCustomer
+        val shop = erp.app.auth.LocalSession.current.shop
+        val byCustomer = shop.invoiceByCustomer
         val name = (order.customerName ?: "").trim()
+        // WhatsApp and Message open typed for where the order stands (ui/CustomerMessages.kt).
+        val due = if (OrdersLogic.hasInvoice(order)) (invoice?.balanceDue ?: owed) else OrdersLogic.balance(order)
         erp.app.ui.CustomerContactActions(
             phone, customerId = order.customerId, customerName = order.customerName,
             doc = erp.app.ui.CustomerDoc(erp.app.ui.CustomerDoc.Kind.Order, order.id, order.items.size,
                 if (byCustomer && name.isNotEmpty() && !erp.core.logic.isWalkInName(name)) "Order - $name.pdf" else "Order-${order.id}.pdf"),
+            message = erp.app.ui.CustomerMessages.order(order, stage, due, shop.name),
         )
     }
 }

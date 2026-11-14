@@ -50,6 +50,8 @@ export interface CustomerContactProps {
   customerName?: string | null;
   /** The invoice or order this page is about, for its Send PDF and Share PDF. */
   doc?: ContactDoc;
+  /** What WhatsApp and Message open with, typed and ready to change or send (lib/customer-messages.ts). */
+  message?: string;
   className?: string;
 }
 
@@ -72,10 +74,10 @@ const TileButton = React.forwardRef<HTMLButtonElement, TileProps>(function TileB
   );
 });
 
-export function CustomerContact({ phone, customerId, customerName, doc, className }: CustomerContactProps) {
+export function CustomerContact({ phone, customerId, customerName, doc, message, className }: CustomerContactProps) {
   const { toast } = useToast();
   const walkIn = isWalkInContact({ customerId, customerName });
-  const hrefs = walkIn ? null : contactHrefs(phone);
+  const hrefs = walkIn ? null : contactHrefs(phone, message);
   const [asking, setAsking] = React.useState(false);
 
   const copy = async () => {

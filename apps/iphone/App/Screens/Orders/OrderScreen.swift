@@ -218,17 +218,21 @@ struct OrderScreen: View {
                 standingRow(order, stage: stage)
                 // The one Contact row (CustomerContact.swift): Call, WhatsApp, Message, the customer's order PDF
                 // from the shop's line (never the workshop slip), More.
-                orderContact(order, phone: phone)
+                orderContact(order, phone: phone, stage: stage, owed: owed, invoice: invoice)
             }
             .heroSheen()
             .ordersCardRow()
         }
     }
 
-    private func orderContact(_ order: Order, phone: String) -> some View {
-        CustomerContactActions(
+    /// WhatsApp and Message open typed for where the order stands (CustomerMessages.swift): ready → please collect,
+    /// being made → thanks, invoiced and owing → a reminder.
+    private func orderContact(_ order: Order, phone: String, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
+        let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
+        return CustomerContactActions(
             phone: phone, customerId: order.customerId, customerName: order.customerName,
             doc: .order(order, byCustomer: session.shop.invoiceByCustomer),
+            message: CustomerMessages.order(order, stage: stage, balance: due, shop: session.shop.name),
             sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) }
         )
     }
@@ -1034,7 +1038,7 @@ extension OrderScreen {
                 StageTrack(stage: stage, labels: true)
                 PaidBar(paid: paid, total: worth)
             }
-            orderContact(order, phone: phone)
+            orderContact(order, phone: phone, stage: stage, owed: owed, invoice: invoice)
                 .frame(maxWidth: 440, alignment: .leading)
         }
         .padding(Metrics.cardPadding + 4)

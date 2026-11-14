@@ -11,6 +11,7 @@
  * The customer's own page is `/view-invoice/<id>`.
  */
 
+import { invoiceMessage } from '@/lib/customer-messages';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useIntentId } from '@/hooks/use-intent-id';
 import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
@@ -444,6 +445,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
               customerId={invoice.customerId}
               customerName={invoice.customerName}
               className="max-w-md"
+              message={invoice.status === 'Refunded' ? undefined : invoiceMessage(invoice)}
               doc={{
                 kind: 'invoice', id: invoice.id,
                 pieces: Array.isArray(invoice.items) ? invoice.items.length : Object.keys(invoice.items || {}).length,

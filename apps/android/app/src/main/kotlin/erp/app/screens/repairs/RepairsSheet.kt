@@ -207,7 +207,8 @@ private fun HeaderCard(r: Repair, now: Instant, shopName: String, onCustomer: (S
         RepairsKit.filled(r.customerContact)?.let { phone ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) { RepairsLabeled("Phone", phone) }
-                erp.app.ui.CustomerContactMenu(phone, customerId = r.customerId, customerName = r.customerName)
+                erp.app.ui.CustomerContactMenu(phone, customerId = r.customerId, customerName = r.customerName,
+                    message = erp.app.ui.CustomerMessages.repair(r, r.status, shopName))
             }
         }
         // The page's "Tell them": the ready message, on WhatsApp, for a Ready ticket with a number.

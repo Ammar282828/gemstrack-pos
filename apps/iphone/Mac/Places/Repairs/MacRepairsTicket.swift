@@ -167,7 +167,8 @@ struct MacRepairsTicket: View {
     /// The one Contact row (App/UI/CustomerContact.swift): Call, WhatsApp, Message, More (Copy number); Add phone when
     /// the customer has none; nothing for a walk-in.
     private func reach(_ r: Repair) -> some View {
-        CustomerContactActions(phone: RepairsKit.filled(r.customerContact), customerId: r.customerId, customerName: r.customerName)
+        CustomerContactActions(phone: RepairsKit.filled(r.customerContact), customerId: r.customerId, customerName: r.customerName,
+                               message: CustomerMessages.repair(r, status: model.desk.status(r), shop: session.shop.name))
     }
 
     /// "REP-000012 · Sana Demo".

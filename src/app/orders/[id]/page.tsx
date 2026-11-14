@@ -76,6 +76,7 @@ import { CustomerContact } from '@/components/customer/contact-actions';
 import { contactHrefs } from '@/lib/customer-contact';
 import { orderCustomerMessage } from '@/lib/order-message';
 import { stageOf } from '@/lib/order-stage';
+import { orderMessage } from '@/lib/customer-messages';
 import { isWalkInName } from '@/lib/walk-in';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
@@ -559,10 +560,13 @@ export default function OrderDetailPage() {
   // The page's hero: the person, the track, and the money split (the app's order page). An invoiced order shows
   // its invoice's money, since that is where it is taken.
   const heroName = !order.customerName?.trim() || isWalkInName(order.customerName) ? 'Walk-in' : order.customerName.trim();
-  const trackStep = TRACK_STEP[stageOf(order, linkedInvoice && owesMoney(linkedInvoice.balanceDue) ? linkedInvoice.balanceDue : 0)];
+  const stageNow = stageOf(order, linkedInvoice && owesMoney(linkedInvoice.balanceDue) ? linkedInvoice.balanceDue : 0);
+  const trackStep = TRACK_STEP[stageNow];
   const moneyTotal = linkedInvoice ? linkedInvoice.grandTotal : subtotal + deliveryCharge - discountAmount;
   const moneyPaid = linkedInvoice ? linkedInvoice.amountPaid : advancePayment + advanceInExchangeValue;
   const moneyDue = linkedInvoice ? linkedInvoice.balanceDue : grandTotal;
+  // What WhatsApp and Message open with: ready → please collect, being made → thanks, invoiced and owing → a reminder.
+  const contactMessage = orderMessage(order, stageNow, moneyDue);
 
   const ratesApplied = order.ratesApplied || {};
   
@@ -735,6 +739,7 @@ export default function OrderDetailPage() {
                             phone={order.customerContact}
                             customerId={order.customerId}
                             customerName={order.customerName}
+                            message={contactMessage}
                             doc={{
                               kind: 'order', id: order.id,
                               sentAt: order.sentOnWhatsApp?.at ?? null,

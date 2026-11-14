@@ -30,7 +30,8 @@ export function contactHrefs(phone: string | null | undefined, message = ''): Co
     e164,
     tel: `tel:${e164}`,
     whatsapp: `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ''}`,
-    sms: `sms:${e164}`,
+    // `?&body=` is read by both iOS (`&body=`) and Android (`?body=`).
+    sms: `sms:${e164}${message ? `?&body=${encodeURIComponent(message)}` : ''}`,
   };
 }
 

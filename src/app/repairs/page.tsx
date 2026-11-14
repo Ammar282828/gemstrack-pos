@@ -10,6 +10,7 @@
  * same write (see the store), so the day's takings include it.
  */
 
+import { repairMessage } from '@/lib/customer-messages';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLingering } from '@/hooks/use-lingering';
 import { format, parseISO, addDays, differenceInCalendarDays } from 'date-fns';
@@ -358,11 +359,8 @@ export default function RepairsPage() {
   const print = (r: Repair) => run('Could not print the receipt', () => printRepairReceipt(r));
   const markReady = (r: Repair) => run('Could not update', async () => { await setRepairStatus(r.id, 'ready'); toast({ title: `${r.id} is ready`, description: r.customerContact ? 'Tap "Tell them" to message the customer.' : undefined }); });
 
-  const readyMessage = (r: Repair) => {
-    const bal = repairBalance(r);
-    const what = r.pieces.length === 1 ? `your ${r.pieces[0].item.toLowerCase()} is` : `your ${r.pieces.length} pieces are`;
-    return `Assalam o Alaikum${r.customerName ? ` ${r.customerName}` : ''}, ${what} ready for collection at ${STORE_CONFIG.name} (repair ${r.id}).${bal > 0 ? ` Balance: ${pkr(bal)}.` : ''} Please bring your receipt.`;
-  };
+  // lib/customer-messages.ts: the same words the card's Contact menu opens with.
+  const readyMessage = (r: Repair) => repairMessage({ ...r, status: 'ready' }, repairBalance(r));
 
   if (!appReady) return <div className="container mx-auto px-4 py-5 md:py-6 max-w-5xl"><ListSkeleton /></div>;
 
