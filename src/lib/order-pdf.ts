@@ -18,7 +18,7 @@ import 'jspdf-autotable';
 import type { Order, OrderItem } from '@/lib/store';
 import { staticCategories, categorySingular } from '@/lib/categories';
 import { describeMetal, describeSettings } from '@/lib/materials';
-import { drawItemCell, itemCellHeight, wastageGrams, type ItemBlock } from '@/lib/invoice-item-cell';
+import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, FOOTER_HEIGHT } from '@/lib/pdf-chrome';
 import { referenceKey } from '@/lib/reference-image';
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
@@ -43,18 +43,15 @@ export const orderPiecePrice = (item: Pick<OrderItem, 'isManualPrice' | 'manualP
   Number(item.isManualPrice ? item.manualPrice ?? item.totalEstimate : item.totalEstimate) || 0;
 
 /**
- * Each piece as the customer reads it: the piece, its description, metal, estimated weight, wastage in
- * grams (as the bill writes it), size, and what is set in it. Never the shop's notes, the karigar or
+ * Each piece as the customer reads it: the piece, its description, metal, estimated weight, size, and what is set
+ * in it. No wastage: only the final bill prints it (the owner, 2026-11-14: "ONLY IN FINAL BILL"). Never the shop's notes, the karigar or
  * the sample.
  */
 export function orderCustomerBlocks(order: Pick<Order, 'items'>): ItemBlock[] {
   return (order.items || []).map((item) => {
     const catName = categorySingular(item.itemCategory) || staticCategories.find(c => c.id === item.itemCategory)?.title || '';
     const metalName = describeMetal(item.metalType, item.karat);
-    const wastage = item.metalType !== 'silver' && !item.isManualPrice
-      ? wastageGrams({ metalWeightG: item.estimatedWeightG, stoneWeightG: item.stoneWeightG, wastagePercentage: item.wastagePercentage, wastageCost: item.wastageCost, metalCost: item.metalCost })
-      : 0;
-    const metalPart = `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}${wastage > 0 ? ` · Wastage ${wastage.toFixed(2)}g` : ''}`;
+    const metalPart = `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}`;
     return {
       name: catName || item.description || 'Piece',
       spec: [

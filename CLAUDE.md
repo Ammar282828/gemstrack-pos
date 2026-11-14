@@ -139,7 +139,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Piece entry](docs/decisions.md#piece-entry) — descriptions suggested from history + saved stone combos (`/api/app/describe`, `setStoneCombos`); wastage chips 10/12/15/25/Other; "Add stone details" off by default; a catalogue reference photo printed beside the piece's name (`printReference`, `referenceImage`); the slip is "Order slip"
 - [Offline](docs/decisions.md#offline) — the iPad takes orders, sales and payments with no connection: queued on the phone, sent oldest first when back, dated by the tap (`clientAt`), never twice (request names kept 60 days); deletes/refunds need a connection
 - [Order actions gate](docs/decisions.md#order-actions-gate) — it moves money
-- [Wastage in grams](docs/decisions.md#wastage-in-grams) — the bill and the workshop slip both (slip since 2026-10-28)
+- [Wastage in grams](docs/decisions.md#wastage-in-grams) — on the final bill only: off the order slip and the order PDF since 2026-11-14
 - [Card order slip](docs/decisions.md#card-order-slip) — Taheri prints the shop's card on A5 (`lib/order-card-slip.ts`, Futura, the logo, every contact's name and number at the foot); `NEXT_PUBLIC_STORE_ORDER_SLIP=classic` brings back the detailed slip
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's

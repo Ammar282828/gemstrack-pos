@@ -16,7 +16,7 @@ import type { Order } from '@/lib/store';
 // From their own module, not the store's re-export: the server draws the slip too (order-slip-pdf.ts).
 import { staticCategories, categorySingular } from '@/lib/categories';
 import { describeMetal, describeSettings } from '@/lib/materials';
-import { wastageGrams, type ItemBlock } from '@/lib/invoice-item-cell';
+import type { ItemBlock } from '@/lib/invoice-item-cell';
 import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
@@ -38,15 +38,11 @@ export function buildOrderItemBlocks(order: Order): ItemBlock[] {
     const catName =
       categorySingular(item.itemCategory) || staticCategories.find(c => c.id === item.itemCategory)?.title || '';
     const metalName = describeMetal(item.metalType, item.karat);
-    // Wastage in grams, as the bill writes it (the owner, 2026-10-28: "just like in the bill, in the orderslip do not
-    // mention wastage by percentage, mention it by grams"): the estimated weight less stones × the percentage.
-    const wastage = item.metalType !== 'silver'
-      ? wastageGrams({ metalWeightG: item.estimatedWeightG, stoneWeightG: item.stoneWeightG, wastagePercentage: item.wastagePercentage, wastageCost: item.wastageCost, metalCost: item.metalCost })
-      : 0;
+    // No wastage on the slip (the owner, 2026-11-14: "DO NOT WRITE WASTAGE IN THE ORDER SLIP. THERE IS NO NEED FOR THAT
+    // HERE. ONLY IN FINAL BILL"): the final bill alone prints it, in grams.
     const metalPart = item.isManualPrice
       ? metalName
-      : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}` +
-        `${wastage > 0 ? ` · Wastage ${wastage.toFixed(2)}g` : ''}`;
+      : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}`;
 
     // Darker than the spec line: settings and bench notes are what the
     // workshop actually works from.

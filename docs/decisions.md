@@ -363,6 +363,10 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   2026-10-28, when the owner asked for it "just like in the bill … by grams": it now prints the estimated weight less stones ×
   the percentage (`wastageGrams`, the bill's rule; `lib/order-slip.ts`), on every surface, since the apps print the server's slip.
 
+- **Only on the final bill** (2026-11-14, the owner: "DO NOT WRITE WASTAGE IN THE ORDER SLIP. THERE IS NO NEED FOR THAT
+  HERE. ONLY IN FINAL BILL"): the order slip (card and detailed, `buildOrderItemBlocks`) and the order PDF sent to the
+  customer (`orderCustomerBlocks`) print the estimated weight and no wastage; the invoice keeps it, in grams.
+
 ### Repairs
 
 - **Repairs** (`/repairs`, under Invoices): a ticket = one customer + **any number of pieces** (piece, what to do,

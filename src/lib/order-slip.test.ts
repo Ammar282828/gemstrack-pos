@@ -9,14 +9,10 @@ const piece = (o: Partial<OrderItem>): OrderItem => ({
 } as OrderItem);
 const spec = (o: Partial<OrderItem>) => buildOrderItemBlocks({ items: [piece(o)] } as unknown as Order)[0].spec;
 
-describe('the workshop slip writes wastage in grams, as the bill does', () => {
-  it('the estimated weight less stones × the percentage, never the percentage', () => {
-    expect(spec({})).toContain('Wastage 1.00g');
-    expect(spec({ estimatedWeightG: 12.5, stoneWeightG: 2.5, wastagePercentage: 8 })).toContain('Wastage 0.80g');
-    expect(spec({ wastagePercentage: 12.5 })).not.toMatch(/%/);
-  });
-  it('says nothing where there is no wastage, or on silver', () => {
-    expect(spec({ wastagePercentage: 0 })).not.toContain('Wastage');
-    expect(spec({ metalType: 'silver' })).not.toContain('Wastage');
+describe('the order slip never writes wastage (only the final bill does)', () => {
+  it('leaves wastage off, in grams or percent, while keeping the estimated weight', () => {
+    expect(spec({})).not.toMatch(/wastage|%/i);
+    expect(spec({ estimatedWeightG: 12.5, stoneWeightG: 2.5, wastagePercentage: 8 })).toContain('Est. 12.5g');
+    expect(spec({ metalType: 'silver' })).not.toMatch(/wastage/i);
   });
 });

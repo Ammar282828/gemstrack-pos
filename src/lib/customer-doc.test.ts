@@ -69,7 +69,8 @@ describe("the customer's order PDF", () => {
     expect(all).not.toMatch(/OWNER ONLY|BENCH ONLY|K-1|sample/i);
     expect(all).toContain('Bangle with leaf');
     expect(all).toContain('Est. 10g');
-    expect(all).toContain('Wastage 1.00g');
+    // Wastage is the final bill's alone (the owner, 2026-11-14).
+    expect(all).not.toMatch(/wastage/i);
     expect(all).toContain('Stones: Two rubies');
   });
   it('a fixed price is the price; silver has no wastage', () => {
