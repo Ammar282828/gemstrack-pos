@@ -129,8 +129,9 @@ object GlassChoice {
 }
 
 /**
- * The root of the glass style: under [on], draws the ground (a static mesh of the house colour) and makes its content the one
- * haze source; otherwise the content just sits in a Box. The same Box either way, so flipping the style never resets a screen.
+ * The root of the glass style: under [on], draws the ground (a static mesh of the house colour) as the one haze source, a layer
+ * under the content (never the content itself); otherwise the content just sits in a Box. The content's Box is the same either way,
+ * so flipping the style never resets a screen.
  */
 @Composable
 fun GlassLayer(on: Boolean, content: @Composable BoxScope.() -> Unit) {
@@ -140,11 +141,13 @@ fun GlassLayer(on: Boolean, content: @Composable BoxScope.() -> Unit) {
     val view = LocalView.current
     val env = remember(state, view, active) { if (active) GlassEnv(state, view, GlassChoice.blurAvailable(context)) else null }
     CompositionLocalProvider(LocalGlass provides env) {
-        Box(
-            Modifier.fillMaxSize()
-                .then(if (env != null) Modifier.hazeSource(state).glassGround() else Modifier),
-            content = content,
-        )
+        Box(Modifier.fillMaxSize()) {
+            // The haze source is the static ground alone, a layer of its own under the content. When the content was the source, a
+            // glass card inside it (the hero of an invoice or an order) blurred a layer that held the card itself and the page
+            // scrolling under it, re-recorded every frame of a scroll: the top of the page flashed (owner, 2026-11-15).
+            if (env != null) Box(Modifier.matchParentSize().hazeSource(state).glassGround())
+            Box(Modifier.fillMaxSize(), content = content)
+        }
     }
 }
 

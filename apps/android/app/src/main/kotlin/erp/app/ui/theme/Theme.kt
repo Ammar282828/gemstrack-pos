@@ -216,7 +216,11 @@ fun ErpTheme(themeOverride: String? = null, wallpaperColors: Boolean = false, co
             motionScheme = MotionScheme.expressive(),
             shapes = ErpShapes,
             typography = ErpTypography,
-            content = content,
-        )
+        ) {
+            // Words with no colour of their own take the scheme's onSurface. Material leaves the root's content colour at its
+            // default, black, and a container with no "on" colour of its own (the transparent page under glass: Scaffold's
+            // contentColorFor(Transparent) hands back that root) passed black on: black words on the dark ground (owner, 2026-11-15).
+            CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides scheme.onSurface, content = content)
+        }
     }
 }

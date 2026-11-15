@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.font.FontWeight
 import erp.app.ui.TextButton
 import androidx.compose.foundation.background
+import erp.app.ui.glassGround
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,7 +180,10 @@ internal fun BusinessPicker(list: List<Business>, last: Business) {
     }
 
     // Glass: the page is the ground (a mesh of the open business's colour) and each brand card a true-glass card in its identity colours.
-    BoxWithConstraints(Modifier.fillMaxSize().background(erp.app.ui.pageColor())) {
+    // Its own ground, always: the picker sits OVER the app (built underneath while the person decides), so the page colour the app's
+    // screens use under glass (transparent, the ground showing through) would show the app behind it. Glass draws its mesh here too.
+    val ground = if (erp.app.ui.LocalGlass.current != null) Modifier.glassGround() else Modifier.background(MaterialTheme.colorScheme.surface)
+    BoxWithConstraints(Modifier.fillMaxSize().then(ground)) {
         val sideBySide = maxWidth >= 600.dp
         // Centred in the screen's height: two cards at the top would leave the lower half empty.
         Column(
