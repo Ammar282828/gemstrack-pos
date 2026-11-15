@@ -139,10 +139,6 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
     val wallpaper by ThemeChoice.wallpaper.collectAsStateWithLifecycle()
     val shopTheme = settings?.theme
     LaunchedEffect(shopTheme) { if (shopTheme != null) ThemeChoice.rememberShop(shopTheme) }
-    // Interface style: the shop's `uiStyle` ("glass" or Standard); the last answer is kept per business so the first frame is right.
-    val uiStyle = settings?.uiStyle
-    LaunchedEffect(uiStyle) { if (uiStyle != null) erp.app.ui.GlassChoice.remember(uiStyle) }
-    val glass = remember(uiStyle) { erp.app.ui.GlassChoice.resolve(uiStyle) }
 
     val forced = ThemeChoice.preferredDark(device, shopTheme, lastShop)
     val dark = forced ?: isSystemInDarkTheme()
@@ -167,8 +163,9 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
                             Modifier.weight(1f).fillMaxWidth()
                                 .then(if (banner) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier),
                         ) {
-                            // The glass style's ground and its one haze source are this (Standard: a plain Box).
-                            erp.app.ui.GlassLayer(glass) { content() }
+                            // Android is Material You only (owner, 2026-11-15: "the android app does not need to have glassmorphism"): the
+                            // shop's Interface style (Liquid Glass on the web and the iPhone) never applies here.
+                            erp.app.ui.GlassLayer(false) { content() }
                             // Voice over whatever this Activity shows (and over the pages opened on top: each draws it from one state).
                             erp.app.screens.voice.VoiceOverlayHost()
                             NoteHost(note)
