@@ -54,7 +54,7 @@ function compactPKR(n: number): string {
 /** A row's trailing disclosure: the system chevron. */
 const Chevron = () => <ChevronRight aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />;
 
-const ROW = 'flex min-h-[56px] items-center gap-3 py-3 press-row hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40';
+const ROW = 'flex min-h-[56px] items-center gap-3 py-3 press-row hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
 
 /** A row in "Needs you": an icon tile in the tone, a title, a caption. One thing waiting on a decision. */
 const TaskRow: React.FC<{
@@ -130,19 +130,19 @@ const RecentInvoiceRow: React.FC<{ invoice: Invoice; money: boolean }> = ({ invo
 
 /** "Show n more" under a list that shows its first three. */
 const ShowMore: React.FC<{ hidden: number; onClick: () => void }> = ({ hidden, onClick }) => (
-  <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center text-ios-sub font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+  <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center text-ios-sub font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
     Show {hidden} more
   </button>
 );
 
 /** A figure that opens its screen: the tile, made a link. */
 const TileLink: React.FC<{ href: string; title?: string; children: React.ReactNode }> = ({ href, title, children }) => (
-  <Link href={href} title={title} className="press block min-w-0 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{children}</Link>
+  <Link href={href} title={title} className="press block min-w-0 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{children}</Link>
 );
 
 /** A phone's figure: the label and the figure on one line, what it means under them; the whole row opens its page. */
 const FigureRow: React.FC<{ href: string; label: string; value: string; detail?: string; tint?: Tone }> = ({ href, label, value, detail, tint }) => (
-  <Link href={href} className="press-row flex items-center gap-3 border-t border-separator px-4 py-3 first:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+  <Link href={href} className="press-row flex items-center gap-3 border-t border-separator px-4 py-3 first:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
     <div className="min-w-0 flex-1">
       <div className="flex items-baseline justify-between gap-3">
         <span className="shrink-0 text-ios-body text-foreground">{label}</span>
@@ -463,7 +463,7 @@ export default function HomePage() {
       {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
       {seesMoney ? (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="press block min-w-0 rounded-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        <button type="button" onClick={() => setTakenOpen(true)} aria-haspopup="dialog" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} — tap for day by day`} className="press block min-w-0 rounded-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="glass-card h-full rounded-card bg-card p-4">
             <p className="text-ios-sub text-muted-foreground">Taken today</p>
             <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />

@@ -227,7 +227,7 @@ struct OrderFinalizeScreen: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: pt(2)) {
                 if abs(due) >= 1 {
-                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
+                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.ink : Tone.owed.ink)
                     Text(due < 0 ? "In credit" : "Due").font(.house(.caption)).foregroundStyle(.secondary)
                 } else {
                     Pill("Paid", tone: .settled)

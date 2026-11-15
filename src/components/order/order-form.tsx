@@ -744,7 +744,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             router.push(`/orders/${order.id}`);
         } catch (err) {
             console.error("Order update error:", err);
-            toast({ title: "Error", description: "Failed to update the order. Please try again.", variant: "destructive" });
+            toast({ title: "Order not saved", description: "Failed to update the order. Please try again.", variant: "destructive" });
         }
     } else {
         const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
@@ -812,11 +812,11 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                 toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
                 router.push(`/orders/${newOrder.id}`);
             } else {
-                toast({ title: "Error", description: "Failed to save the custom order. Please try again.", variant: "destructive" });
+                toast({ title: "Order not saved", description: "Failed to save the custom order. Please try again.", variant: "destructive" });
             }
         } catch (err) {
             console.error("Order save error:", err);
-            toast({ title: "Error", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
+            toast({ title: "Order not saved", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
         }
     }
   };
@@ -1175,7 +1175,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             <div className="flex items-center justify-between gap-2">
                               <FormLabel className="text-xs">Date promised to the customer</FormLabel>
                               {urgent && (
-                                <span className="inline-flex items-center rounded-sm bg-destructive px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-destructive-foreground leading-none">
+                                <span className="inline-flex items-center rounded-sm bg-destructive px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-destructive-foreground leading-none">
                                   Urgent{daysAway !== null && daysAway < 0 ? ' · past' : daysAway === 0 ? ' · today' : ` · ${daysAway}d`}
                                 </span>
                               )}

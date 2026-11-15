@@ -27,14 +27,14 @@ struct ArtworkQRRows: View {
     var body: some View {
         TextField("Says", text: Binding(get: { layer.s("value") }, set: { v in fold("qrvalue") { layer["value"] = .string(v) } }), axis: .vertical)
             .lineLimit(1...4).textInputAutocapitalization(.never).autocorrectionDisabled()
-        if let problem = ArtworkQR.problem(layer.s("value")) { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+        if let problem = ArtworkQR.problem(layer.s("value")) { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
         // hasStrings does not ask iOS for the clipboard (reading it would show the "pasted from" notice); the tap does.
         if UIPasteboard.general.hasStrings {
             Button("Paste a link or words") { if let copied = UIPasteboard.general.string, !copied.isEmpty { layer["value"] = .string(copied) } }
         }
         ArtworkSlider(title: "Size", value: Binding(get: { layer.n("w", 300) }, set: { v in fold("qrw") { layer["w"] = .number(v) } }), range: ArtworkQR.minimum...1000, step: 4, format: "%.0f px")
         if layer.n("w", 300) < ArtworkQR.minimum + 40 {
-            Text("Small codes are hard to scan from a phone screen; \(Int(ArtworkQR.minimum) + 40) px or more is safer.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+            Text("Small codes are hard to scan from a phone screen; \(Int(ArtworkQR.minimum) + 40) px or more is safer.").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
         }
         ArtworkColour(title: "Dark parts", hex: layer.s("fg", "#111111")) { c in fold("qrfg") { layer["fg"] = .string(c) } }
         Toggle("Light square behind it", isOn: Binding(get: { layer["bg"] != .null }, set: { layer["bg"] = $0 ? .string("#FFFFFF") : .null }))

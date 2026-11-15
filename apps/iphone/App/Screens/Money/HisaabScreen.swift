@@ -248,8 +248,8 @@ struct HisaabScreen: View {
         var giveLines: [String] = []
         if s.payableGold > 0 { giveLines.append("\(MoneyFormat.grams(s.payableGold)) \(MoneyWords.metal)") }
         return FigureRow(alignment: .top, spacing: pt(10)) {
-            FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: Tone.owed.color)
-            FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: Tone.credit.color)
+            FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: Tone.owed.ink)
+            FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: Tone.credit.ink)
         }
         .padding(.vertical, pt(4))
     }
@@ -642,13 +642,13 @@ private struct HisaabMacListRow: View {
         return parts.isEmpty ? "Customer" : parts.joined(separator: " \u{00B7} ")
     }
 
-    private var tint: Color { account.cash > 0 ? Tone.owed.color : Tone.credit.color }
+    private var tint: Color { account.cash > 0 ? Tone.owed.ink : Tone.credit.ink }
 
     var body: some View {
         HStack(spacing: 12) {
             Monogram(name: account.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.name).font(.house(.body).weight(.medium)).lineLimit(1)
+                Text(account.name).font(.house(.body).weight(.medium)).lineLimit(2)
                 Text(line).font(.house(.callout)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -700,7 +700,7 @@ private struct HisaabMacInspector: View {
             if account.hasCash {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(account.side == .get ? "You will get" : "You will give").font(.house(.callout)).foregroundStyle(.secondary)
-                    HeroAmount(amount: abs(account.cash), tone: account.side == .get ? Tone.owed.color : Tone.credit.color)
+                    HeroAmount(amount: abs(account.cash), tone: account.side == .get ? Tone.owed.ink : Tone.credit.ink)
                 }
             }
             if account.gold != 0 {
@@ -743,7 +743,7 @@ private struct HisaabMacInspector: View {
                         HStack {
                             Text(inv.id).monospacedDigit()
                             Spacer(minLength: 8)
-                            Text(Money.pkr(inv.balanceDue)).monospacedDigit().foregroundStyle(Tone.owed.color)
+                            Text(Money.pkr(inv.balanceDue)).monospacedDigit().foregroundStyle(Tone.owed.ink)
                         }
                         .contentShape(Rectangle())
                     }
@@ -776,13 +776,13 @@ private struct HisaabMacLine: View {
         let e = line.entry
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(e.description.isEmpty ? "No description" : e.description).lineLimit(1)
+                Text(e.description.isEmpty ? "No description" : e.description).lineLimit(2)
                 Text(ShopDate.say(e.date)).font(.house(.caption)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 1) {
-                if e.cashDebit > 0 { Text("Gave \(Money.pkr(e.cashDebit))").foregroundStyle(Tone.owed.color) }
-                if e.cashCredit > 0 { Text("Got \(Money.pkr(e.cashCredit))").foregroundStyle(Tone.settled.color) }
+                if e.cashDebit > 0 { Text("Gave \(Money.pkr(e.cashDebit))").foregroundStyle(Tone.owed.ink) }
+                if e.cashCredit > 0 { Text("Got \(Money.pkr(e.cashCredit))").foregroundStyle(Tone.settled.ink) }
                 if e.goldDebitGrams > 0 { Text("Gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.house(.caption)).foregroundStyle(.secondary) }
                 if e.goldCreditGrams > 0 { Text("Got \(MoneyFormat.grams(e.goldCreditGrams))").font(.house(.caption)).foregroundStyle(.secondary) }
             }
@@ -814,11 +814,11 @@ private struct HisaabAccountRow: View {
         }
     }
 
-    private var tint: Color { account.cash > 0 ? Tone.owed.color : Tone.credit.color }
+    private var tint: Color { account.cash > 0 ? Tone.owed.ink : Tone.credit.ink }
 
     private var top: some View {
-        HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-            Text(account.name).font(.house(.body).weight(.medium))
+        AdaptiveStack(spacing: pt(8)) {
+            Text(account.name).font(.house(.body).weight(.medium)).lineLimit(2)
             Spacer(minLength: 8)
             if account.hasCash {
                 RowAmount(amount: abs(account.cash), tone: tint)

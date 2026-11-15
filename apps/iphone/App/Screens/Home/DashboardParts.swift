@@ -402,7 +402,7 @@ struct DashNeedRow: View {
         HStack(spacing: pt(12)) {
             Image(systemName: symbol)
                 .font(.house(.subheadline).weight(.semibold))
-                .foregroundStyle(tone.color)
+                .foregroundStyle(tone.ink)
                 .frame(width: side, height: side)
                 .background(tone.color.opacity(0.13), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: pt(2)) {

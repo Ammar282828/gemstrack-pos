@@ -10,13 +10,13 @@ struct ShopifyLiveView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
     @State private var live: ShopLive?
     @State private var problem: String?
 
     /// An iPad's (or a Mac's) wide window: the count and today's figures across the top, two columns beneath.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         if session.isOwner {
@@ -108,7 +108,7 @@ struct ShopifyLiveView: View {
         return HStack(spacing: pt(14)) {
             Image(systemName: "circle.fill")
                 .font(.house(.caption))
-                .foregroundStyle(on ? Tone.settled.color : Color.secondary.opacity(0.4))
+                .foregroundStyle(on ? Tone.settled.ink : Color.secondary.opacity(0.4))
                 .symbolEffect(.pulse, isActive: on && !reduceMotion)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(4)) {

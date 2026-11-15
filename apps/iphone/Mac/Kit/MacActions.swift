@@ -58,25 +58,48 @@ struct MacAction: Identifiable {
     }
 }
 
-/// A menu item (the menu bar or a right-click menu): the action with its key.
+/// A menu item. In the menu bar it carries its key and dims when it cannot act; in a right-click menu (`context`) it has no
+/// key (the menu bar owns it) and is left out when it cannot act, as a Finder context menu shows only what applies.
 struct MacActionMenuItem: View {
     let action: MacAction
+    var context: Bool = false
     var body: some View {
-        Button(role: action.role, action: action.perform) {
-            if let symbol = action.symbol { Label(action.title, systemImage: symbol) } else { Text(action.title) }
+        if action.enabled || !context {
+            Button(role: action.role, action: action.perform) {
+                if let symbol = action.symbol { Label(action.title, systemImage: symbol) } else { Text(action.title) }
+            }
+            .keyboardShortcut(context ? nil : action.shortcut)
+            .disabled(!action.enabled)
         }
-        .keyboardShortcut(action.shortcut)
-        .disabled(!action.enabled)
     }
 }
 
-/// Groups of actions as menu items, a divider between groups: a record's menu and its right-click menu.
+/// Groups of actions as menu items, a divider between groups: a record's menu in the menu bar (`context: false`, every
+/// action, dimmed when it cannot act) and a right-click menu (`context: true`, the default: only the actions that apply,
+/// at most three groups, the rest in one More submenu).
 struct MacActionItems: View {
     let groups: [[MacAction]]
+    var context: Bool = true
+    /// The groups a right-click menu shows: the disabled left out, the empty groups dropped.
+    private var applicable: [[MacAction]] {
+        groups.map { (group: [MacAction]) -> [MacAction] in group.filter { (a: MacAction) -> Bool in a.enabled } }
+            .filter { (group: [MacAction]) -> Bool in !group.isEmpty }
+    }
+    private var top: [[MacAction]] { context ? Array(applicable.prefix(3)) : groups }
+    private var rest: [[MacAction]] { context ? Array(applicable.dropFirst(3)) : [] }
     var body: some View {
-        ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+        ForEach(Array(top.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
-            ForEach(group) { MacActionMenuItem(action: $0) }
+            ForEach(group) { MacActionMenuItem(action: $0, context: context) }
+        }
+        if !rest.isEmpty {
+            Divider()
+            Menu("More") {
+                ForEach(Array(rest.enumerated()), id: \.offset) { i, group in
+                    if i > 0 { Divider() }
+                    ForEach(group) { MacActionMenuItem(action: $0, context: true) }
+                }
+            }
         }
     }
 }
@@ -140,6 +163,49 @@ extension View {
     /// page), once.
     func macRecordMenu(_ menu: MacRecordMenu?) -> some View {
         focusedSceneValue(\.macRecordMenu, menu)
+    }
+}
+
+// MARK: - The place's filters (View menu)
+
+/// One value a filter can take ("" is any: "Anyone", "Every Source").
+struct MacViewFilterOption: Hashable {
+    let value: String
+    let title: String
+}
+
+/// One of the place's filters, its toolbar Filter menu's picker mirrored as a submenu of View: Taken By, Payment, Source,
+/// Sort By. HIG ("Use the menu bar to give people easy access to all the commands they need"; the toolbar is a shortcut to
+/// some): the design audit of 2026-11-15, docs/features/mac-design-audit.md.
+struct MacViewFilter {
+    let title: String
+    let options: [MacViewFilterOption]
+    let selected: String
+    let choose: (String) -> Void
+}
+
+extension MacViewFilter {
+    /// A filter over a list of words, with "" first as `any` ("Anyone") when it has one.
+    init(_ title: String, any: String?, values: [String], selected: String, choose: @escaping (String) -> Void) {
+        let first: [MacViewFilterOption] = any.map { [MacViewFilterOption(value: "", title: $0)] } ?? []
+        self.init(title: title, options: first + values.map { MacViewFilterOption(value: $0, title: $0) },
+                  selected: selected, choose: choose)
+    }
+}
+
+private struct MacViewFiltersKey: FocusedValueKey { typealias Value = [MacViewFilter] }
+
+extension FocusedValues {
+    var macViewFilters: [MacViewFilter]? {
+        get { self[MacViewFiltersKey.self] }
+        set { self[MacViewFiltersKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Publishes the place's filters for the View menu. The place's root view calls it, beside its record menu.
+    func macViewFilters(_ filters: [MacViewFilter]) -> some View {
+        focusedSceneValue(\.macViewFilters, filters)
     }
 }
 

@@ -18,6 +18,10 @@ struct LabelDesigner: View {
     @Environment(Session.self) private var session
     @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduce
+    #if os(macOS)
+    /// The window's: the designer's history is mirrored on it, so Edit › Undo / Redo (⌘Z, ⇧⌘Z) take the tag's steps.
+    @Environment(\.undoManager) private var undoManager
+    #endif
 
     /// The business this screen was opened in: the layout is saved there even if it closes after a switch.
     @State private var biz = House.business
@@ -63,11 +67,23 @@ struct LabelDesigner: View {
         .onAppear {
             book.settings.need()
             book.products.need()
+            #if os(macOS)
+            model?.undoManager = undoManager
+            #endif
         }
         .onDisappear {
             // A change made in the last second before leaving is saved rather than dropped with the timer.
             if let model, model.edited { save(model.layout) }
+            #if os(macOS)
+            model?.detachUndo()
+            #endif
         }
+        #if os(macOS)
+        .onChange(of: model == nil) { _, _ in model?.undoManager = undoManager }
+        .onChange(of: undoManager) { _, now in
+            if let model, model.undoManager !== now { model.detachUndo(); model.undoManager = now }
+        }
+        #endif
         .task { await loadStandard() }
         // Adopt the saved layout when it arrives (or changes on another device, or at Printer settings) unless one is being edited.
         .onChange(of: saved) { _, _ in adopt() }
@@ -302,10 +318,18 @@ struct LabelDesigner: View {
         let l = m.layout
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                #if os(macOS)
+                // ⌘Z / ⇧⌘Z are the Edit menu's (the window's UndoManager), as in every Mac app; the buttons take the same step.
+                Button { m.undoStep() } label: { Image(systemName: "arrow.uturn.backward") }
+                    .disabled(!m.canUndo).help("Undo (⌘Z)").accessibilityLabel("Undo")
+                Button { m.redoStep() } label: { Image(systemName: "arrow.uturn.forward") }
+                    .disabled(!m.canRedo).help("Redo (⇧⌘Z)").accessibilityLabel("Redo")
+                #else
                 Button { m.undo() } label: { Image(systemName: "arrow.uturn.backward") }
                     .disabled(!m.canUndo).keyboardShortcut("z", modifiers: .command).help("Undo").accessibilityLabel("Undo")
                 Button { m.redo() } label: { Image(systemName: "arrow.uturn.forward") }
                     .disabled(!m.canRedo).keyboardShortcut("z", modifiers: [.command, .shift]).help("Redo").accessibilityLabel("Redo")
+                #endif
                 Divider().frame(height: 18)
                 Button { m.zoomOut() } label: { Image(systemName: "minus.magnifyingglass") }
                     .keyboardShortcut("-", modifiers: .command).help("Zoom out").accessibilityLabel("Zoom out")

@@ -117,7 +117,8 @@ struct AddCustomer: View {
             EditCustomer(id: target.id, seed: saved?.customer)
         }
         .sensoryFeedback(.success, trigger: saved)
-        .interactiveDismissDisabled(saving)
+        // Typing is not thrown away by a swipe down: Cancel is the way out.
+        .keepWhileTyping(busy: saving, dirty: saved == nil && !(name + phone + email + address).trimmingCharacters(in: .whitespaces).isEmpty)
         .failureAlert($error, title: "Could not save")
         .task { book.customers.need() }
     }
@@ -127,21 +128,19 @@ struct AddCustomer: View {
     private var form: some View {
         Form { Group {
             Section {
-                TextField("Full name", text: $name, prompt: Text("Optional"))
+                TextField("Full name", text: $name, prompt: Text("Full name (optional)"))
                     .autocorrectionDisabled()
-                    .fieldKind(.name)
                     .textInputAutocapitalization(.words)
             } footer: {
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
-                        .foregroundStyle(Tone.problem.color)
+                        .foregroundStyle(Tone.problem.ink)
                 }
             }
 
             Section {
-                TextField("Phone number", text: $phone, prompt: Text("Optional"))
+                TextField("Phone number", text: $phone, prompt: Text("Phone number (optional)"))
                     .keyboardType(.phonePad)
-                    .fieldKind(.telephoneNumber)
                     .contactPickable { $0.fill(phone: &phone, name: &name) }
                 if let match = sameNumber {
                     Button {
@@ -153,19 +152,18 @@ struct AddCustomer: View {
             }
 
             Section {
-                TextField("Email address", text: $email, prompt: Text("Optional"))
+                TextField("Email address", text: $email, prompt: Text("Email address (optional)"))
                     .keyboardType(.emailAddress)
                     .fieldKind(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } footer: {
-                if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.color) }
+                if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.ink) }
             }
 
             Section {
-                TextField("Address", text: $address, prompt: Text("Optional"), axis: .vertical)
+                TextField("Address", text: $address, prompt: Text("Address (optional)"), axis: .vertical)
                     .lineLimit(2...5)
-                    .fieldKind(.fullStreetAddress)
             }
 
             Section {
@@ -194,7 +192,7 @@ struct AddCustomer: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.house(.largeTitle))
                         .imageScale(.large)
-                        .foregroundStyle(Tone.settled.color)
+                        .foregroundStyle(Tone.settled.ink)
                     Text("Saved").font(.house(.title2).weight(.semibold))
                     Text("\(s.name) is on file.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
@@ -305,7 +303,7 @@ extension AddCustomer {
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
                         .font(.house(.footnote))
-                        .foregroundStyle(Tone.problem.color)
+                        .foregroundStyle(Tone.problem.ink)
                 }
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
                     .contactPickable { $0.fill(phone: &phone, name: &name) }
@@ -321,7 +319,7 @@ extension AddCustomer {
                 if !emailOK {
                     Text("That doesn't look like an email address.")
                         .font(.house(.footnote))
-                        .foregroundStyle(Tone.problem.color)
+                        .foregroundStyle(Tone.problem.ink)
                 }
             } header: {
                 Text("Who")
@@ -363,7 +361,7 @@ extension AddCustomer {
         VStack(spacing: 18) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
-                .foregroundStyle(Tone.settled.color)
+                .foregroundStyle(Tone.settled.ink)
             Text("Saved").font(.house(.title2).weight(.semibold))
             Text("\(s.name) is on file.").foregroundStyle(.secondary)
             HStack(spacing: 10) {

@@ -19,15 +19,19 @@ enum MacContact {
         CustomerContactLinks.isWalkIn(customerId: customerId, customerName: customerName) ? "" : CustomerContactLinks.e164(phone)
     }
 
-    /// Call, WhatsApp Chat and Message, then `document` (the record's own PDF actions), then Copy Number.
-    static func actions(_ number: String, document: [MacAction] = []) -> [MacAction] {
+    /// Call, WhatsApp Chat and Message, then `document` (the record's own PDF actions), then Copy Number. `message` is what
+    /// WhatsApp Chat and Message open with, typed and ready to change or send (App/UI/CustomerMessages.swift, the same
+    /// words as the record's inspector and the web's Contact menu; owner, 2026-11-14).
+    static func actions(_ number: String, document: [MacAction] = [], message: String = "") -> [MacAction] {
         let has = !number.isEmpty
         var out: [MacAction] = [
             MacAction("Call", symbol: "phone", enabled: has, id: "call") { open(CustomerContactLinks.callURL(number)) },
             MacAction("WhatsApp Chat", symbol: "bubble.left.and.text.bubble.right", enabled: has, id: "whatsapp") {
-                open(CustomerContactLinks.whatsAppURL(number))
+                open(CustomerContactLinks.whatsAppURL(number, text: message))
             },
-            MacAction("Message", symbol: "text.bubble", enabled: has, id: "text") { open(CustomerContactLinks.messageURL(number)) },
+            MacAction("Message", symbol: "text.bubble", enabled: has, id: "text") {
+                open(CustomerContactLinks.messageURL(number, text: message))
+            },
         ]
         out.append(contentsOf: document)
         out.append(copyNumber(number))

@@ -20,7 +20,7 @@ struct AdsOverviewScreen: View {
     @State private var go: Route?
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
@@ -203,7 +203,7 @@ struct AdsOverviewScreen: View {
             .compactMap { (s: String?) in s }
             .joined(separator: " · ")
         let reachNote = AdsFormat.change(t.reach, b?.reach) ?? "\(AdsFormat.compact(t.impressions)) views"
-        let across = sizeClass.isPadLayout && !typeSize.isAccessibilitySize
+        let across = wideLayout && !typeSize.isAccessibilitySize
         return Section {
             if across {
                 // An iPad: every figure in one grid, four across.
@@ -310,7 +310,7 @@ struct AdsOverviewScreen: View {
     private func attentionSection(_ d: AdOverview) -> some View {
         Section {
             if d.attention.isEmpty {
-                Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
+                Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.ink)
             } else {
                 ForEach(d.attention) { (a: AdAttention) in attentionItem(a) }
             }
@@ -331,7 +331,7 @@ struct AdsOverviewScreen: View {
     private func attentionBody(_ a: AdAttention) -> some View {
         HStack(alignment: .top, spacing: pt(10)) {
             Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
-                .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
+                .foregroundStyle(a.severity == "bad" ? Tone.problem.ink : (a.severity == "warn" ? Tone.owed.ink : Color.secondary))
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(a.title).font(.house(.body).weight(.medium))
                 Text(a.why).font(.house(.subheadline)).foregroundStyle(.secondary)
@@ -554,7 +554,7 @@ extension AdsOverviewScreen {
 
     /// New Ad…, here as in Campaigns: the Ad menu's ⌃⌘N.
     var macNewAd: MacAction {
-        MacAction("New Ad…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: mayRead) {
+        MacAction("New Ad…", symbol: "plus", enabled: mayRead) {
             let route = Route(path: "/ads/new")
             if let openPlace { openPlace(route) } else { go = route }
         }

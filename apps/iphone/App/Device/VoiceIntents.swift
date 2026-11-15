@@ -12,11 +12,32 @@ struct ERPShortcuts: AppShortcutsProvider {
                 "Talk to \(.applicationName)",
                 "Ask \(.applicationName)",
                 "Voice in \(.applicationName)",
-                "New sale in \(.applicationName)",
-                "Record a payment in \(.applicationName)",
             ],
             shortTitle: "Talk to ERP",
             systemImageName: "mic.fill")
+        // "New sale" does what it says: the new-sale page, not the voice sheet. ("Record a payment" opened voice too,
+        // which is not what it promised, so it is not offered.)
+        AppShortcut(
+            intent: NewSaleIntent(),
+            phrases: [
+                "New sale in \(.applicationName)",
+                "Start a sale in \(.applicationName)",
+            ],
+            shortTitle: "New sale",
+            systemImageName: "cart")
+    }
+}
+
+/// Opens the open business on its New sale page (route /invoices/new), as the Create button does.
+struct NewSaleIntent: AppIntent {
+    static let title: LocalizedStringResource = "New sale"
+    static let description = IntentDescription("Opens the ERP on a new sale.")
+    static let supportedModes: IntentModes = .foreground
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        AppRouter.shared.route(path: "/invoices/new", business: nil)
+        return .result()
     }
 }
 #endif

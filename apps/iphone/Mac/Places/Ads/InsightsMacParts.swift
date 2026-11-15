@@ -287,7 +287,7 @@ struct InsightsMacPostPanel: View {
             }
             .padding(16)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// Every number the phone's row shows, one to a line.

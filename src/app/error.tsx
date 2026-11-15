@@ -55,7 +55,7 @@ export default function PageError({
                 </p>
               </div>
               <Button asChild variant="outline" size="sm" className="flex-shrink-0">
-                <Link href="/drafts">Open Drafts</Link>
+                <Link href="/drafts">Open drafts</Link>
               </Button>
             </div>
           )}

@@ -144,8 +144,8 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-/** How long a toast stays: a result is read in a moment, a failure is read twice (Radix's default was 5 s for both). */
-const TOAST_MS = { default: 4000, destructive: 7000 } as const
+/** How long a toast stays: a result is read in a moment; a failure stays until it is dismissed (the close button or a swipe), as HIG asks of an alert that needs a decision or a retry. */
+const TOAST_MS = { default: 4000, destructive: Infinity } as const
 
 function toast({ ...props }: Toast) {
   const id = genId()

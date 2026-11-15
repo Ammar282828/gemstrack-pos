@@ -18,6 +18,8 @@ struct MacOrderInspector: View {
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    /// The window's: a piece ticked goes on it, so ⌘Z unticks it (MacUndo).
+    @Environment(\.undoManager) private var undoManager
     /// What the person just did, shown before the shelf's copy catches up (dropped once the shelf agrees).
     @State private var localDone: [Int: Bool] = [:]
     @State private var localKarigar: [Int: String] = [:]
@@ -55,7 +57,7 @@ struct MacOrderInspector: View {
             }
             .padding(14)
         }
-        .background(Theme.ground)
+        .macGround()
         .onChange(of: signature(order)) { _, _ in reconcile(order) }
     }
 
@@ -257,18 +259,27 @@ struct MacOrderInspector: View {
     private func tick(_ order: Order, _ i: Int, done: Bool, canTick: Bool) -> some View {
         if canTick {
             Button {
-                localDone[i] = !done
-                MacOrdersWrites.tick(order, i, !done)
+                setDone(order, i, !done)
             } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(done ? Tone.settled.color : Color.secondary)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .help(done ? "Done: click to mark not done" : "Mark as complete")
+            .accessibilityLabel(done ? "Mark piece not done" : "Mark piece done")
         } else {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(done ? Tone.settled.color : Color.secondary.opacity(0.5))
         }
+    }
+
+    /// A piece marked done or not, at once on screen and through the Outbox; ⌘Z marks it back (and ⇧⌘Z again).
+    private func setDone(_ order: Order, _ i: Int, _ value: Bool) {
+        localDone[i] = value
+        MacOrdersWrites.tick(order, i, value)
+        MacUndo.register(undoManager, value ? "Mark Piece Done" : "Mark Piece Not Done") { setDone(order, i, !value) }
     }
 
     @ViewBuilder

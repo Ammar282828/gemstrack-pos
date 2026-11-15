@@ -498,7 +498,7 @@ struct SiteDelta: View {
                 Text(text).monospacedDigit()
             }
             .font(.house(.caption).weight(.semibold))
-            .foregroundStyle(tone.color)
+            .foregroundStyle(tone.ink)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(deltaSpoken(up: up))
         }

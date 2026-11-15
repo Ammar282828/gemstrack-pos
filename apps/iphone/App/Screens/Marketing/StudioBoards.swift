@@ -614,10 +614,9 @@ extension StudioBoards {
                     .keyboardShortcut("a", modifiers: [.command, .shift])
                     .disabled(board.current.isEmpty)
                 Button("Note", systemImage: "note.text.badge.plus") { Task { if let id = await board.addNote() { selected = id } } }
-                    .keyboardShortcut("n", modifiers: [.control, .command])
                     .disabled(board.current.isEmpty)
             } label: { Label("Add", systemImage: "plus") }
-            .help("Add a photo as a new design (⇧⌘A), or a sticky note (⌃⌘N)")
+            .help("Add a photo as a new design (⇧⌘A), or a sticky note")
             ControlGroup {
                 Button { zoom = max(0.08, zoom / 1.25) } label: { Label("Zoom out", systemImage: "minus.magnifyingglass") }
                     .keyboardShortcut("-", modifiers: .command)

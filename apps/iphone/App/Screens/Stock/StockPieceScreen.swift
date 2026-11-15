@@ -18,7 +18,7 @@ struct StockPieceScreen: View {
     /// Set once the ERP has deleted the piece: the page goes back to the list as the code's sheet closes, as the
     /// web's goes to /products.
     @State private var deleted = false
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
     #if os(macOS)
@@ -29,7 +29,7 @@ struct StockPieceScreen: View {
     #endif
 
     /// A wide window: the photo and facts on the left, the price and how it adds up on the right.
-    private var twoColumns: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var twoColumns: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline, shape: .record) {
@@ -307,7 +307,7 @@ private struct StockSoldView: View {
         List { Group {
             Section {
                 VStack(spacing: pt(6)) {
-                    Image(systemName: "checkmark.seal").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
+                    Image(systemName: "checkmark.seal").font(.house(.largeTitle)).foregroundStyle(Tone.settled.ink)
                         .symbolEffect(.bounce, value: reduceMotion ? 0 : sealed)
                         .onAppear { sealed += 1 }
                     // The SKU is the page's title: not said again.
@@ -425,7 +425,7 @@ extension StockPieceScreen {
     }
 
     private func macEditAction(_ p: Product) -> MacAction {
-        MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: session.isOwner) { macOpen(StockKit.editPath(p.sku)) }
+        MacAction("Edit", symbol: "pencil", enabled: session.isOwner) { macOpen(StockKit.editPath(p.sku)) }
     }
 
     private func macPrintAction(_ p: Product) -> MacAction {
@@ -451,7 +451,7 @@ extension StockPieceScreen {
 
     private func macGroups(_ p: Product) -> [[MacAction]] {
         let sku = p.sku
-        let printNow = MacAction("Print Tag Now", symbol: "printer.fill", shortcut: KeyboardShortcut("p", modifiers: [.command, .option])) {
+        let printNow = MacAction("Print Tag Now", symbol: "printer.fill") {
             Task { await MacPrint.printTags([sku], now: true) }
         }
         let more = macMoreActions(p)
@@ -477,7 +477,7 @@ extension StockSoldView {
         MacWorkPage {
             MacWorkHead(title: sku, subtitle: sales.count == 1 ? "Sold on 1 invoice" : "Sold on \(sales.count) invoices",
                         pill: "Sold", pillTone: .settled) {
-                Image(systemName: "checkmark.seal").font(.house(.title2)).foregroundStyle(Tone.settled.color)
+                Image(systemName: "checkmark.seal").font(.house(.title2)).foregroundStyle(Tone.settled.ink)
             }
             MacWorkCard(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
                 ForEach(sales) { (inv: Invoice) in

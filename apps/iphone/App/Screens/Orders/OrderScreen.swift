@@ -150,7 +150,7 @@ struct OrderScreen: View {
         .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
         .sheet(isPresented: $bookingTcs) { OrderTcsBookSheet(order: order) { parcel.reload += 1 } }
         .confirmDestructive(isPresented: $confirmCancelTcs, title: "Cancel TCS booking \(order.tcsBooking?.cn ?? "")?",
-                            message: OrderActions.cancelTcsWords, action: "Cancel booking") {
+                            message: OrderActions.cancelTcsWords, action: "Void booking") {
             cancelTcs(order)
         }
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
@@ -164,8 +164,8 @@ struct OrderScreen: View {
                 onlineMoved(.paid, t)
             }
         }
-        .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
-                            message: OrdersLogic.cancelWords, action: "Cancel order") {
+        .confirmDestructive(isPresented: $confirmCancel, title: "Void order \(order.id)?",
+                            message: OrdersLogic.cancelWords, action: "Void order") {
             setStatus(order, "Cancelled")
         }
     }
@@ -295,10 +295,10 @@ struct OrderScreen: View {
                         .font(.house(.caption2).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .tracking(0.6)
-                    HeroAmount(amount: due, tone: Tone.owed.color)
+                    HeroAmount(amount: due, tone: Tone.owed.ink)
                 } else if isCredit(due) {
                     Pill("In credit", tone: .credit)
-                    HeroAmount(amount: -due, tone: Tone.credit.color)
+                    HeroAmount(amount: -due, tone: Tone.credit.ink)
                 } else {
                     Pill("Paid", tone: .settled, symbol: "checkmark")
                 }
@@ -317,7 +317,7 @@ struct OrderScreen: View {
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(OrdersLogic.promiseLine(order, now: now))
                     .font(.house(.subheadline).weight(tone == .quiet ? .regular : .semibold))
-                    .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
+                    .foregroundStyle(tone == .late ? tone.ink : (p.undated ? Color.secondary : Color.primary))
                     .monospacedDigit()
                 if p.urgent && t.state != .late {
                     Pill("Urgent", tone: .owed)
@@ -487,7 +487,7 @@ struct OrderScreen: View {
             LedgerHeading(title: "Money")
         } footer: {
             Text(OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
-                 ? "To change it, use Unlock & edit."
+                 ? "To change it, use Unlock and edit."
                  : "The order is locked to its invoice.")
         }
     }
@@ -807,7 +807,7 @@ struct OrderScreen: View {
                         Button { web = .changeRate(order) } label: { Label("Change rate", systemImage: "percent") }
                     }
                     if canUndo {
-                        Button { undo = OrderUndo.unlockAndEdit(order) } label: { Label("Unlock & edit", systemImage: "lock.open") }
+                        Button { undo = OrderUndo.unlockAndEdit(order) } label: { Label("Unlock and edit", systemImage: "lock.open") }
                     }
                 }
             }
@@ -995,11 +995,11 @@ extension OrderScreen {
                          moved: { kind, told in onlineMoved(kind, told) },
                          sent: { words in Note.show(Note(title: words), in: $note, reduce: reduceMotion) })
         .confirmDestructive(isPresented: $confirmCancelTcs, title: "Cancel TCS booking \(order.tcsBooking?.cn ?? "")?",
-                            message: OrderActions.cancelTcsWords, action: "Cancel booking") {
+                            message: OrderActions.cancelTcsWords, action: "Void booking") {
             cancelTcs(order)
         }
-        .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
-                            message: OrdersLogic.cancelWords, action: "Cancel order") {
+        .confirmDestructive(isPresented: $confirmCancel, title: "Void order \(order.id)?",
+                            message: OrdersLogic.cancelWords, action: "Void order") {
             setStatus(order, "Cancelled")
         }
     }
@@ -1030,7 +1030,7 @@ extension OrderScreen {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(headline.label).font(.house(.callout)).foregroundStyle(.secondary)
                         HeroAmount(amount: macHeadlineAmount(order, stage: stage, owed: owed, invoice: invoice),
-                                   tone: headline.tone == .quiet ? Color.primary : headline.tone.color)
+                                   tone: headline.tone == .quiet ? Color.primary : headline.tone.ink)
                     }
                 }
             }
@@ -1271,7 +1271,7 @@ extension OrderScreen {
         .buttonStyle(.plain)
         .foregroundStyle(Theme.accent)
         Text(OrderActions.canUndoInvoice(order, isOwner: session.isOwner)
-             ? "To change it, use Unlock & Edit."
+             ? "To change it, use Unlock and edit."
              : "The order is locked to its invoice.")
             .font(.house(.caption))
             .foregroundStyle(.secondary)
@@ -1291,7 +1291,7 @@ extension OrderScreen {
             if OrdersLogic.isOpen(order) || !p.undated {
                 MacOrdersFact(label: "Promised") {
                     Text(OrdersLogic.promiseLine(order, now: Date()))
-                        .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.color)
+                        .foregroundStyle(p.tone == .quiet ? Color.primary : p.tone.ink)
                 }
             }
             if !cid.isEmpty {
@@ -1334,7 +1334,7 @@ extension OrderScreen {
     private func macGroups(_ order: Order, stage: OrderStage, owed: Double) -> [[MacAction]] {
         let input = MacOrdersMenuInput(order: order, stage: stage, invoiceOwed: owed, status: shownStatus(order),
                                        unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
-                                       isOwner: session.isOwner, role: session.role)
+                                       isOwner: session.isOwner, role: session.role, shopName: session.shop.name)
         return MacOrdersMenu.groups(input, run: macRun(order, stage: stage, owed: owed))
     }
 

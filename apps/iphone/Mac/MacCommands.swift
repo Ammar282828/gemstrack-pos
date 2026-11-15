@@ -11,7 +11,10 @@ struct MacCommands: Commands {
     @FocusedValue(\.macPlaces) private var places
     @FocusedValue(\.macRecordMenu) private var recordMenu
     @FocusedValue(\.macRefresh) private var refresh
+    @FocusedValue(\.macViewFilters) private var filters
     @Environment(\.openWindow) private var openWindow
+    /// View › Show or Hide Inspector: the title follows the state, as Mail's "Hide Preview" does.
+    @AppStorage(MacInspector.key) private var inspectorShown = true
 
     /// The page in front: a separate window's, else the main window's deepest.
     private var current: Route? { ready ? place ?? shell?.current : nil }
@@ -43,12 +46,17 @@ struct MacCommands: Commands {
         goMenu
         CommandMenu(recordMenu?.title ?? "Item") {
             if let recordMenu, ready {
-                MacActionItems(groups: Self.withoutReserved(recordMenu.groups))
+                MacActionItems(groups: Self.withoutReserved(recordMenu.groups), context: false)
             } else {
                 Button("Nothing Selected") {}.disabled(true)
             }
         }
         windowMenu
+        // Grouped: a CommandsBuilder holds ten at most.
+        Group {
+            SidebarCommands()
+            ToolbarCommands()
+        }
         CommandGroup(replacing: .help) {
             Button("Keyboard Shortcuts") { MacShortcutsWindow.show() }
                 .keyboardShortcut("/", modifiers: .command)
@@ -68,9 +76,12 @@ struct MacCommands: Commands {
 
     private var appMenu: some Commands {
         CommandGroup(after: .appSettings) {
+            // The shop's shared records (the shop, bank accounts, alerts, data, connections), apart from this Mac's Settings.
+            Button("Shop Settings\u{2026}") { openWindow(id: MacWindows.shopSettings) }
+                .keyboardShortcut(",", modifiers: [.command, .shift])
+                .disabled(!ready || !isOwner)
             Divider()
             Button("Lock Now") { AppLock.shared.lockNow() }
-                .keyboardShortcut("l", modifiers: [.command, .control])
                 .disabled(!ready || !AppLock.shared.enabled)
             Button("Sign Out…") { MacSignOut.ask() }
                 .disabled(!signedIn)
@@ -100,7 +111,6 @@ struct MacCommands: Commands {
                 }
                 .disabled(!ready)
                 Button("New Window") { openWindow(id: MacWindows.main) }
-                    .keyboardShortcut("n", modifiers: [.command, .option, .shift])
                 Divider()
                 Button("Open in New Window") { if let r = current { openWindow(id: MacWindows.place, value: r) } }
                     .keyboardShortcut("o", modifiers: .command)
@@ -165,17 +175,32 @@ struct MacCommands: Commands {
 
     private var viewMenu: some Commands {
         CommandGroup(after: .sidebar) {
-            Button("Show or Hide Inspector") {
-                let d = UserDefaults.standard
-                d.set(!(d.object(forKey: MacInspector.key) as? Bool ?? true), forKey: MacInspector.key)
+            Button(inspectorShown ? "Hide Inspector" : "Show Inspector") { inspectorShown.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+            // The place's ways of showing its records, in its toolbar control's order (the HIG: every toolbar item in the
+            // menu bar). No key: Control-key shortcuts are dropped (docs/design-audit.md). A place with one way disables them.
+            let ways = viewWays
+            ForEach(0..<3, id: \.self) { (i: Int) in
+                let way = i < ways.choices.count ? ways.choices[i] : nil
+                Button("as " + (way?.title ?? (i == 0 ? "List" : i == 1 ? "Cards" : "Board"))) {
+                    if let way, let key = ways.key { UserDefaults.standard.set(way.raw, forKey: key) }
+                }
+                .disabled(way == nil || ways.key == nil)
             }
-            .keyboardShortcut("i", modifiers: [.command, .option])
-            Button(viewKey?.first == "list" ? "as List" : "as Table") { setView(table: true) }
-                .keyboardShortcut("1", modifiers: [.command, .control])
-                .disabled(viewKey == nil)
-            Button(viewKey?.other == "gallery" ? "as Gallery" : "as Board") { setView(table: false) }
-                .keyboardShortcut("2", modifiers: [.command, .control])
-                .disabled(viewKey == nil)
+            // The place's toolbar Filter menu, each picker a submenu here (Taken By, Payment, Source, Sort By).
+            if ready, let filters, !filters.isEmpty {
+                Divider()
+                ForEach(filters.indices, id: \.self) { (i: Int) in
+                    let f = filters[i]
+                    Menu(f.title) {
+                        Picker(f.title, selection: Binding(get: { f.selected }, set: { (v: String) in f.choose(v) })) {
+                            ForEach(f.options, id: \.value) { (o: MacViewFilterOption) in Text(o.title).tag(o.value) }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    }
+                }
+            }
             Divider()
             Button("Refresh") {
                 if let refresh { refresh.run() } else { ServerShelf.wake() }
@@ -189,25 +214,29 @@ struct MacCommands: Commands {
         }
     }
 
-    /// The place in front that shows its records two ways (its key, and the word for the other way).
-    private var viewKey: (key: String, other: String, first: String)? {
+    /// The place in front and the ways it shows its records (its stored key, and the choices in its toolbar's order).
+    private var viewWays: (key: String?, choices: [MacLayoutChoice]) {
         switch ScreenRoute.bare(shell?.selection ?? "") {
-        // The first view is stored as "table" whatever it is drawn as (Orders' is a list since 2026-10-27).
-        case "/orders": return ("mac.orders.view", "board", "list")
-        case "/products": return ("mac.stock.view", "gallery", "table")
-        case "/workshop": return ("mac.workshop.view", "board", "table")
-        default: return nil
+        case "/orders": return ("mac.orders.view", [.list, .cards, .board])
+        case "/invoices": return ("mac.invoices.view", [.list, .cards])
+        case "/customers": return ("mac.customers.view", [.list, .cards])
+        case "/repairs": return ("mac.repairs.view", [.list, .cards])
+        case "/products": return ("mac.stock.view", [.list, MacLayoutChoice(raw: "gallery", title: "Gallery", symbol: "square.grid.2x2")])
+        case "/workshop": return ("mac.workshop.view", [MacLayoutChoice(raw: "table", title: "Table", symbol: "tablecells"), .board])
+        default: return (nil, [])
         }
-    }
-
-    private func setView(table: Bool) {
-        guard let v = viewKey else { return }
-        UserDefaults.standard.set(table ? "table" : v.other, forKey: v.key)
     }
 
     // MARK: Go
 
     private var hasToday: Bool { places?.contains { $0.path == "/" } ?? true }
+
+    /// "Set Today's Rates…" while the day's rate is not set (an owner can set it), else "Today's Rates…".
+    private var ratesTitle: String {
+        let s = Book.shared.settings.value
+        let unset = s != nil && !RateKeys.setToday(s)
+        return unset && isOwner ? "Set Today\u{2019}s Rates\u{2026}" : "Today\u{2019}s Rates\u{2026}"
+    }
 
     private var goMenu: some Commands {
         CommandMenu("Go") {
@@ -228,6 +257,11 @@ struct MacCommands: Commands {
             Button("Forward") { shell?.goForward() }
                 .keyboardShortcut("]", modifiers: .command)
                 .disabled(!ready || shell?.canGoForward != true)
+            Divider()
+            // The day's rates are in the sidebar's foot too; here they have a menu item and a key, whatever is in front.
+            Button(ratesTitle) { shell?.rates = true }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(shell == nil || !ready || Sessions.shared.current.role == "marketing")
         }
     }
 
@@ -248,8 +282,9 @@ struct MacCommands: Commands {
     private static func withoutReserved(_ groups: [[MacAction]]) -> [[MacAction]] {
         let reserved: [(KeyEquivalent, EventModifiers)] = [
             ("p", .command), ("n", .command), ("n", [.command, .shift]), ("n", [.command, .option]), ("o", .command),
-            ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command),
+            ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command), (",", [.command, .shift]),
             ("h", [.command, .shift]), ("[", .command), ("]", .command), ("t", [.command, .shift]), ("b", [.command, .shift]),
+            ("r", [.command, .shift]), ("w", [.command, .shift]), ("a", [.command, .shift]), ("e", .command), ("p", [.command, .option]),
         ]
         return groups.map { group in
             group.map { a in
@@ -281,12 +316,12 @@ enum MacSignOut {
 enum MacShortcutsWindow {
     @MainActor static func show() {
         let lines: [(String, String)] = [
-            ("New Sale", "⌘N"), ("New Order", "⇧⌘N"), ("New Repair", "⌥⌘N"), ("The place's own New", "⌃⌘N"),
+            ("New Sale", "⌘N"), ("New Order", "⇧⌘N"), ("New Repair", "⌥⌘N"),
             ("Quick Open", "⌘K"), ("Find in the list", "⌘F"), ("Open in a window", "⌘O or Return"),
-            ("The record's next step", "⌘↩"), ("Edit", "⌘E"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
-            ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"),
+            ("The record's next step", "⌘↩"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
+            ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"), ("Today\u{2019}s Rates", "⇧⌘R"),
             ("Today", "⇧⌘H"), ("The sidebar's places", "⌘1 – ⌘9"), ("Back", "⌘["), ("Forward", "⌘]"), ("Businesses", "⇧⌘B"),
-            ("Lock now", "⌃⌘L"), ("Settings", "⌘,"),
+            ("Settings", "⌘,"), ("Shop Settings", "⇧⌘,"),
         ]
         let alert = NSAlert()
         alert.messageText = "Keyboard Shortcuts"

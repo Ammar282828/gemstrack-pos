@@ -25,6 +25,9 @@ struct ERPApp: App {
         WindowGroup {
             BusinessHost()
                 .font(.house(.body))
+                // The wide layout or the phone's, decided once for the window by size class and width (Kit.swift
+                // `wideLayout`), so every screen and sheet in it agrees.
+                .modifier(WideLayoutReader())
                 // A widget's tap (shoperp://open?b=<business>&p=<path>): the app on that business and screen, through
                 // the same router a notification uses (it waits for Face ID and switches business first).
                 .onOpenURL { url in

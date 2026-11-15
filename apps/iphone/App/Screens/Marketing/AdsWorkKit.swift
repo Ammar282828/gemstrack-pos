@@ -303,7 +303,7 @@ struct AdsAlertsSection: View {
                 ForEach(list) { (i: Item) in
                     Label(i.text, systemImage: "exclamationmark.triangle.fill")
                         .font(.house(.subheadline))
-                        .foregroundStyle(i.bad ? Tone.problem.color : Tone.owed.color)
+                        .foregroundStyle(i.bad ? Tone.problem.ink : Tone.owed.ink)
                 }
             }
         }
@@ -329,7 +329,7 @@ struct AdsProblemsSection: View {
                 ForEach(problems, id: \.self) { (p: String) in
                     Label(p, systemImage: "exclamationmark.triangle.fill")
                         .font(.house(.subheadline))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
                 if setup, problems.contains(where: { (p: String) in p.contains("Setup") }) {
                     MarketingLink(title: "Open Setup", symbol: "slider.horizontal.3", path: "/ads/setup")

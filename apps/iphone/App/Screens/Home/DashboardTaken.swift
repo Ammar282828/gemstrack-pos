@@ -408,13 +408,13 @@ struct DashTakenSheet: View {
                     let n = d.splitCounts[m] ?? 0
                     HStack(alignment: .firstTextBaseline) {
                         Text(m.label)
-                            .foregroundStyle(m == .unpaid ? Tone.owed.color : Color.primary)
+                            .foregroundStyle(m == .unpaid ? Tone.owed.ink : Color.primary)
                         Text("\(n)")
                             .font(.house(.caption))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                         Spacer(minLength: 8)
-                        RowAmount(amount: v, tone: m == .unpaid ? Tone.owed.color : Color.primary)
+                        RowAmount(amount: v, tone: m == .unpaid ? Tone.owed.ink : Color.primary)
                     }
                     .font(.house(.subheadline))
                     .accessibilityElement(children: .combine)

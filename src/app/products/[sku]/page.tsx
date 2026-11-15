@@ -128,7 +128,7 @@ export default function ProductDetailPage() {
 
   const handleExportCsv = () => {
     if (!productData) {
-      toast({ title: "Error", description: "Product data not available for export.", variant: "destructive" });
+      toast({ title: "Nothing to export", description: "Product data not available for export.", variant: "destructive" });
       return;
     }
     generateProductCsv([productData], settings);
@@ -325,7 +325,7 @@ export default function ProductDetailPage() {
             </div>
 
             <Card>
-              <CardHeader><CardTitle className="text-lg">Product Image</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">Product image</CardTitle></CardHeader>
               <CardContent>
                  <div className="relative w-full aspect-square bg-muted rounded-md overflow-hidden">
                     <Image

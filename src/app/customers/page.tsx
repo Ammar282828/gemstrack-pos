@@ -106,7 +106,7 @@ const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDele
     const spent = seesMoney && !!stats && stats.spent > 0;
     return (
     <div className="py-3">
-        <Link href={`/customers/${customer.id}`} className="press-row flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md">
+        <Link href={`/customers/${customer.id}`} className="press-row flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
             <Monogram name={customer.name} size={40} />
             <div className="min-w-0 flex-1">
                 <p className="truncate text-ios-headline font-semibold">{customer.name}</p>
@@ -212,7 +212,7 @@ const SpamReviewDialog: React.FC<{
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5"/>Review Spam Accounts</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5"/>Review spam accounts</DialogTitle>
         </DialogHeader>
 
         {candidates.length === 0 ? (
@@ -354,7 +354,7 @@ const MergeCustomersDialog: React.FC<{
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Merge className="w-5 h-5"/>Merge Duplicate Customers</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Merge className="w-5 h-5"/>Merge duplicate customers</DialogTitle>
         </DialogHeader>
 
         <div className="overflow-y-auto flex-1 space-y-4 pr-1">

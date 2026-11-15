@@ -63,7 +63,7 @@ const TileButton = React.forwardRef<HTMLButtonElement, TileProps>(function TileB
       <span
         aria-hidden
         className={cn(
-          'flex h-11 w-full items-center justify-center rounded-tile transition-opacity group-active:opacity-70 group-focus-visible:ring-2 group-focus-visible:ring-primary/40 [&>svg]:h-5 [&>svg]:w-5',
+          'flex h-11 w-full items-center justify-center rounded-tile transition-opacity group-active:opacity-70 group-focus-visible:ring-2 group-focus-visible:ring-ring [&>svg]:h-5 [&>svg]:w-5',
           prominent ? 'bg-primary text-primary-foreground' : 'bg-primary/[.12] text-primary',
         )}
       >

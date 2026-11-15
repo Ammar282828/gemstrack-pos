@@ -14,12 +14,10 @@ extension View {
         frame(minWidth: width, idealWidth: idealWidth ?? width, minHeight: height, idealHeight: idealHeight ?? height)
     }
 
-    /// A sheet's one action in the Mac footer (what it will do on the right as the default button, Return; Esc cancels),
-    /// or no footer while there is none.
+    /// A sheet's one action as its confirmation action (the dialog's button row, the default button, Return; Esc
+    /// cancels), or none while there is none.
     func macOrdersBar(_ primary: ActionBar.Action?) -> some View {
-        safeAreaInset(edge: .bottom, spacing: 0) {
-            if let primary { MacActionFooter(primary: primary) }
-        }
+        macActionToolbar(primary)
     }
 }
 

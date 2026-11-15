@@ -55,7 +55,7 @@ struct StudioRivals: View {
                     LabeledContent("Posts", value: String(Int(item["profile"].n("mediaCount"))))
                     Button("Look up / refresh account") { look(item, read: false) }
                     Button("Read their feed") { look(item, read: true) }
-                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.color) }
+                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.ink) }
                     DisclosureGroup("Recent posts") {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { post in
                             VStack(alignment: .leading, spacing: pt(5)) {
@@ -156,7 +156,7 @@ extension StudioRivals {
     }
 
     private var macAddAction: MacAction {
-        MacAction("Add Account…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command])) { macAdding = true }
+        MacAction("Add Account…", symbol: "plus") { macAdding = true }
     }
 
     private var macFindAction: MacAction {
@@ -194,7 +194,7 @@ extension StudioRivals {
                     }
                     if !item["profile"].s("bio").isEmpty { Text(item["profile"].s("bio")) }
                     MacFigures([MacFigure("Followers", AdsFormat.count(r.followers)), MacFigure("Posts", AdsFormat.count(r.posts))])
-                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.color) }
+                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.ink) }
                     DisclosureGroup("Recent Posts") {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { (post: MarketingValue) in
                             VStack(alignment: .leading, spacing: 5) {

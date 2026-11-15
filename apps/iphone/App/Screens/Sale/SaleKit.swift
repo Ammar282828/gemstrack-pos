@@ -85,10 +85,10 @@ struct SaleScanSheet: View {
     @State private var added = 0
     @State private var missed = 0
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= 700 }
+    private var wide: Bool { wideLayout && width >= 700 }
 
     private var camera: some View {
         TagScanner(height: wide ? 520 : 300) { code in

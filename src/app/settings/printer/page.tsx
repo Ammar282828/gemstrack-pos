@@ -240,7 +240,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React
         <Card key={field.id} className="p-4">
           <div className="flex justify-between items-center mb-2">
             <h4 className="font-semibold">{field.id}</h4>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeField(index)}>
+            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Remove field ${field.id}`} onClick={() => removeField(index)}>
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
@@ -258,7 +258,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React
               <Input value={field.data} onChange={(e) => handleFieldChange(index, 'data', e.target.value)}  aria-label="Data"/>
             </div>
             <div className="space-y-1">
-              <Label>Font Size</Label>
+              <Label>Font size</Label>
               <Input type="number" value={field.fontSize ?? 20} onChange={(e) => handleFieldChange(index, 'fontSize', parseInt(e.target.value, 10) || 20)}  aria-label="Font Size"/>
             </div>
             <div className="space-y-1">
@@ -378,7 +378,7 @@ function PrinterPageComponent() {
               <CardHeader>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <CardTitle>Interactive Tag Builder</CardTitle>
+                    <CardTitle>Interactive tag builder</CardTitle>
                     <CardDescription>Drag and drop fields to position them on the tag.</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => lscInput.current?.click()}>
@@ -415,7 +415,7 @@ function PrinterPageComponent() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Field Editor</CardTitle>
+                <CardTitle>Field editor</CardTitle>
                  <CardDescription>Adjust field positions and properties.</CardDescription>
               </CardHeader>
               <CardContent>

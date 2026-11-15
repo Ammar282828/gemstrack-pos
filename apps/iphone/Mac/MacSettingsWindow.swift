@@ -1,25 +1,88 @@
 #if os(macOS)
 import SwiftUI
 
-/// ERP › Settings… (⌘,): every setting in one window with a sidebar of panes, as System Settings has them (docs/features/
-/// mac-design.md, "Settings"). Settings is no longer a place in the main window's sidebar; each pane is the screen that
-/// already edits it, shown at the window's width. Panes an account may not change are not listed for it.
+/// ERP › Settings… (⌘,): this Mac's and this person's settings, as a Mac app keeps them (Apple's HIG, Settings › macOS): a
+/// tab bar showing the pane in front, the pane last open opened again, each pane at its own fixed size. Only what is set
+/// once in a while and belongs to this Mac or this person is here; the shop's shared records (the shop, bank accounts,
+/// alerts, data, selling online, connections) are ERP › Shop Settings… (⇧⌘,), a window of their own (`MacShopSettingsWindow`).
 struct MacSettingsWindow: View {
-    @State private var pane: MacSettingsPane? = .general
-
-    private func keep(_ all: [MacSettingsPane]) {
-        if let p = pane, !all.contains(p) { pane = .general }
-    }
+    /// The pane last open, opened again next time.
+    @AppStorage("mac.settings.pane") private var pane: MacSettingsPane = .general
 
     var body: some View {
         let business = Businesses.shared.current
         let session = Sessions.shared.session(for: business)
         Group {
             if session.state == .signedIn {
-                let panes = MacSettingsPane.groups(owner: session.isOwner, websiteSelling: session.shop.websiteSelling)
+                let tabs = MacSettingsPane.tabs
+                // A stored pane that is no longer a tab (an older build's) opens This Mac.
+                let shown = tabs.contains(pane) ? pane : .general
+                TabView(selection: Binding(get: { shown }, set: { pane = $0 })) {
+                    // `tabs`, in order.
+                    Tab(MacSettingsPane.general.title, systemImage: MacSettingsPane.general.symbol, value: MacSettingsPane.general) {
+                        MacSettingsTab(pane: .general)
+                    }
+                    Tab(MacSettingsPane.businesses.title, systemImage: MacSettingsPane.businesses.symbol, value: MacSettingsPane.businesses) {
+                        MacSettingsTab(pane: .businesses)
+                    }
+                    Tab(MacSettingsPane.account.title, systemImage: MacSettingsPane.account.symbol, value: MacSettingsPane.account) {
+                        MacSettingsTab(pane: .account)
+                    }
+                    Tab(MacSettingsPane.printing.title, systemImage: MacSettingsPane.printing.symbol, value: MacSettingsPane.printing) {
+                        MacSettingsTab(pane: .printing)
+                    }
+                    Tab(MacSettingsPane.labelLive.title, systemImage: MacSettingsPane.labelLive.symbol, value: MacSettingsPane.labelLive) {
+                        MacSettingsTab(pane: .labelLive)
+                    }
+                }
+            } else {
+                ContentUnavailableView("Sign in first", systemImage: "person.crop.circle.badge.questionmark",
+                                       description: Text("Settings open once you have signed in in the main window."))
+                    .frame(width: 480, height: 280)
+            }
+        }
+        .environment(session)
+        .environment(Book.shared)
+        .tint(Theme.accent)
+        .alternatingRowBackgrounds(.disabled)
+        .modifier(MacLockCover())
+        .environment(\.locale, Locale(identifier: "en_PK"))
+    }
+}
+
+/// One tab of Settings: the pane's screen at the pane's own size (the window takes it, and does not resize freely), in a
+/// stack of its own so a row that opens a page (This Mac's widgets, Printing's Label LIVE) opens it here.
+private struct MacSettingsTab: View {
+    let pane: MacSettingsPane
+
+    var body: some View {
+        NavigationStack {
+            MacSettingsPaneView(pane: pane)
+                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+        }
+        .frame(width: pane.size.width, height: pane.size.height)
+    }
+}
+
+/// ERP › Shop Settings… (⇧⌘,): the shop's shared records, an owner's, in a window of its own beside the main one (they are
+/// the books' settings, changed for everyone, not this Mac's): Shop, Bank Accounts, Alerts, Data, Selling Online, Connect an
+/// AI and Voice, in the sidebar of panes the Settings window had before (2026-11-15).
+struct MacShopSettingsWindow: View {
+    /// The pane last open, opened again next time.
+    @AppStorage("mac.shopSettings.pane") private var stored: MacSettingsPane = .shop
+
+    var body: some View {
+        let business = Businesses.shared.current
+        let session = Sessions.shared.session(for: business)
+        Group {
+            if session.state == .signedIn, session.isOwner {
+                let groups = MacSettingsPane.shopGroups(websiteSelling: session.shop.websiteSelling)
+                let all = groups.flatMap(\.panes)
+                // A pane this account no longer sees (another business, selling turned off) is never drawn.
+                let shown = all.contains(stored) ? stored : .shop
                 NavigationSplitView {
-                    List(selection: $pane) {
-                        ForEach(panes, id: \.title) { group in
+                    List(selection: Binding<MacSettingsPane?>(get: { shown }, set: { if let p = $0 { stored = p } })) {
+                        ForEach(groups, id: \.title) { group in
                             Section(group.title) {
                                 ForEach(group.panes) { p in
                                     Label(p.title, systemImage: p.symbol).tag(p)
@@ -31,19 +94,18 @@ struct MacSettingsWindow: View {
                     .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
                 } detail: {
                     NavigationStack {
-                        // A pane this account no longer sees (another business, another role) is never drawn, even for
-                        // the moment before the selection resets.
-                        let shown = pane.flatMap { panes.flatMap(\.panes).contains($0) ? $0 : nil } ?? .general
                         MacSettingsPaneView(pane: shown)
                             .id(shown)
                             .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                     }
                 }
-                .onAppear { keep(panes.flatMap(\.panes)) }
-                .onChange(of: panes.flatMap(\.panes)) { _, all in keep(all) }
+                .navigationTitle("Shop Settings")
+            } else if session.state == .signedIn {
+                ContentUnavailableView("For owners", systemImage: "lock",
+                                       description: Text("The shop\u{2019}s settings are changed by its owners."))
             } else {
                 ContentUnavailableView("Sign in first", systemImage: "person.crop.circle.badge.questionmark",
-                                       description: Text("Settings open once you have signed in in the main window."))
+                                       description: Text("Shop Settings open once you have signed in in the main window."))
             }
         }
         .environment(session)
@@ -56,7 +118,7 @@ struct MacSettingsWindow: View {
     }
 }
 
-/// One pane of the Settings window and the screen that edits it.
+/// One pane of Settings (⌘,) or Shop Settings (⇧⌘,), and the screen that edits it.
 enum MacSettingsPane: String, Hashable, Identifiable {
     case general, businesses, account
     case shop, bankAccounts, alerts, data
@@ -118,20 +180,41 @@ enum MacSettingsPane: String, Hashable, Identifiable {
         }
     }
 
+    /// The Settings window's size for this pane: fixed, as a Mac app's settings panes are (the window follows the tab).
+    /// The shop's panes are in Shop Settings, a resizable window, and never ask.
+    var size: CGSize {
+        switch self {
+        case .general: return CGSize(width: 640, height: 580)
+        case .businesses: return CGSize(width: 640, height: 520)
+        case .account: return CGSize(width: 560, height: 320)
+        case .printing: return CGSize(width: 680, height: 620)
+        case .labelLive: return CGSize(width: 680, height: 660)
+        default: return CGSize(width: 720, height: 620)
+        }
+    }
+
     struct PaneGroup {
         let title: String
         let panes: [MacSettingsPane]
     }
 
-    /// The panes this account sees: everyone has This Mac, Businesses, Account and printing; the shop's own are owners'.
+    /// The Settings window's tabs (⌘,): this Mac's and this person's, everyone's.
+    static let tabs: [MacSettingsPane] = [.general, .businesses, .account, .printing, .labelLive]
+
+    /// Shop Settings' panes (⇧⌘,): the shop's shared records, owners' only.
+    static func shopGroups(websiteSelling: Bool) -> [PaneGroup] {
+        var out = [PaneGroup(title: "Shop", panes: [.shop, .bankAccounts, .alerts, .data])]
+        if websiteSelling { out.append(PaneGroup(title: "Selling", panes: [.website])) }
+        out.append(PaneGroup(title: "Connections", panes: [.ai, .voice]))
+        return out
+    }
+
+    /// Every pane this account sees, in both windows: everyone has This Mac, Businesses, Account and printing (Settings);
+    /// the shop's own are owners' (Shop Settings).
     static func groups(owner: Bool, websiteSelling: Bool) -> [PaneGroup] {
         var out = [PaneGroup(title: "This Mac", panes: [.general, .businesses, .account]),
                    PaneGroup(title: "Labels", panes: [.printing, .labelLive])]
-        if owner {
-            out.insert(PaneGroup(title: "Shop", panes: [.shop, .bankAccounts, .alerts, .data]), at: 1)
-            if websiteSelling { out.append(PaneGroup(title: "Selling", panes: [.website])) }
-            out.append(PaneGroup(title: "Connections", panes: [.ai, .voice]))
-        }
+        if owner { out.insert(contentsOf: shopGroups(websiteSelling: websiteSelling), at: 1) }
         return out
     }
 }
@@ -152,6 +235,7 @@ struct MacSettingsPaneView: View {
 /// Settings › Account: who is signed in, and Sign Out.
 struct MacAccountPane: View {
     @Environment(Session.self) private var session
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Form {
@@ -159,6 +243,13 @@ struct MacAccountPane: View {
                 LabeledContent("Signed in as", value: session.me?.email ?? "")
                 LabeledContent("Role", value: session.role.capitalized)
                 LabeledContent("Business", value: House.storeName)
+            }
+            if session.isOwner {
+                Section {
+                    Button("Shop Settings\u{2026}") { openWindow(id: MacWindows.shopSettings) }
+                } footer: {
+                    Text("The shop, its bank accounts, alerts, data and connections: the same for everyone at \(House.storeName).")
+                }
             }
             Section {
                 Button("Sign Out…") { MacSignOut.ask() }

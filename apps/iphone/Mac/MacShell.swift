@@ -28,6 +28,8 @@ final class MacShellModel {
     var voice = false
     /// ⌘K's panel is over the window (MacQuickOpen).
     var quickOpen = false
+    /// Go › Today's Rates… was chosen (MacCommands): the shell presents the rate sheet the sidebar's rate opens.
+    var rates = false
     /// Help › Send Page Snapshots… was chosen for this window (MacSnapshots).
     var snapshots = false
 
@@ -201,6 +203,8 @@ struct MacShell: View {
         // table read as a page of blank rows (owner's screenshot of Drafts, 2026-10-25).
         .alternatingRowBackgrounds(.disabled)
         .focusedSceneValue(\.macShell, model)
+        // Go › Today's Rates…: the same sheet as the sidebar's rate (an owner's form, everyone else's readout).
+        .sheet(isPresented: $model.rates) { RateSheetHost() }
         .focusedSceneValue(\.macMap, map)
         .focusedSceneValue(\.macPlaces, MacSidebarMap.places(sections).map { MacPlaceLink(title: $0.title, path: $0.id) })
         // A new sale, order or repair is a window of its own, as a new document is on a Mac: the main window stays
@@ -347,7 +351,11 @@ struct MacShell: View {
 /// window's grey behind the toolbar while a list showed the ground (owner's snapshots, 2026-10-27).
 struct MacPageGround: ViewModifier {
     func body(content: Content) -> some View {
-        content.background(Theme.ground.ignoresSafeArea())
+        // The house's ground with its accent's wash (MacGround), extended under the floating sidebar so the sidebar's glass
+        // has the page to show (HIG Sidebars: "Extend visually rich content beneath the sidebar").
+        content
+            .environment(\.macGrounded, true)
+            .background { MacGround().backgroundExtensionEffect().ignoresSafeArea() }
     }
 }
 

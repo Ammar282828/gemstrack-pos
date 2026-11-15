@@ -107,7 +107,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
         saveInBackground({
           run: async () => { await updateCustomer(customer.id, finalData); return true; },
           saved: { title: "Success", description: "Customer updated successfully." },
-          failed: { title: "Error", description: "Failed to save customer." },
+          failed: { title: "Customer not saved", description: "Failed to save customer." },
         });
         router.push(`/customers/${customer.id}`);
       } else if (!isEditMode && !onSubmitSuccess && !redirectToHisaab) {
@@ -117,7 +117,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
         saveInBackground({
           run: () => addCustomer(finalData),
           saved: { title: "Success", description: "Customer added successfully." },
-          failed: { title: "Error", description: "Failed to create customer." },
+          failed: { title: "Customer not saved", description: "Failed to create customer." },
         });
         router.push('/customers');
       } else if (isEditMode && customer) {
@@ -135,11 +135,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
             router.push('/customers');
           }
         } else {
-          toast({ title: "Error", description: "Failed to create customer.", variant: "destructive" });
+          toast({ title: "Customer not saved", description: "Failed to create customer.", variant: "destructive" });
         }
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save customer.", variant: "destructive" });
+      toast({ title: "Customer not saved", description: "Failed to save customer.", variant: "destructive" });
       console.error("Failed to save customer", error);
     }
   };

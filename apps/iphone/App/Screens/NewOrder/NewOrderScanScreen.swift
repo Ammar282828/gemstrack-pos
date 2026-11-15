@@ -116,7 +116,7 @@ struct NewOrderScanScreen: View {
         let check = NewOrderSlip.check(a)
         if let unread = a.unreadable, !unread.isEmpty {
             Section {
-                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.ink)
             } header: {
                 LedgerHeading(title: "Could not make this out")
             }
@@ -124,7 +124,7 @@ struct NewOrderScanScreen: View {
         if !check.warnings.isEmpty {
             Section {
                 ForEach(check.warnings, id: \.self) { w in
-                    Label(w, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                    Label(w, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink)
                 }
             } header: {
                 LedgerHeading(title: "The slip does not add up as read")
@@ -193,7 +193,7 @@ struct NewOrderScanScreen: View {
             TwoLine(title: (it.description ?? "").isEmpty ? "Unnamed piece" : it.description!,
                     subtitle: bits.joined(separator: " · "),
                     trailing: written > 0 ? Money.pkr(written) : nil,
-                    trailingTint: off ? Tone.problem.color : .primary)
+                    trailingTint: off ? Tone.problem.ink : .primary)
             if let computed, written <= 0 {
                 Text("Rate × weight comes to \(Money.pkr(computed)): no amount was written against it.")
                     .font(.house(.caption)).foregroundStyle(.secondary)
@@ -218,7 +218,7 @@ struct NewOrderScanScreen: View {
                 if let x = a.exchange {
                     LabeledContent {
                         Text(ex.from == .unpriced ? "No figure" : "− " + Money.pkr(ex.value))
-                            .foregroundStyle(ex.from == .unpriced ? Tone.problem.color : Color.primary)
+                            .foregroundStyle(ex.from == .unpriced ? Tone.problem.ink : Color.primary)
                     } label: {
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text("Taken in exchange")

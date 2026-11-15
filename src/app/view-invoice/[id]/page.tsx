@@ -148,7 +148,7 @@ export default function ViewInvoicePage() {
         <Card className="max-w-2xl mx-auto shadow-2xl">
             <CardHeader className="text-center">
                 <CheckCircle className="mx-auto h-12 w-12 text-success"/>
-                <CardTitle className="text-2xl font-bold">Estimate Ready</CardTitle>
+                <CardTitle className="text-2xl font-bold">Estimate ready</CardTitle>
                 <CardDescription>
                     Your estimate <span className="font-mono font-medium text-foreground">{invoice.id}</span> is ready for download.
                 </CardDescription>
@@ -161,7 +161,7 @@ export default function ViewInvoicePage() {
                             <p className="font-semibold">{invoice.customerName || 'Walk-in Customer'}</p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground text-right">Grand Total</p>
+                            <p className="text-sm text-muted-foreground text-right">Grand total</p>
                             <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             {getInvoiceAdjustmentsAmount(invoice) !== 0 && (
                                 <p className="text-xs text-muted-foreground text-right">
@@ -173,7 +173,7 @@ export default function ViewInvoicePage() {
                      {invoice.amountPaid > 0 && (
                         <div className="border-t mt-3 pt-3">
                             <div className="flex justify-between items-center">
-                                <p className="text-sm text-muted-foreground">Amount Paid</p>
+                                <p className="text-sm text-muted-foreground">Amount paid</p>
                                 <p className="font-semibold text-success">- PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             </div>
                             <div className="flex justify-between items-center mt-1">

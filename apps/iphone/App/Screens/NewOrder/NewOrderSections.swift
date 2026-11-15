@@ -128,7 +128,7 @@ struct NewOrderPromisedSection: View {
                     // Soon is amber, as the order page's "Urgent" pill: red is kept for what is already late.
                     Label(urgentWords(d), systemImage: "exclamationmark.triangle.fill")
                         .font(.house(.subheadline))
-                        .foregroundStyle(d < 0 ? Tone.late.color : Tone.owed.color)
+                        .foregroundStyle(d < 0 ? Tone.late.ink : Tone.owed.ink)
                 }
             }
         } header: {

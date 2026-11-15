@@ -96,7 +96,7 @@ export function ProductBreakdown({ range: dateRange }: { range: DateRange | unde
                 <TableRow>
                     <TableHead>Piece</TableHead>
                     <TableHead className="text-right">Revenue (PKR)</TableHead>
-                    <TableHead className="text-right">Quantity Sold</TableHead>
+                    <TableHead className="text-right">Quantity sold</TableHead>
                     <TableHead className="text-right"># of Orders</TableHead>
                 </TableRow>
             </TableHeader>

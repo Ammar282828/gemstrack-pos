@@ -321,8 +321,8 @@ struct HisaabLedgerScreen: View {
         let getGold: String? = r.gold > 0 ? "\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)" : nil
         let giveGold: String? = r.gold < 0 ? "\(MoneyFormat.grams(abs(r.gold))) \(MoneyWords.metal)" : nil
         return FigureRow(alignment: .top, spacing: pt(10)) {
-            FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: Tone.owed.color)
-            FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: Tone.credit.color)
+            FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: Tone.owed.ink)
+            FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: Tone.credit.ink)
         }
         .padding(.vertical, pt(4))
     }
@@ -417,20 +417,20 @@ private struct HisaabLedgerRow: View {
     private var moves: some View {
         let e = line.entry
         if e.cashDebit > 0 {
-            Text("You gave \(Money.pkr(e.cashDebit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.owed.color)
+            Text("You gave \(Money.pkr(e.cashDebit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.owed.ink)
         }
         if e.cashCredit > 0 {
-            Text("You got \(Money.pkr(e.cashCredit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.settled.color)
+            Text("You got \(Money.pkr(e.cashCredit))").font(.house(.subheadline).weight(.semibold)).foregroundStyle(Tone.settled.ink)
         }
         // One coloured figure per row: the metal's movement is quiet when the cash already moved.
         let cashMoved = e.cashDebit > 0 || e.cashCredit > 0
         if e.goldDebitGrams > 0 {
             Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.house(.caption))
-                .foregroundStyle(cashMoved ? Color.secondary : Tone.owed.color)
+                .foregroundStyle(cashMoved ? Color.secondary : Tone.owed.ink)
         }
         if e.goldCreditGrams > 0 {
             Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.house(.caption))
-                .foregroundStyle(cashMoved ? Color.secondary : Tone.settled.color)
+                .foregroundStyle(cashMoved ? Color.secondary : Tone.settled.ink)
         }
     }
 

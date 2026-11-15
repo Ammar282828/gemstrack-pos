@@ -86,7 +86,7 @@ struct ListSummaryStrip: View {
                 .lineLimit(2)
             Text(f.text)
                 .font(.house(.subheadline).weight(.semibold))
-                .foregroundStyle(f.tone?.color ?? Color.primary)
+                .foregroundStyle(f.tone?.ink ?? Color.primary)
                 .monospacedDigit()
                 .contentTransition(.numericText(value: f.value))
                 .lineLimit(2)
@@ -260,6 +260,7 @@ struct RecordRow<Accessory: View>: View {
     var status: RecordStatus?
     @ViewBuilder var accessory: () -> Accessory
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.wideLayout) private var wideLayout
 
     #if os(macOS)
     static var monogram: CGFloat { Monogram.Size.row }
@@ -274,7 +275,7 @@ struct RecordRow<Accessory: View>: View {
                     lead.frame(maxWidth: .infinity, alignment: .leading)
                     trailing(true)
                 }
-            } else if !Self.canFold {
+            } else if !canFold {
                 HStack(alignment: .top, spacing: pt(12)) {
                     lead.frame(maxWidth: .infinity, alignment: .leading)
                     trailing(false)
@@ -299,10 +300,11 @@ struct RecordRow<Accessory: View>: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// An iPad's narrow list column folds the figures under the name; a phone keeps its one line as it always has.
-    private static var canFold: Bool {
+    /// An iPad's narrow list column folds the figures under the name, as does any window wide enough for the list beside
+    /// its item (a large iPhone display in the wide layout); a phone's own window keeps its one line as it always has.
+    private var canFold: Bool {
         #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .pad
+        return UIDevice.current.userInterfaceIdiom == .pad || wideLayout
         #else
         return false
         #endif
@@ -342,12 +344,12 @@ struct RecordRow<Accessory: View>: View {
             HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
                 if let money {
                     if let amount = money.amount {
-                        RowAmount(amount: amount, lac: money.lac, tone: money.tone?.color ?? .primary)
+                        RowAmount(amount: amount, lac: money.lac, tone: money.tone?.ink ?? .primary)
                     }
                     if let detail = money.detail, !detail.isEmpty {
                         Text(detail)
                             .font(.house(.caption).weight(money.detailTone == .quiet ? .regular : .semibold))
-                            .foregroundStyle(money.detailTone.color)
+                            .foregroundStyle(money.detailTone.ink)
                             .monospacedDigit()
                             .lineLimit(1)
                     }
@@ -367,12 +369,12 @@ struct RecordRow<Accessory: View>: View {
             VStack(alignment: stacked ? .leading : .trailing, spacing: pt(4)) {
                 if let money {
                     if let amount = money.amount {
-                        RowAmount(amount: amount, lac: money.lac, tone: money.tone?.color ?? .primary)
+                        RowAmount(amount: amount, lac: money.lac, tone: money.tone?.ink ?? .primary)
                     }
                     if let detail = money.detail, !detail.isEmpty {
                         Text(detail)
                             .font(.house(.caption).weight(money.detailTone == .quiet ? .regular : .semibold))
-                            .foregroundStyle(money.detailTone.color)
+                            .foregroundStyle(money.detailTone.ink)
                             .monospacedDigit()
                             .lineLimit(1)
                     }
@@ -551,6 +553,9 @@ struct RecordListScaffold<Rows: View, Cards: View, Empty: View>: View {
     /// The width, for the grid (kept in state: a GeometryReader around the whole list re-ran it on every pass).
     @State private var width: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// The toolbar's magnifying glass: brings the pull-down search out without the pull (a person who does not know the
+    /// gesture finds the search here, as in Mail).
+    @State private var summon = false
 
     var body: some View {
         Group {
@@ -562,17 +567,24 @@ struct RecordListScaffold<Rows: View, Cards: View, Empty: View>: View {
                     .padding(pt(24))
                 }
                 // Pulled down from the top, as iOS's own search (PullDownSearch.swift); on the ScrollView so the pull is read there.
-                .pullDownSearch(text: $search, prompt: prompt)
+                .pullDownSearch(text: $search, prompt: prompt, summon: $summon)
             } else {
                 List {
                     rows()
                 }
                 .listStyle(.insetGrouped)
                 // On the List so the pull is read there.
-                .pullDownSearch(text: $search, prompt: prompt)
+                .pullDownSearch(text: $search, prompt: prompt, summon: $summon)
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        #if os(iOS)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { summon = true } label: { Label("Search", systemImage: "magnifyingglass") }
+            }
+        }
+        #endif
         // Nothing to show is an overlay of the list, never a row inside it (rule 16).
         .overlay {
             if isEmpty { empty().padding(.top, pt(120)) }

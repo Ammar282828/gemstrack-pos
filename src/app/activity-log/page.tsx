@@ -152,7 +152,7 @@ export default function ActivityLogPage() {
                 <CardContent className="flex flex-col sm:flex-row gap-4">
                      <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Event Type:</span>
+                        <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Event type:</span>
                         <Select value={typeFilter} onValueChange={setTypeFilter}>
                             <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="All" />
@@ -201,7 +201,7 @@ export default function ActivityLogPage() {
                        ) : (
                            <div className="text-center py-12">
                                <History className="w-16 h-16 mx-auto text-muted-foreground mb-4"/>
-                               <h3 className="text-xl font-semibold mb-2">No Activity Found</h3>
+                               <h3 className="text-xl font-semibold mb-2">No activity found</h3>
                                <p className="text-sm text-muted-foreground">There are no log entries for the selected filters.</p>
                            </div>
                        )}

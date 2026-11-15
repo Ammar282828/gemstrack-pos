@@ -26,7 +26,7 @@ export function LedgerSection({ footer, collapsible, defaultOpen = true, classNa
   if (collapsible) {
     return (
       <details open={defaultOpen} className={cn('group space-y-2', className)}>
-        <summary className="flex cursor-pointer list-none items-center gap-1 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center gap-1 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
           <LedgerHeading {...heading} className="flex-1" />
           <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-enter group-open:rotate-90 motion-reduce:transition-none" />
         </summary>

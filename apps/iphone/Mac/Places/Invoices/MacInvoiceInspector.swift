@@ -109,7 +109,12 @@ struct MacInvoiceHead: View {
                     row(Array(list.dropFirst(1)))
                 }
             }
-            if withContact, let phone { ContactActions(phone: phone) }
+            // The one customer Contact row (App/UI/CustomerContact.swift), as the order's inspector and the repair ticket have
+            // it: WhatsApp and Message open typed (a reminder while it owes, thanks once paid); a walk-in has none.
+            if withContact, let phone {
+                CustomerContactActions(phone: phone, customerId: invoice.customerId, customerName: invoice.customerName,
+                                       message: cx.message(invoice))
+            }
         }
     }
 
@@ -147,7 +152,7 @@ private struct MacInvoiceInspectorBody: View {
             }
             .padding(12)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     // MARK: Pieces

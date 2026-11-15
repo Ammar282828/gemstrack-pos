@@ -43,7 +43,7 @@ struct SignInView: View {
                     }
                     if let e = session.error {
                         Label(e, systemImage: "exclamationmark.triangle.fill")
-                            .font(.house(.footnote)).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
+                            .font(.house(.footnote)).foregroundStyle(Tone.problem.ink).multilineTextAlignment(.center)
                     }
                     if !House.isDemo {
                         Button {

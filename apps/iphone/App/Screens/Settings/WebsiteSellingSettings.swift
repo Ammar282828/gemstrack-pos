@@ -200,7 +200,7 @@ private struct WebsiteSellingForm: View {
                 if !draft.missing.isEmpty {
                     Label("Before this can work, set \(draft.missing.joined(separator: " and ")).", systemImage: "exclamationmark.triangle")
                         .font(.house(.footnote))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
             } footer: {
                 Text("The site prices each photographed piece live, weight × today’s rate for its karat plus what you set here, and creates the product and the order in the ERP when a customer checks out. Payment is by bank transfer; you confirm it on the order.")

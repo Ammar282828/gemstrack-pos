@@ -67,6 +67,9 @@ struct MacInvoiceContext {
     /// The number the Contact actions reach (the invoice's own, else its customer's; "" for a walk-in): set by whoever
     /// has the book (MacContact).
     var number: (Invoice) -> String = { _ in "" }
+    /// What WhatsApp Chat and Message open with for this invoice: a gentle reminder while it owes, thanks once paid
+    /// (CustomerMessages.invoice). Set with `number`; "" opens them blank.
+    var message: (Invoice) -> String = { _ in "" }
 }
 
 // MARK: The sheets

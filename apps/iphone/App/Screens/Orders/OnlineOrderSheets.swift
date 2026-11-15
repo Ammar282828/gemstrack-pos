@@ -142,7 +142,7 @@ struct OnlineConfirmSheet: View {
             LabeledContent("Ships to", value: row.delivery.city)
             if let dearer = OnlineOrdersLogic.dearerToday(row) {
                 LabeledContent("Today it would be") {
-                    Text(Money.pkr(dearer)).foregroundStyle(Tone.owed.color).monospacedDigit()
+                    Text(Money.pkr(dearer)).foregroundStyle(Tone.owed.ink).monospacedDigit()
                 }
             }
         }
@@ -162,10 +162,10 @@ struct OnlineConfirmSheet: View {
         Section {
             if let n = c.notified, !n.isEmpty {
                 Label("Confirmed, but the WhatsApp telling \(row.customer.name) did not send (\(n)).", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(Tone.owed.ink)
             } else {
                 Label("\(row.customer.name) has been told it is confirmed and that your bank details are coming.", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(Tone.settled.ink)
             }
             Text("Send them now: the price is held \(holdWords) for \(Money.pkr(row.grandTotal)).")
         } footer: {

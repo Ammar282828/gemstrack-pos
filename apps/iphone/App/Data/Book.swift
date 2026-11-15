@@ -5,6 +5,7 @@ import UIKit
 import AppKit
 #endif
 import Observation
+import os
 import ERPCore
 
 /// The shop's books on the phone: one shelf per Firestore collection, kept live.
@@ -364,6 +365,12 @@ enum ServerShelf {
     }
 }
 
+/// Every figure a `Memo` works out, as an interval in Instruments' Points of Interest named by what it makes ("AnaHistory",
+/// "MacOrdersBase"): Product › Profile (⌘I) with the Time Profiler shows which screen's figures hold the main thread, and for how
+/// long, instead of a guess. Free while nothing records. One that takes longer than a frame (16 ms) is also said in Console.
+private let memoSignposter = OSSignposter(subsystem: "shop.taheri.erp", category: .pointsOfInterest)
+private let memoLog = Logger(subsystem: "shop.taheri.erp", category: "figures")
+
 /// A figure worked out from the books, kept until one of the things it was worked out from changes
 /// (`Shelf.revision`, a day, a setting). Held in a screen's `@State`; reading it does not redraw anything.
 @MainActor
@@ -376,7 +383,13 @@ final class Memo<Value> {
     /// the first time, or on coming back (the key is looked at again), it is worked out as ever.
     func callAsFunction(_ key: [Int], resting: Bool = false, _ make: () -> Value) -> Value {
         if let value, resting || self.key == key { return value }
+        let what = String(describing: Value.self)
+        let state = memoSignposter.beginInterval("Figure", id: memoSignposter.makeSignpostID(), "\(what, privacy: .public)")
+        let started = DispatchTime.now().uptimeNanoseconds
         let made = make()
+        memoSignposter.endInterval("Figure", state)
+        let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+        if ms > 16 { memoLog.notice("\(what, privacy: .public) took \(Int(ms.rounded())) ms on the main thread") }
         self.key = key
         value = made
         return made

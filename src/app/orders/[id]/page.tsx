@@ -340,7 +340,7 @@ export default function OrderDetailPage() {
         toast({ title: "Order Reverted", description: `Invoice ${order.invoiceId} has been cancelled and order is now editable.` });
         setIsRevertDialogOpen(false);
     } catch (e) {
-        toast({ title: "Error", description: deleteErrorText(e, "Failed to revert order."), variant: "destructive" });
+        toast({ title: "Order not reverted", description: deleteErrorText(e, "Failed to revert order."), variant: "destructive" });
     } finally {
         setIsReverting(false);
     }
@@ -355,7 +355,7 @@ export default function OrderDetailPage() {
         setIsRevertAndEditDialogOpen(false);
         router.push(`/orders/${order.id}/edit`);
     } catch (e) {
-        toast({ title: "Error", description: deleteErrorText(e, "Failed to cancel invoice before editing."), variant: "destructive" });
+        toast({ title: "Invoice not cancelled", description: deleteErrorText(e, "Failed to cancel invoice before editing."), variant: "destructive" });
     } finally {
         setIsReverting(false);
     }
@@ -416,7 +416,7 @@ export default function OrderDetailPage() {
         // In Progress/Completed. Staff can still send a message manually via the
         // "Send to Customer" button.
     } catch (error) {
-        toast({ title: "Error", description: error instanceof MoveRefused ? error.message : "Failed to update order status.", variant: "destructive" });
+        toast({ title: "Status not changed", description: error instanceof MoveRefused ? error.message : "Failed to update order status.", variant: "destructive" });
     } finally {
         setIsUpdatingStatus(false);
     }
@@ -429,7 +429,7 @@ export default function OrderDetailPage() {
         await updateOrderItemStatus(order.id, itemIndex, isCompleted);
         toast({ title: "Item Status Updated", description: `Item #${itemIndex + 1} status updated.` });
     } catch (error) {
-        toast({ title: "Error", description: "Failed to update item status.", variant: "destructive" });
+        toast({ title: "Status not changed", description: "Failed to update item status.", variant: "destructive" });
     } finally {
         setIsUpdatingItem(null);
     }
@@ -442,7 +442,7 @@ export default function OrderDetailPage() {
       await removeItemFromOrder(order.id, itemToDelete);
       toast({ title: "Item Removed", description: `Item #${itemToDelete + 1} removed from order.` });
     } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to remove item.", variant: "destructive" });
+      toast({ title: "Item not removed", description: error?.message || "Failed to remove item.", variant: "destructive" });
     } finally {
       setIsDeletingItem(false);
       setItemToDelete(null);
@@ -670,7 +670,7 @@ export default function OrderDetailPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isReverting}>Keep Locked</AlertDialogCancel>
+            <AlertDialogCancel disabled={isReverting}>Keep locked</AlertDialogCancel>
             <AlertDialogAction onClick={handleRevertAndEdit} disabled={isReverting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
               Revert Invoice & Unlock
@@ -969,12 +969,12 @@ export default function OrderDetailPage() {
                             {(Number(linkedInvoice.adjustmentsAmount) || 0) !== 0 && (
                               <div className="flex justify-between"><span>{adjustmentsLabel(linkedInvoice)}:</span> <span className="font-semibold">PKR {(Number(linkedInvoice.adjustmentsAmount) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             )}
-                            <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                            <div className="flex justify-between font-bold"><span>Grand total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
                               <div className="flex justify-between text-tone-settled-ink"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             )}
                             <Separator className="my-2 bg-muted-foreground/20"/>
-                            <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', linkedInvoice.balanceDue >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                            <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', linkedInvoice.balanceDue >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           </div>
                         </div>
                       </div>
@@ -1187,7 +1187,7 @@ export default function OrderDetailPage() {
                               </ul>
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
-                          <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', grandTotal >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                          <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', grandTotal >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           {/* The shop's margin on the order (lib/margin.ts) — blurred until tapped, never on the slip. */}
                           <MarginFigure className="mt-3" margin={orderMargin(order)} />
                       </div>

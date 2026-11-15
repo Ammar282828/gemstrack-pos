@@ -189,7 +189,7 @@ struct CustomerSpamSheet: View {
                 // The web's own warning: a storefront's bots sign up again until the store stops them.
                 if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
                     Text("Rows tagged Shopify came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
             }
         }
@@ -353,7 +353,7 @@ struct CustomerSpamSheet: View {
                 ForEach(r.failed.indices, id: \.self) { (i: Int) in
                     VStack(alignment: .leading, spacing: pt(3)) {
                         Text(r.failed[i].name).font(.house(.body).weight(.medium))
-                        Text(r.failed[i].why).font(.house(.caption)).foregroundStyle(Tone.problem.color)
+                        Text(r.failed[i].why).font(.house(.caption)).foregroundStyle(Tone.problem.ink)
                     }
                 }
             } header: {
@@ -447,7 +447,7 @@ extension CustomerSpamSheet {
                 if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
                     Text("Rows tagged Shopify may sync back until the storefront's sign-up has a CAPTCHA.")
                         .font(.house(.footnote))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
             }
             .padding(.horizontal, 14)

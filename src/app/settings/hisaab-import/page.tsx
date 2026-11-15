@@ -212,7 +212,7 @@ export default function HisaabImportPage() {
             </div>
           </div>
           
-          {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Error Reading File</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+          {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Error reading file</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
 
           {parsedData.length > 0 && (
             <div>

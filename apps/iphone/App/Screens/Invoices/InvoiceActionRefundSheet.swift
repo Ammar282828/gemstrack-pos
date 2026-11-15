@@ -108,7 +108,7 @@ struct InvoiceActionRefundSheet: View {
         } footer: {
             if amount > 0 && amount > invoice.amountPaid + 0.5 {
                 // The web takes it; said so nobody hands back more than came in by a slip of the keys.
-                Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
+                Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.ink)
             } else if amount > 0 {
                 Text(Money.pkrLac(amount))
             }
@@ -224,7 +224,7 @@ extension InvoiceActionRefundSheet {
     private var macPartialNotes: some View {
         if amount > 0 && amount > invoice.amountPaid + 0.5 {
             // The web takes it; said so nobody hands back more than came in by a slip of the keys.
-            Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
+            Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.ink)
         } else if amount > 0 {
             Text(Money.pkrLac(amount)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
         }

@@ -124,7 +124,7 @@ struct AdsAudienceSheet: View {
         Section {
             ForEach(draft.places) { (p: AdsPlace) in placeRow(p) }
             if draft.places.isEmpty {
-                Text("Choose at least one place.").foregroundStyle(Tone.problem.color)
+                Text("Choose at least one place.").foregroundStyle(Tone.problem.ink)
             }
             TextField("A city, area or country", text: $placeQ)
                 .textInputAutocapitalization(.words)

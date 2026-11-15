@@ -189,7 +189,7 @@ export default function EntityHisaabPage() {
         await deleteHisaabEntry(entryId);
         toast({ title: "Success", description: "Transaction deleted successfully." });
       } catch(e) {
-          toast({ title: "Error", description: deleteErrorText(e, "Failed to delete transaction."), variant: "destructive" });
+          toast({ title: "Not deleted", description: deleteErrorText(e, "Failed to delete transaction."), variant: "destructive" });
       } finally {
           setIsDeleting(null);
       }
@@ -215,7 +215,7 @@ export default function EntityHisaabPage() {
     if(result) {
         toast({ title: "Success", description: "New hisaab entry added." });
     } else {
-        toast({ title: "Error", description: "Failed to add hisaab entry.", variant: "destructive" });
+        toast({ title: "Hisaab entry not added", description: "Failed to add hisaab entry.", variant: "destructive" });
     }
   };
 
@@ -244,7 +244,7 @@ export default function EntityHisaabPage() {
   
   const handlePrintLedger = async () => {
     if (!entity || !settings) {
-        toast({ title: "Error", description: "Entity or settings data is not available for printing.", variant: "destructive" });
+        toast({ title: "Nothing to print", description: "Entity or settings data is not available for printing.", variant: "destructive" });
         return;
     }
 
@@ -289,7 +289,7 @@ export default function EntityHisaabPage() {
        <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} entityType={entityType} />
        <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
@@ -317,7 +317,7 @@ export default function EntityHisaabPage() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Send Payment Reminder</DialogTitle>
+                  <DialogTitle>Send payment reminder</DialogTitle>
                   <DialogDescription>Opens WhatsApp with a pre-filled reminder for the outstanding balance.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-2">
@@ -417,7 +417,7 @@ export default function EntityHisaabPage() {
                                     {entityHisaab.some(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0) && (
                                       <TableHead className="text-right">{STORE_METAL_WORD} Balance</TableHead>
                                     )}
-                                    <TableHead className="text-right">Cash Balance</TableHead>
+                                    <TableHead className="text-right">Cash balance</TableHead>
                                     <TableHead className="w-10"></TableHead>
                                 </TableRow>
                             </TableHeader>

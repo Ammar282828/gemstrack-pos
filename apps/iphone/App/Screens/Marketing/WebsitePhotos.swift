@@ -145,7 +145,7 @@ struct WebsitePhotosScreen: View {
                 if !configured {
                     Section {
                         Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Tone.owed.color)
+                            .foregroundStyle(Tone.owed.ink)
                     }
                 }
                 collectionSection
@@ -249,7 +249,7 @@ struct WebsitePhotosScreen: View {
                 if let check = item.check, !check.passes {
                     Label(check.differences.first ?? "Not checked: compare it with the original.", systemImage: "exclamationmark.triangle")
                         .font(.house(.caption))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
                 if editable && !item.retouching {
                     HStack(spacing: pt(14)) {
@@ -298,7 +298,7 @@ struct WebsitePhotosScreen: View {
             // Done is the expected end: a quiet word, the dimmed photo says the rest (CONVENTIONS rule 15).
             Text("On the website").font(.house(.caption)).foregroundStyle(.secondary)
         case .failed:
-            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.house(.caption)).foregroundStyle(Tone.problem.color)
+            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.house(.caption)).foregroundStyle(Tone.problem.ink)
         case .uploading:
             Text("Sending…").font(.house(.caption)).foregroundStyle(.secondary)
         case .queued:
@@ -665,7 +665,7 @@ extension WebsitePhotosScreen {
             VStack(alignment: .leading, spacing: 6) {
                 if !configured {
                     Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
                 if let c = chosen {
                     Text("\(c.category) → \(c.collection) · " + (c.count > 0 ? "it has \(c.count) pieces today" : "nothing in it yet")).font(.house(.headline))

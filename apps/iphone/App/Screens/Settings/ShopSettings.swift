@@ -177,7 +177,7 @@ private struct ShopForm: View {
                 if let typed, typed >= 0 {
                     Text("Now \(stored). Next: \(Self.next(prefix, typed))")
                 } else {
-                    Text("A whole number, 0 or more.").foregroundStyle(Tone.problem.color)
+                    Text("A whole number, 0 or more.").foregroundStyle(Tone.problem.ink)
                 }
             }
             .font(.house(.caption))

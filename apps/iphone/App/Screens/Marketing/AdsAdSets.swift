@@ -340,7 +340,7 @@ struct AdsAdSetsScreen: View {
                 TextField("Campaign name", text: $campaignName)
             }
             if let treeError {
-                Text("The account's campaigns didn't come: \(treeError)").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                Text("The account's campaigns didn't come: \(treeError)").font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
             }
         } header: {
             #if os(macOS)
@@ -468,10 +468,10 @@ struct AdsAdSetsScreen: View {
             Group {
                 Section {
                     VStack(spacing: pt(10)) {
-                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
+                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.ink)
                         Text("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")").font(.house(.headline))
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -547,7 +547,7 @@ extension AdsAdSetsScreen {
                 ForEach(m.adsets) { (s: AdsDesignMade.Made) in
                     Text("\(s.name): \(s.ads.count) ad\(s.ads.count == 1 ? "" : "s")")
                 }
-                ForEach(m.warnings, id: \.self) { (w: String) in Text(w).foregroundStyle(Tone.owed.color) }
+                ForEach(m.warnings, id: \.self) { (w: String) in Text(w).foregroundStyle(Tone.owed.ink) }
             }
         } actions: {
             NavigationLink(value: Route(path: "/ads/campaigns")) { Text("See Them in Campaigns") }

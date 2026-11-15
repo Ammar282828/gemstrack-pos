@@ -117,7 +117,7 @@ struct MacRepairsTicket: View {
             }
             .padding(wide ? 20 : 14)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The iPhone's record head as a card: the monogram, the piece, who and which, the status pill, what is owed as the one
@@ -355,6 +355,7 @@ struct MacRepairsTicketWindow: View {
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
 
     private var current: Repair? { book.repairs.item(id) ?? seed }
@@ -369,7 +370,12 @@ struct MacRepairsTicketWindow: View {
             .onChange(of: model.deleted) { _, gone in
                 if gone { dismiss() }
             }
-            .onAppear { book.repairs.need() }
+            .onAppear {
+                book.repairs.need()
+                // ⌘Z for a step taken here (MacRepairsModel): this window's undo manager, and the shelf's ticket to put back.
+                model.undoManager = undoManager
+                model.latest = { [book] (id: String) -> Repair? in book.repairs.item(id) }
+            }
     }
 
     private func actions() -> [[MacAction]] {
@@ -401,7 +407,7 @@ struct MacRepairsTicketWindow: View {
                 MacToolbarAction(action: a)
             }
             Menu {
-                MacActionItems(groups: moreGroups(more))
+                MacActionItems(groups: moreGroups(more), context: false)
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }

@@ -146,7 +146,7 @@ export default function ScanPOSPage() {
         <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base"><ScanLine className="w-5 h-5 text-primary" />Scan Items</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base"><ScanLine className="w-5 h-5 text-primary" />Scan items</CardTitle>
               <CardDescription>Scan product QR codes or enter SKU manually to add to sale.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

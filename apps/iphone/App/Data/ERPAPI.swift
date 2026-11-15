@@ -103,7 +103,7 @@ final class ERPAPI {
                 let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 // A 409 from a state machine says what it allowed instead (ERPCore's MachineRefusal); the words are the server's.
                 let said: String? = status == 409 ? body.flatMap { MachineRefusal.message($0) } : (body?["error"] as? String)
-                throw Failure(status: status, message: said ?? "The ERP answered \(status).")
+                throw Failure(status: status, message: said ?? "The shop's server didn't answer (\(status)). Try again.")
             }
             return (data, status, etag)
         }

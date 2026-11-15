@@ -103,7 +103,7 @@ struct AnaOrdersChart: View {
                     // beside it with no legend.
                     .foregroundStyle(Theme.accent)
                     #else
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(Tone.settled.ink)
                     #endif
             }
             .frame(height: 110)
@@ -142,7 +142,7 @@ struct AnaMonthlyChart: View {
                         // today (the best month is a figure above; a green bar beside a beige one had no legend).
                         .foregroundStyle(m.plotDate == latest ? Theme.accent : Theme.accent.opacity(0.5))
                         #else
-                        .foregroundStyle(m.key == best ? Tone.settled.color : Theme.accent)
+                        .foregroundStyle(m.key == best ? Tone.settled.ink : Theme.accent)
                         #endif
                 }
                 RuleMark(y: .value("Average", average / Money.lac))

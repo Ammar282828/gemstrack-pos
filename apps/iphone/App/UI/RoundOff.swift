@@ -52,7 +52,7 @@ struct RoundOffChips: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
-                    .controlSize(.small)
+                    .moneyTapSize()
                     .tint(Theme.accent)
                     .accessibilityAddTraits(chosen ? .isSelected : [])
                 }

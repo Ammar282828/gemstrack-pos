@@ -67,21 +67,21 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSContactsUsageDescription</key>
-	<string>Choose a customer's or karigar's number from your contacts.</string>
+	<string>ERP reads your contacts so you can choose a customer's or karigar's number.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>To photograph pieces, bills and slips for the ERP.</string>
+	<string>ERP uses the camera to photograph pieces, bills and slips.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>To use Face ID instead of typing the delete code.</string>
+	<string>ERP uses Face ID so you don't have to type the delete code.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>To send tags to the label printer: a Zebra on the shop's network, or Label LIVE on the Mac at the counter.</string>
+	<string>ERP uses the local network to send tags to the label printer, a Zebra on the shop's network or Label LIVE on the Mac at the counter.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>To hear you when you speak to the ERP.</string>
+	<string>ERP uses the microphone to hear you when you speak to it.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>To save invoices, stories and photos you share from the ERP.</string>
+	<string>ERP saves invoices, stories and photos you share into your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>To add photos of pieces from your library.</string>
+	<string>ERP reads your photo library so you can add photos of pieces.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>To show your words while you speak to the ERP.</string>
+	<string>ERP uses speech recognition to show your words while you speak to it.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>FuturaLT-Light.ttf</string>

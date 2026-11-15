@@ -18,7 +18,7 @@ struct ArtworkEditor: View {
     var macEmbed: MacArtworkEmbed? = nil
     #endif
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The sheet's own width: on an iPad's page sheet the artwork is pinned on the left and the tools sit beside it.
     @State private var sheetWidth: CGFloat = 0
@@ -66,7 +66,7 @@ struct ArtworkEditor: View {
     @FocusState private var macCanvasFocus: Bool
     @AppStorage(MacInspector.key) private var macInspectorShown = true
     #endif
-    private var sideBySide: Bool { sizeClass.isPadLayout && sheetWidth >= 820 && !typeSize.isAccessibilitySize }
+    private var sideBySide: Bool { wideLayout && sheetWidth >= 820 && !typeSize.isAccessibilitySize }
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
     private var allPhotos: [String: Data] { clipboard.photos.merging(photos) { _, current in current } }
     private var placement: Binding<MarketingValue> {

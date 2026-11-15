@@ -371,7 +371,7 @@ struct Dashboard: View {
         return linked("/orders") {
             DashStat(label: "Orders due", linked: true) {
                 DashStatValue(text: n == 0 ? "None" : "\(n) open")
-                if late > 0 { DashStatNote(text: "\(late) late", tint: Tone.late.color) }
+                if late > 0 { DashStatNote(text: "\(late) late", tint: Tone.late.ink) }
             }
         }
     }
@@ -382,7 +382,7 @@ struct Dashboard: View {
         let n = f.unpaid.count
         return DashStat(label: "Owed to you", linked: true) {
             if owing {
-                DashStatAmount(amount: f.totalOutstanding, tint: Tone.owed.color)
+                DashStatAmount(amount: f.totalOutstanding, tint: Tone.owed.ink)
             } else {
                 DashStatValue(text: "Nil")
             }
@@ -400,7 +400,7 @@ struct Dashboard: View {
             DashStatValue(text: "\(n) piece\(n == 1 ? "" : "s")")
             // Nothing overdue is the normal state: no line for it.
             if critical > 0 {
-                DashStatNote(text: "\(critical) sitting \(DashBench.criticalDays)+ days", tint: Tone.late.color)
+                DashStatNote(text: "\(critical) sitting \(DashBench.criticalDays)+ days", tint: Tone.late.ink)
             }
         }
     }

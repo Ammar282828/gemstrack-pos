@@ -83,7 +83,12 @@ final class RepairsDesk {
         say(Note(title: Self.words(id, status)))
         Outbox.shared.send(op: "setRepairStatus", fields: ["repairId": id, "status": status, "from": seen],
                            business: House.business, label: "\(id) status")
+        if seen != status { stepped?(id, seen, status) }
     }
+
+    /// Told of each step made here (the ticket, the status it had, the one it has now): the Mac's ⌘Z registers its undo
+    /// from it (MacRepairsModel). Nil on the phone. Not observed: nothing drawn depends on it.
+    @ObservationIgnored var stepped: ((_ id: String, _ from: String, _ to: String) -> Void)?
 
     /// The status to show: the one just chosen until the shelf's copy has moved off the one it was.
     func status(_ r: Repair) -> RepairStatus {

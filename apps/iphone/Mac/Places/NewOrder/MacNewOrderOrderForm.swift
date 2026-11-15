@@ -32,7 +32,7 @@ struct MacNewOrderOrderForm: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .macGround()
     }
 }
 
@@ -271,9 +271,12 @@ struct MacNewOrderExchange: View {
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 90)
-                Button { remove(row.id) } label: { Image(systemName: "minus.circle") }
+                Button { remove(row.id) } label: {
+                    Image(systemName: "minus.circle").frame(minWidth: 22, minHeight: 22).contentShape(Rectangle())
+                }
                     .buttonStyle(.borderless)
                     .help("Remove this exchange")
+                    .accessibilityLabel("Remove this exchange")
             }
             HStack(spacing: 8) {
                 // Karat only means something where the house sells gold; a silver house weighs without it.

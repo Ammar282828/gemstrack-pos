@@ -100,6 +100,8 @@ struct HubSplit<Hub: View>: View {
                     // The list's rows (RouteLink) and the toolbar's New open in the item column, in place of what was
                     // there. Only this column: pages in the item column push on their own stack as anywhere else.
                     .environment(\.openInPlace, OpenInPlace { show($0) })
+                    // The row whose page is open beside the list stays lit (Mail's and Notes' selected row).
+                    .environment(\.pickedRoute, picked?.route)
                     .frame(width: listWidth)
                     Divider().ignoresSafeArea()
                     // No path kept for this stack, as on a phone: its pages (an order's Edit, an invoice's) are pushed
@@ -185,6 +187,16 @@ extension EnvironmentValues {
     }
 }
 
+private struct PickedRouteKey: EnvironmentKey { static let defaultValue: Route? = nil }
+
+extension EnvironmentValues {
+    /// The page open in an iPad hub's item column, for the list's rows to light the one that opened it.
+    var pickedRoute: Route? {
+        get { self[PickedRouteKey.self] }
+        set { self[PickedRouteKey.self] = newValue }
+    }
+}
+
 /// A row's way to its page: a NavigationLink, except in an iPad's list column, where it hands the page to the item column
 /// beside it. A NavigationLink there asked the list's own stack to push and was turned aside afterwards, and the list
 /// showed an empty white page for a moment on every tap (owner, 2026-11-08: "why does the sidebar become white every
@@ -195,6 +207,7 @@ struct RouteLink<Label: View>: View {
     let row: Bool
     @ViewBuilder let label: () -> Label
     @Environment(\.openInPlace) private var openInPlace
+    @Environment(\.pickedRoute) private var pickedRoute
 
     init(value: Route, row: Bool = true, @ViewBuilder label: @escaping () -> Label) {
         self.value = value
@@ -206,11 +219,16 @@ struct RouteLink<Label: View>: View {
         if let openInPlace {
             if row {
                 // The words keep their own colours (a List would tint a button's label), and the whole row is the target.
-                Button { openInPlace(value) } label: {
+                let button = Button { openInPlace(value) } label: {
                     label()
                         .foregroundStyle(Color.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
+                }
+                if pickedRoute?.path == value.path {
+                    button.listRowBackground(Theme.accent.opacity(0.16))
+                } else {
+                    button
                 }
             } else {
                 Button { openInPlace(value) } label: { label() }

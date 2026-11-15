@@ -107,7 +107,7 @@ struct InvoiceCSVImportSheet: View {
                     Section {
                         Label("Import complete", systemImage: "checkmark.circle.fill")
                             .font(.house(.headline))
-                            .foregroundStyle(Tone.settled.color)
+                            .foregroundStyle(Tone.settled.ink)
                             .symbolEffect(.bounce, value: done)
                         Text(done.imported == 0
                              ? "The file held no Shopify orders (names like #1001), so nothing was imported."
@@ -264,7 +264,7 @@ extension InvoiceCSVImportSheet {
     private var macContent: some View {
         if let done {
             Label("Import complete", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(Tone.settled.color)
+                .foregroundStyle(Tone.settled.ink)
             Text(done.imported == 0
                  ? "The file held no Shopify orders (names like #1001), so nothing was imported."
                  : "\(done.imported) invoice\(done.imported == 1 ? "" : "s") saved, \(done.first) to \(done.last).")

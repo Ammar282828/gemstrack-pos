@@ -37,7 +37,7 @@ export function FilterChip({ title, count, chosen, onClick, className }: FilterC
       onClick={onClick}
       className={cn(
         'inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-[13px] text-ios-sub transition-colors duration-150 ease-exit motion-reduce:transition-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         chosen ? 'bg-primary font-semibold text-primary-foreground' : 'border border-muted-foreground/[.18] bg-card font-medium text-foreground',
         className,
       )}

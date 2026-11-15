@@ -34,7 +34,7 @@ html.ui-glass {
      the lite cards were indistinguishable). */
   --gc-blur: 20px;
   --gc-sat: 1.5;
-  --gc-fill: var(--popover) / 0.42;       /* true glass */
+  --gc-fill: var(--popover) / 0.62;       /* true glass */
   --gc-lite: var(--card) / 0.74;          /* lite: the house card colour */
   --gc-edge: 0 0% 100% / 0.85;            /* specular ring, lit corner */
   --gc-edge-dim: 0 0% 100% / 0.08;
@@ -46,7 +46,7 @@ html.ui-glass {
   --gc-lite-shadow: 0 6px 18px -14px hsl(220 30% 10% / 0.22);
 }
 html.ui-glass.dark {
-  --gc-fill: var(--popover) / 0.38;
+  --gc-fill: var(--popover) / 0.58;
   --gc-lite: var(--card) / 0.7;
   --gc-edge: 0 0% 100% / 0.32;
   --gc-edge-dim: 0 0% 100% / 0.03;

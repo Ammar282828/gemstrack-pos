@@ -33,7 +33,7 @@ enum MacInvoiceMenu {
     /// A record window's More menu: what its toolbar's four do not carry, in the Invoice menu's order.
     static func more(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [[MacAction]] {
         [
-            MacContact.actions(inv.map(cx.number) ?? "", document: [pdf(inv, cx)]),
+            MacContact.actions(inv.map(cx.number) ?? "", document: [pdf(inv, cx)], message: inv.map(cx.message) ?? ""),
             [copyPaymentLink(inv, cx), safepayLink(inv, cx), copyCustomerLink(inv)],
             [changeDiscount(inv, cx), giveBackCredit(inv, cx), changeRate(inv, cx), customer(inv, cx)] + makeOrder(inv, cx),
             [refund(inv, cx), delete(inv, cx)],
@@ -65,7 +65,7 @@ enum MacInvoiceMenu {
 
     static func takePayment(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
         let may = inv.map { MacInvoiceWords.mayTakePayment($0, canPay: cx.canPay) } ?? false
-        return MacAction("Take Payment…", symbol: "banknote", shortcut: KeyboardShortcut("p", modifiers: [.command, .option]),
+        return MacAction("Take Payment…", symbol: "banknote",
                          enabled: may) {
             if let inv { cx.desk.paying = inv }
         }
@@ -91,11 +91,11 @@ enum MacInvoiceMenu {
     /// The one Contact order (MacContact, App/UI/CustomerContact.swift): Call, WhatsApp Chat, Message, the bill's PDF on
     /// WhatsApp from the shop's line and the PDF itself, Copy Number.
     static func contact(_ inv: Invoice?, _ cx: MacInvoiceContext) -> [MacAction] {
-        MacContact.actions(inv.map(cx.number) ?? "", document: [sendOnWhatsApp(inv, cx), pdf(inv, cx)])
+        MacContact.actions(inv.map(cx.number) ?? "", document: [sendOnWhatsApp(inv, cx), pdf(inv, cx)], message: inv.map(cx.message) ?? "")
     }
 
     static func sendOnWhatsApp(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
-        MacAction("Send PDF on WhatsApp\u{2026}", symbol: "paperplane", shortcut: KeyboardShortcut("w", modifiers: [.command, .shift]),
+        MacAction("Send PDF on WhatsApp\u{2026}", symbol: "paperplane",
                   enabled: inv != nil) {
             if let inv { cx.desk.sending = inv }
         }
@@ -157,7 +157,7 @@ enum MacInvoiceMenu {
 
     /// The sale document on this invoice.
     static func edit(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
-        MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: inv != nil) {
+        MacAction("Edit\u{2026}", symbol: "pencil", enabled: inv != nil) {
             if let inv { cx.open(Route(path: InvoiceFacts.editPath(inv.id))) }
         }
     }

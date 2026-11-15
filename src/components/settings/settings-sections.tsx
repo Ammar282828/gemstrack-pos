@@ -68,7 +68,7 @@ export const EmergencyLock: React.FC = () => {
             });
             // Intentionally do not set isLocking to false, as this is a one-way action.
         } catch (error) {
-            toast({ title: "Error", description: "Failed to lock the database.", variant: "destructive" });
+            toast({ title: "Database not locked", description: "Failed to lock the database.", variant: "destructive" });
             setIsLocking(false);
         }
     };
@@ -382,7 +382,7 @@ export function NotificationsCard() {
 
             {/* Notification toggles */}
             <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notification Types</p>
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notification types</p>
               {NOTIF_TOGGLES.map(({ key, label, description }) => {
                 const task = REPORT_OF[key];
                 const last = task && settings[key] && runs ? lastRunLine(runs[task]) : null;
@@ -418,7 +418,7 @@ export function NotificationsCard() {
             {/* Schedule times */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="checklistTime">Daily Checklist Time</Label>
+                <Label htmlFor="checklistTime">Daily checklist time</Label>
                 <Input
                   id="checklistTime"
                   type="time"
@@ -436,7 +436,7 @@ export function NotificationsCard() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="dailyReportTime">Daily Report Time</Label>
+                <Label htmlFor="dailyReportTime">Daily report time</Label>
                 <Input
                   id="dailyReportTime"
                   type="time"
@@ -473,7 +473,7 @@ export const SettingRow: React.FC<{ title: string; description?: React.ReactNode
 /** A link out to one of the settings sub-pages: an inset row (icon, title, line, chevron) for a LedgerSection. */
 export const SettingsLink: React.FC<{ href: string; icon: React.ElementType; title: string; description: string }> = ({ href, icon: Icon, title, description }) => (
   <Link href={href}
-    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
     <span aria-hidden className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] bg-primary/[.13] text-primary">
       <Icon className="h-[18px] w-[18px]" />
     </span>

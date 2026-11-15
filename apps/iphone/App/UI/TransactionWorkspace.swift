@@ -40,7 +40,7 @@ struct EntrySteps: View, Equatable {
                         }
                         Text(step.title)
                         if states[step] == .attention {
-                            Circle().fill(Tone.owed.color).frame(width: 6, height: 6)
+                            Image(systemName: "exclamationmark.circle.fill").imageScale(.small).foregroundStyle(Tone.owed.ink)
                         }
                     }
                         .font(.house(.subheadline).weight(selection == step ? .semibold : .regular))

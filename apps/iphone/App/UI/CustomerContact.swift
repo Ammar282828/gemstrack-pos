@@ -132,8 +132,23 @@ struct CustomerContactActions: View {
     private var walkIn: Bool { CustomerContactLinks.isWalkIn(customerId: customerId, customerName: customerName) }
     private var number: String { walkIn ? "" : CustomerContactLinks.e164(phone) }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        HStack(alignment: .top, spacing: pt(10)) {
+        // At accessibility sizes the row is two columns, so a word like "WhatsApp" has room and nothing is clipped.
+        Group {
+            if typeSize.isAccessibilitySize {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: pt(10), alignment: .top), GridItem(.flexible(), spacing: pt(10), alignment: .top)],
+                          alignment: .center, spacing: pt(10)) { actions }
+            } else {
+                HStack(alignment: .top, spacing: pt(10)) { actions }
+            }
+        }
+        .customerDocSheets(sending: $sending, sharing: $sharing, addingPhone: $addingPhone,
+                           phone: number.isEmpty ? (walkIn ? (phone ?? "") : "") : number, customerName: walkIn ? nil : customerName, sent: sent)
+    }
+
+    @ViewBuilder private var actions: some View {
             if !number.isEmpty {
                 QuickAction(title: "Call", symbol: "phone.fill", prominent: doc == nil) { open(CustomerContactLinks.callURL(number)) }
                 QuickAction(title: "WhatsApp", symbol: "message.fill") { open(CustomerContactLinks.whatsAppURL(number, text: message)) }
@@ -152,20 +167,17 @@ struct CustomerContactActions: View {
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.house(.body).weight(.semibold))
                             .foregroundStyle(Theme.accent)
                             .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                             .background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
-                        Text("More").font(.house(.caption2).weight(.medium)).foregroundStyle(Color.primary).lineLimit(1)
+                        Text("More").font(.house(.caption2).weight(.medium)).foregroundStyle(Color.primary)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("More ways to reach the customer")
             }
-        }
-        .customerDocSheets(sending: $sending, sharing: $sharing, addingPhone: $addingPhone,
-                           phone: number.isEmpty ? (walkIn ? (phone ?? "") : "") : number, customerName: walkIn ? nil : customerName, sent: sent)
     }
 
     private func open(_ url: URL?) { if let url { openURL(url) } }

@@ -135,7 +135,7 @@ struct AddExpenseSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
-        .interactiveDismissDisabled(saving)
+        .keepWhileTyping(busy: saving, dirty: !(what + amountText).trimmingCharacters(in: .whitespaces).isEmpty)
         .failureAlert($error, title: "Could not save")
         .task {
             book.karigars.need()

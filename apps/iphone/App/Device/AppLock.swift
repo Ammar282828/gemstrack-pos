@@ -68,7 +68,7 @@ final class AppLock {
         if UIApplication.shared.applicationState == .active { Task { await unlock() } }
     }
 
-    /// ERP › Lock Now (⌃⌘L on the Mac): the cover at once, as if the app had been away past its grace.
+    /// ERP › Lock Now (ERP menu on the Mac): the cover at once, as if the app had been away past its grace.
     func lockNow() {
         guard !House.isDemo, enabled, Self.available else { return }
         locked = true

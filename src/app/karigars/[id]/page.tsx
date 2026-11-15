@@ -341,7 +341,7 @@ export default function KarigarDetailPage() {
       setCarryOverLabel('');
       setIsCloseDialogOpen(false);
     } catch (e) {
-      toast({ title: "Error", description: e instanceof MoveRefused || e instanceof WorkshopRefusal ? e.message : "Failed to settle hisaab.", variant: "destructive" });
+      toast({ title: "Hisaab not settled", description: e instanceof MoveRefused || e instanceof WorkshopRefusal ? e.message : "Failed to settle hisaab.", variant: "destructive" });
     }
   };
 
@@ -350,7 +350,7 @@ export default function KarigarDetailPage() {
       await deleteKarigarBatch(batchId);
       toast({ title: "Batch Deleted" });
     } catch (e) {
-      toast({ title: "Error", description: deleteErrorText(e, "Failed to delete batch."), variant: "destructive" });
+      toast({ title: "Batch not deleted", description: deleteErrorText(e, "Failed to delete batch."), variant: "destructive" });
     }
   };
 
@@ -383,7 +383,7 @@ export default function KarigarDetailPage() {
       silverForm.reset();
       setIsSilverDialogOpen(false);
     } else {
-      toast({ title: "Error", description: "Failed to record silver transaction.", variant: "destructive" });
+      toast({ title: "Transaction not recorded", description: "Failed to record silver transaction.", variant: "destructive" });
     }
   };
 
@@ -469,7 +469,7 @@ export default function KarigarDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-5 w-5 text-primary" />Gold Khata</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-5 w-5 text-primary" />Gold khata</CardTitle>
               {seesMoney && <Button asChild variant="ghost" size="sm" className="text-primary">
                 <Link href={`/hisaab/${karigarId}?type=karigar`}>Open in Hisaab <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
               </Button>}
@@ -534,7 +534,7 @@ export default function KarigarDetailPage() {
       <Dialog open={isSilverDialogOpen} onOpenChange={(v) => { setIsSilverDialogOpen(v); if (!v) silverForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-primary">Silver Transaction</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-primary">Silver transaction</DialogTitle>
             <DialogDescription>Record silver received from {karigar.name} with per-gram surcharge.</DialogDescription>
           </DialogHeader>
           <Form {...silverForm}>
@@ -701,7 +701,7 @@ export default function KarigarDetailPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Silver Transactions</CardTitle>
+                <CardTitle className="text-base">Silver transactions</CardTitle>
                 <CardDescription className="mt-0.5">
                   {totalSilverGrams.toFixed(3)}g received · PKR {totalSilverSurcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })} surcharge
                 </CardDescription>

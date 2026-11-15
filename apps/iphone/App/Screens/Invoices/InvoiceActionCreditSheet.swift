@@ -53,7 +53,7 @@ struct InvoiceActionCreditSheet: View {
                     LedgerHeading(title: "Give back")
                 } footer: {
                     if amount > held + 0.5 {
-                        Text("Only \(PaymentText.pkr(held)) is held.").foregroundStyle(Tone.problem.color)
+                        Text("Only \(PaymentText.pkr(held)) is held.").foregroundStyle(Tone.problem.ink)
                     } else if valid {
                         Text(left >= 1
                              ? "\(PaymentText.pkr(left)) stays as credit on the hisaab."
@@ -139,7 +139,7 @@ extension InvoiceActionCreditSheet {
     @ViewBuilder
     private var macNote: some View {
         if amount > held + 0.5 {
-            Text("Only \(PaymentText.pkr(held)) is held.").foregroundStyle(Tone.problem.color)
+            Text("Only \(PaymentText.pkr(held)) is held.").foregroundStyle(Tone.problem.ink)
         } else if valid {
             Text(left >= 1
                  ? "\(PaymentText.pkr(left)) stays as credit on the hisaab."

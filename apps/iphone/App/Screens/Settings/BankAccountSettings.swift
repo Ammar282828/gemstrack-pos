@@ -345,7 +345,7 @@ extension BankAccountSheet {
                     }
                     TextField("Account name", text: $draft.accountName)
                     TextField("Account number", text: $draft.accountNumber)
-                    TextField("IBAN", text: $draft.iban, prompt: Text("Optional"))
+                    TextField("IBAN", text: $draft.iban, prompt: Text("IBAN (optional)"))
                         .autocorrectionDisabled()
                 } footer: {
                     Text("The bank, the account name and the number are needed.")

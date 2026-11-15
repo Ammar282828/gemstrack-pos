@@ -750,7 +750,7 @@ extension RepairsForm {
                     }
                 }
             } header: {
-                Text("Paid So Far")
+                Text("Paid so far")
             } footer: {
                 Text("Money taken stays as it is. A new payment is Take Payment on the ticket.")
             }

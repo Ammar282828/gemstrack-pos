@@ -7,12 +7,12 @@ import ERPCore
 struct WebsiteLiveScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
     /// An iPad's wide window: the count and today's tiles across the top, the lists in two or three columns.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     @State private var live: SiteLive?
     @State private var problem: String?
@@ -152,7 +152,7 @@ struct WebsiteLiveScreen: View {
         HStack(spacing: pt(14)) {
                 Image(systemName: "circle.fill")
                     .font(.house(.caption))
-                    .foregroundStyle(l.visitors > 0 ? Tone.settled.color : Color.secondary.opacity(0.4))
+                    .foregroundStyle(l.visitors > 0 ? Tone.settled.ink : Color.secondary.opacity(0.4))
                     .symbolEffect(.pulse, isActive: l.visitors > 0 && !reduceMotion)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: pt(4)) {

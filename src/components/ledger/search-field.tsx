@@ -19,7 +19,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
   { value, onChange, placeholder = 'Search', label, className, autoFocus }, ref,
 ) {
   return (
-    <div role="search" className={cn('relative flex h-11 items-center rounded-full bg-muted focus-within:ring-2 focus-within:ring-primary/40', className)}>
+    <div role="search" className={cn('relative flex h-11 items-center rounded-full bg-muted focus-within:ring-2 focus-within:ring-ring', className)}>
       <Search aria-hidden className="pointer-events-none absolute left-3.5 h-4 w-4 text-muted-foreground" />
       <input
         ref={ref}
@@ -41,7 +41,7 @@ export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
           type="button"
           aria-label="Clear search"
           onClick={() => onChange('')}
-          className="absolute right-1 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="absolute right-1 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X aria-hidden className="h-4 w-4" />
         </button>

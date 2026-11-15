@@ -38,13 +38,13 @@ struct StockList: View {
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
     @State private var searching = false
 
     /// A window wide enough for cards (measured, not the size class alone: this screen is also a split view's ~400 pt
     /// content column, which stays a List).
-    private var wide: Bool { sizeClass.isPadLayout && width >= 620 }
+    private var wide: Bool { wideLayout && width >= 620 }
 
     private var layout: StockLayout {
         if wide { return .grid }

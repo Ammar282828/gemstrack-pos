@@ -20,6 +20,8 @@ struct MacOrdersMenuInput {
     var unassigned = 0
     var isOwner = false
     var role = "none"
+    /// The shop's name, for the message WhatsApp Chat and Message open with ("… is ready at Taheri").
+    var shopName = ""
 }
 
 /// What each action does, bound to the order by whoever builds it.
@@ -109,7 +111,6 @@ enum MacOrdersMenu {
                              shortcut: KeyboardShortcut(.return, modifiers: .command),
                              enabled: step != nil, isDefault: true, id: "next", perform: r.nextStep))
         out.append(MacAction("Take Advance\u{2026}", symbol: "banknote",
-                             shortcut: KeyboardShortcut("a", modifiers: [.command, .shift]),
                              enabled: canAdvance, id: "advance", perform: r.advance))
         out.append(MacAction("Give Out\u{2026}", symbol: "person.badge.plus",
                              enabled: o != nil && !invoiced && !closed && i.unassigned > 0, id: "giveOut", perform: r.giveOut))
@@ -128,7 +129,7 @@ enum MacOrdersMenu {
         let cn = o.flatMap(OrderActions.tcsConsignment)
         let canBook = o.map { OrderActions.canBookCourier($0, isOwner: i.isOwner) } ?? false
         var out: [MacAction] = []
-        out.append(MacAction("Print Slip", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command),
+        out.append(MacAction("Print Slip\u{2026}", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command),
                              enabled: o != nil, id: "slip", perform: r.printSlip))
         out.append(MacAction("Message the Customer\u{2026}", symbol: "message", enabled: o != nil, id: "message", perform: r.message))
         out.append(MacAction("Send to Karigar\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendToKarigar", perform: r.sendToKarigar))
@@ -146,7 +147,13 @@ enum MacOrdersMenu {
             MacAction("Send Order PDF on WhatsApp\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendPDF", perform: r.sendPDF),
             MacAction("Order PDF", symbol: "doc.richtext", enabled: o != nil, id: "orderPDF", perform: r.orderPDF),
         ]
-        out.append(contentsOf: MacContact.actions(number, document: document))
+        // Typed for where the order stands, as the order's inspector has it (CustomerMessages.order).
+        let message = o.map { (order: Order) -> String in
+            i.shopName.isEmpty ? "" : CustomerMessages.order(order, stage: i.stage,
+                                                             balance: MacOrdersLogic.owed(order, stage: i.stage, invoiceOwed: i.invoiceOwed),
+                                                             shop: i.shopName)
+        } ?? ""
+        out.append(contentsOf: MacContact.actions(number, document: document, message: message))
         // TCS booked from the ERP (owners and the counter), and the Shopify way (owners; Universal Courier books it).
         let canBookTcs = o.map { OrderActions.canBookTcs($0, role: i.role) } ?? false
         let canCancelTcs = o.map { OrderActions.canCancelTcs($0, role: i.role, state: nil) } ?? false
@@ -184,7 +191,7 @@ enum MacOrdersMenu {
         let closed = o.map(OrderActions.isClosed) ?? false
         let canUndo = o.map { OrderActions.canUndoInvoice($0, isOwner: i.isOwner) } ?? false
         var out: [MacAction] = []
-        out.append(MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        out.append(MacAction("Edit\u{2026}", symbol: "pencil",
                              enabled: o != nil && i.isOwner && !invoiced, id: "edit", perform: r.edit))
         out.append(MacAction("Change Rate\u{2026}", symbol: "percent", enabled: o != nil && i.isOwner && !closed,
                              id: "rate", perform: r.changeRate))

@@ -398,7 +398,7 @@ struct DesignSmartSheet: View {
                     .font(.house(.footnote)).foregroundStyle(.secondary)
             }
             ForEach(item.parsed["warnings"].array.map(\.string), id: \.self) { w in
-                Label(w, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Label(w, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
             }
             // One piece: the bar's "Use this piece" is its button; with several, each can be used on its own turn.
             if m.items.count > 1 {

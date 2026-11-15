@@ -74,7 +74,7 @@ function RevenueForm({
       }
       onSubmitSuccess();
     } catch {
-      toast({ title: 'Error', description: 'Failed to save revenue entry.', variant: 'destructive' });
+      toast({ title: 'Revenue entry not saved', description: 'Failed to save revenue entry.', variant: 'destructive' });
     }
   };
 
@@ -256,7 +256,7 @@ export default function AdditionalRevenuePage() {
               </p>
             </div>
             <div className="rounded-lg border bg-muted/50 p-4">
-              <p className="text-sm font-medium text-muted-foreground">Total Entries</p>
+              <p className="text-sm font-medium text-muted-foreground">Total entries</p>
               <p className="text-3xl font-bold">{filtered.length}</p>
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function AdditionalRevenuePage() {
                     <TableCell className="text-right font-medium">{r.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       {r.repairId ? <RepairLink repairId={r.repairId} /> : <>
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
+                      <Button variant="ghost" size="icon" aria-label="Edit entry" onClick={() => handleEdit(r)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
@@ -370,7 +370,7 @@ export default function AdditionalRevenuePage() {
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <TrendingUp className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Revenue Entries Found</h3>
+          <h3 className="text-xl font-semibold mb-2">No revenue entries found</h3>
           <p className="text-muted-foreground">
             {searchTerm || dateRange
               ? 'Try adjusting your search or filters.'

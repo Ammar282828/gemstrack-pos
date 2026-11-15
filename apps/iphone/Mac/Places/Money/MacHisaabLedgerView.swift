@@ -68,7 +68,7 @@ struct MacHisaabLedgerView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .padding(24)
-        .background(Theme.ground)
+        .macGround()
         .macSummaryBar(summary)
         .macRecordMenu(MacRecordMenu(title: "Hisaab", groups: base + selected(selection)))
         .navigationDestination(item: $pushed) { (r: Route) in PlaceScreen(path: r.path) }

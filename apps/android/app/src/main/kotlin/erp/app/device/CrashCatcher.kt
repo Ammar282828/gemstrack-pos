@@ -83,7 +83,7 @@ fun CrashReportDialog() {
         title = { Text("The app closed unexpectedly") },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-                Text(shown, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp))
+                Text(shown, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp))
             }
         },
         confirmButton = { TextButton(onClick = { shareText(context, "ERP crash report", shown) }) { Text("Share") } },

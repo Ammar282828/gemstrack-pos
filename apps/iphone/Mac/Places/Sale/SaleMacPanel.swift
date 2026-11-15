@@ -106,7 +106,7 @@ extension SaleForm {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// Edit invoice: what stays and what is added.

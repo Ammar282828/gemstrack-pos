@@ -19,6 +19,7 @@ import { DEFAULT_WEBSITE_CONFIG, WEBSITE_CONFIG_DOC, type WebsiteCategoryPricing
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -151,7 +152,7 @@ export function WebsiteSettings() {
               </SelectContent>
             </Select>
             {cfg.diamondPolicy === 'gold_only' && (
-              <Input type="number" inputMode="numeric" placeholder="Default diamond charge, Rs" value={cfg.diamondChargesDefault || ''} onChange={e => set({ diamondChargesDefault: Number(e.target.value) || 0 })} />
+              <AmountInput maxDecimals={0} zeroAsEmpty placeholder="Default diamond charge, Rs" value={cfg.diamondChargesDefault} onValueChange={v => set({ diamondChargesDefault: v ?? 0 })} />
             )}
           </div>
         </div>
@@ -166,8 +167,8 @@ export function WebsiteSettings() {
                 <SelectContent>{KARATS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent>
               </Select></div>
             <div className="space-y-1"><Label className="text-xs">Wastage %</Label><Input type="number" inputMode="decimal" step="0.5" value={cfg.defaultPricing.wastagePercentage} onChange={e => setDefault({ wastagePercentage: Number(e.target.value) || 0 })} /></div>
-            <div className="space-y-1"><Label className="text-xs">Making, Rs per gram</Label><Input type="number" inputMode="numeric" value={cfg.defaultPricing.makingChargesPerGram || ''} onChange={e => setDefault({ makingChargesPerGram: Number(e.target.value) || 0 })} /></div>
-            <div className="space-y-1"><Label className="text-xs">Stones, Rs per piece</Label><Input type="number" inputMode="numeric" value={cfg.defaultPricing.stoneChargesDefault || ''} onChange={e => setDefault({ stoneChargesDefault: Number(e.target.value) || 0 })} /></div>
+            <div className="space-y-1"><Label className="text-xs">Making, Rs per gram</Label><AmountInput maxDecimals={0} zeroAsEmpty value={cfg.defaultPricing.makingChargesPerGram} onValueChange={v => setDefault({ makingChargesPerGram: v ?? 0 })} /></div>
+            <div className="space-y-1"><Label className="text-xs">Stones, Rs per piece</Label><AmountInput maxDecimals={0} zeroAsEmpty value={cfg.defaultPricing.stoneChargesDefault} onValueChange={v => setDefault({ stoneChargesDefault: v ?? 0 })} /></div>
           </div>
           <div className="space-y-1 mt-3 sm:w-1/4"><Label className="text-xs">Palladium karat</Label>
             <Select value={cfg.palladiumKarat} onValueChange={v => set({ palladiumKarat: v as WebsiteConfig['palladiumKarat'] })}>
@@ -197,8 +198,8 @@ export function WebsiteSettings() {
                       <SelectContent>{KARATS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent>
                     </Select></div>
                   <div className="space-y-1"><Label className="text-xs">Wastage %</Label><Input type="number" step="0.5" placeholder={String(cfg.defaultPricing.wastagePercentage)} value={c.wastagePercentage ?? ''} onChange={e => setCat(name, { wastagePercentage: e.target.value === '' ? undefined : Number(e.target.value) })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Making /g</Label><Input type="number" placeholder={String(cfg.defaultPricing.makingChargesPerGram)} value={c.makingChargesPerGram ?? ''} onChange={e => setCat(name, { makingChargesPerGram: e.target.value === '' ? undefined : Number(e.target.value) })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Stones</Label><Input type="number" placeholder={String(cfg.defaultPricing.stoneChargesDefault)} value={c.stoneChargesDefault ?? ''} onChange={e => setCat(name, { stoneChargesDefault: e.target.value === '' ? undefined : Number(e.target.value) })} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Making /g</Label><AmountInput maxDecimals={0} emptyValue={undefined} placeholder={String(cfg.defaultPricing.makingChargesPerGram)} value={c.makingChargesPerGram} onValueChange={v => setCat(name, { makingChargesPerGram: v })} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Stones</Label><AmountInput maxDecimals={0} emptyValue={undefined} placeholder={String(cfg.defaultPricing.stoneChargesDefault)} value={c.stoneChargesDefault} onValueChange={v => setCat(name, { stoneChargesDefault: v })} /></div>
                   <Button variant="ghost" size="sm" onClick={() => setCat(name, null)}>Remove</Button>
                 </div>
               );
@@ -207,8 +208,8 @@ export function WebsiteSettings() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1"><Label>Delivery charge, Rs</Label><Input type="number" inputMode="numeric" value={cfg.deliveryCharge || ''} onChange={e => set({ deliveryCharge: Number(e.target.value) || 0 })} /><p className="text-xs text-muted-foreground">Leopards, anywhere in Pakistan. Booked by you after the transfer clears.</p></div>
-          <div className="space-y-1"><Label>Free delivery over, Rs</Label><Input type="number" inputMode="numeric" value={cfg.freeDeliveryOver || ''} onChange={e => set({ freeDeliveryOver: Number(e.target.value) || undefined })} /></div>
+          <div className="space-y-1"><Label>Delivery charge, Rs</Label><AmountInput maxDecimals={0} zeroAsEmpty value={cfg.deliveryCharge} onValueChange={v => set({ deliveryCharge: v ?? 0 })} /><p className="text-xs text-muted-foreground">Leopards, anywhere in Pakistan. Booked by you after the transfer clears.</p></div>
+          <div className="space-y-1"><Label>Free delivery over, Rs</Label><AmountInput maxDecimals={0} zeroAsEmpty emptyValue={undefined} value={cfg.freeDeliveryOver} onValueChange={v => set({ freeDeliveryOver: v || undefined })} /></div>
         </div>
 
         <div className="rounded-md border p-4 text-sm space-y-1">

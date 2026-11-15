@@ -25,7 +25,7 @@ export default function WeprintApiPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>Export the pieces as CSV from Labels and import that file into WEPrint instead.</p>
-          <Button asChild variant="outline"><Link href="/settings/printer">Open Labels</Link></Button>
+          <Button asChild variant="outline"><Link href="/settings/printer">Open labels</Link></Button>
         </CardContent>
       </Card>
     </div>

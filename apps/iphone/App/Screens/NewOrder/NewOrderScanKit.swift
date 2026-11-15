@@ -79,7 +79,7 @@ struct PaperPicker: View {
             .buttonStyle(.bordered)
             #endif
             Button { library = true } label: {
-                Label("From Photos", systemImage: "photo.on.rectangle")
+                Label("From photos", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(.bordered)
             if loading { ProgressView() }

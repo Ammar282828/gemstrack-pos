@@ -180,13 +180,13 @@ private struct KarigarFormBody: View {
         } header: {
             LedgerHeading(title: "Name")
         } footer: {
-            if !nameOK && !draft.name.isEmpty { Text("Name is required.").foregroundStyle(Tone.problem.color) }
+            if !nameOK && !draft.name.isEmpty { Text("Name is required.").foregroundStyle(Tone.problem.ink) }
         }
     }
 
     private var contactSection: some View {
         Section {
-            TextField("Contact number", text: $draft.contact, prompt: Text("Optional"))
+            TextField("Contact number", text: $draft.contact, prompt: Text("Contact number (optional)"))
                 .keyboardType(.phonePad)
                 .fieldKind(.telephoneNumber)
                 .contactPickable { pick in
@@ -211,7 +211,7 @@ private struct KarigarFormBody: View {
             LedgerHeading(title: "Google login")
         } footer: {
             if !emailOK {
-                Text("Enter a valid email.").foregroundStyle(Tone.problem.color)
+                Text("Enter a valid email.").foregroundStyle(Tone.problem.ink)
             } else {
                 Text("With a Gmail he can sign in and see only his own work list and account: no customers, prices or other karigars.")
             }

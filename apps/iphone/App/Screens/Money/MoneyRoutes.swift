@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Money group: Expenses, Extra revenue and Hisaab, with one person's ledger.
+/// The Money group: Expenses, Extra revenue and Hisaab, with one person's ledger, and To collect (the bills still owed on).
 ///
 /// `/hisaab/<id>` carries `?type=customer|karigar`, which the screen reads itself (`exact` would drop
 /// the query), so that route matches the bare path and hands the whole path to the screen. `?web=1` never
@@ -17,6 +17,8 @@ enum MoneyRoutes {
             .exact("/expenses") { ExpensesScreen() },
             .exact("/additional-revenue") { ExtraRevenueScreen() },
             .exact("/hisaab") { HisaabScreen() },
+            // Sales › To collect: the bills still owed on, owners only (CollectScreen).
+            .exact("/collect") { CollectScreen() },
             ledger,
         ]
     }

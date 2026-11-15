@@ -135,7 +135,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
       }
       onSubmitSuccess();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save expense.", variant: "destructive" });
+      toast({ title: "Expense not saved", description: "Failed to save expense.", variant: "destructive" });
       console.error("Failed to save expense", error);
     }
   };

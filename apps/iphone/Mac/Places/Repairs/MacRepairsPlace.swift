@@ -66,7 +66,10 @@ struct MacRepairsPlace: View {
     @Environment(Session.self) private var session
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.openURL) private var openURL
+    @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
+    /// List or Cards (the toolbar's control, View › as List / as Cards).
+    @AppStorage("mac.repairs.view") private var layoutRaw = "table"
     @State private var query = ""
     @State private var selection = Set<String>()
     @AppStorage("mac.repairs.sort") private var sortRaw = MacRepairsSort.status.rawValue
@@ -92,6 +95,10 @@ struct MacRepairsPlace: View {
         .macInspector { ticketPanel() }
         .toolbar { placeToolbar() }
         .macRecordMenu(MacRecordMenu(title: "Repair", groups: groups))
+        // The Filter menu's one picker, for View (the menu bar has every command the toolbar has).
+        .macViewFilters([MacViewFilter(title: "Sort By",
+                                       options: MacRepairsSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                                       selected: sortRaw) { (v: String) in sortRaw = v }])
         .modifier(MacRepairsDialogs(model: model))
         .sheet(isPresented: $newSheet) {
             RepairsForm { id, _ in selection = [id] }
@@ -102,7 +109,12 @@ struct MacRepairsPlace: View {
                 model.deleted = false
             }
         }
-        .onAppear { book.repairs.need() }
+        .onAppear {
+            book.repairs.need()
+            // ⌘Z for a step taken here (MacRepairsModel): this window's undo manager, and the shelf's ticket to put back.
+            model.undoManager = undoManager
+            model.latest = { [book] (id: String) -> Repair? in book.repairs.item(id) }
+        }
     }
 
     // MARK: The rows
@@ -152,7 +164,8 @@ struct MacRepairsPlace: View {
     private func listView(_ rows: [MacRepairsRow], list: String?) -> some View {
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return MacRepairsListView(rows: rows, version: rowsKey(list), sort: sort, searching: searching,
-                                  listTitle: list == nil ? nil : title(list), selection: $selection,
+                                  listTitle: list == nil ? nil : title(list), layout: layoutRaw == "cards" ? .cards : .list,
+                                  selection: $selection,
                                   open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { openTicket(id) } }) { (ids: Set<String>) in
             menu(ids)
         }
@@ -218,6 +231,9 @@ struct MacRepairsPlace: View {
     /// right-click menu's (a Tahoe toolbar of capsules overflowed a 13-inch screen).
     @ToolbarContentBuilder
     private func placeToolbar() -> some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            MacLayoutPicker(selection: $layoutRaw, choices: [.list, .cards])
+        }
         ToolbarItemGroup(placement: .automatic) {
             if session.isOwner {
                 Button { newRepair() } label: { Label("New Repair", systemImage: "plus") }

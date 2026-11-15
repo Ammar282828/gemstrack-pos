@@ -112,7 +112,7 @@ struct AdsTestsScreen: View {
                 AdsAlertsSection(status: s)
                 if let loadProblem {
                     Section {
-                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                         Button("Try again") { Task { await loadTests() } }
                     }
                 }
@@ -206,7 +206,7 @@ struct AdsTestsScreen: View {
                 VStack(alignment: .leading, spacing: pt(4)) {
                     HStack(spacing: pt(4)) {
                         Text(c.name).font(.house(.subheadline).weight(.semibold))
-                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.house(.caption)).foregroundStyle(Tone.owed.ink) }
                         Text(c.adsets.joined(separator: ", ")).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(2)
                     }
                     FigureRow(spacing: pt(8)) {
@@ -313,7 +313,7 @@ struct AdsTestsAnswer: Decodable {
 
 extension AdsTestsScreen {
     private var macNewTest: MacAction {
-        MacAction("New Test…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: data != nil && !making) {
+        MacAction("New Test…", symbol: "plus", enabled: data != nil && !making) {
             macMaking = true
         }
     }
@@ -334,7 +334,7 @@ extension AdsTestsScreen {
         return VStack(spacing: 0) {
             AdsMacAlertBar(status: s)
             if let loadProblem {
-                Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color).padding(8)
+                Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink).padding(8)
             }
             macTable(tests, cur)
         }
@@ -391,7 +391,7 @@ extension AdsTestsScreen {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 4) {
                                 Text(c.name).font(.house(.headline))
-                                if t.ahead == c.name { Image(systemName: "trophy.fill").foregroundStyle(Tone.owed.color) }
+                                if t.ahead == c.name { Image(systemName: "trophy.fill").foregroundStyle(Tone.owed.ink) }
                             }
                             Text(c.adsets.joined(separator: ", ")).font(.house(.caption)).foregroundStyle(.secondary)
                             AdsMacFigureRows(figures: [MacFigure("Spent", AdsFormat.money(c.spend, cur)),

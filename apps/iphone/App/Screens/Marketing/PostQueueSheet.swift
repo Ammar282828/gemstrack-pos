@@ -61,7 +61,7 @@ struct PostQueueSheet: View {
         List { Group {
             Section { header(e) }
             if let said {
-                Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
             }
             Section {
                 ForEach(places(e)) { (p: Place) in placeRow(p) }
@@ -108,7 +108,7 @@ struct PostQueueSheet: View {
                 .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
             VStack(alignment: .leading, spacing: pt(6)) {
                 Text(e.headline.isEmpty ? "A piece" : e.headline).font(.house(.headline))
-                Text(statusWords(e)).font(.house(.subheadline)).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
+                Text(statusWords(e)).font(.house(.subheadline)).foregroundStyle(e.status == "failed" ? Tone.problem.ink : Color.secondary)
                 if e.units > 0 {
                     ProgressView(value: Double(e.done), total: Double(e.units))
                         .tint(Theme.accent)
@@ -185,14 +185,14 @@ struct PostQueueSheet: View {
                 Text(p.title)
                 Text(problem ?? p.detail)
                     .font(.house(.caption))
-                    .foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
+                    .foregroundStyle(problem == nil ? Color.secondary : Tone.problem.ink)
 
             }
             Spacer(minLength: 6)
             if gone == p.units.count {
                 Text("Gone").font(.house(.caption)).foregroundStyle(.secondary)
             } else if problem != nil {
-                Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.color)
+                Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.ink)
             } else if gone > 0 {
                 Text("\(gone)/\(p.units.count)").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit()
             }
@@ -284,7 +284,7 @@ extension PostQueueSheet {
                 Group {
                     Section { header(e) }
                     if let said {
-                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
                     }
                     Section {
                         ForEach(places(e)) { (p: Place) in placeRow(p) }

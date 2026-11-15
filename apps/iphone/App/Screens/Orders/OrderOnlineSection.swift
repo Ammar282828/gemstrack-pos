@@ -152,7 +152,7 @@ struct OrderOnlineSection: View {
                 systemImage: "clock"
             )
             .font(.house(.footnote))
-            .foregroundStyle(ended ? Tone.late.color : Color.secondary)
+            .foregroundStyle(ended ? Tone.late.ink : Color.secondary)
         }
     }
 
@@ -177,7 +177,7 @@ struct OrderOnlineSection: View {
                 if let amount = s.amount, amount > 0 {
                     Text(Money.pkr(amount) + (wrong ? " (not the total)" : ""))
                         .monospacedDigit()
-                        .foregroundStyle(wrong ? Tone.problem.color : Color.primary)
+                        .foregroundStyle(wrong ? Tone.problem.ink : Color.primary)
                 }
             }
             .font(.house(.subheadline))

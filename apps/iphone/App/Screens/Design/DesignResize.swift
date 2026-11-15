@@ -386,7 +386,7 @@ struct DesignResizeSheet: View {
                 }
                 Text(res["notes"].array.first?.string ?? "").font(.house(.caption2)).foregroundStyle(.secondary)
                 if res["needsExtend"].bool && r.extras[id] == nil {
-                    Text("The piece doesn’t fill this shape; the photo is shown whole.").font(.house(.caption2)).foregroundStyle(Tone.owed.color)
+                    Text("The piece doesn’t fill this shape; the photo is shown whole.").font(.house(.caption2)).foregroundStyle(Tone.owed.ink)
                     Button { Task { await r.extend(id) } } label: {
                         HStack { Image(systemName: "sparkles").busy(r.extending == id); Text("Extend the photo") }.font(.house(.caption))
                     }

@@ -118,7 +118,7 @@ struct WebsiteEditPieceScreen: View {
             Group {
                 photoSection(p)
                 if let said {
-                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
                 }
                 wordsSection(p)
                 weightSection(p)
@@ -166,7 +166,7 @@ struct WebsiteEditPieceScreen: View {
                     Task { await runAI(photo, op, params, label) }
                 }
                 if let photoWarning {
-                    Label(photoWarning, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                    Label(photoWarning, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
                 }
                 Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
                     .font(.house(.subheadline))
@@ -181,7 +181,7 @@ struct WebsiteEditPieceScreen: View {
                     .font(.house(.subheadline))
                     .foregroundStyle(.secondary)
                 if let problem = photo?.problem {
-                    Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                    Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
                 }
                 Button { Task { await beginPhoto(p) } } label: {
                     Label {
@@ -548,7 +548,7 @@ extension WebsiteEditPieceScreen {
                 Group {
                     Section { macHead(p).listRowInsets(EdgeInsets()) }
                     if let said {
-                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
                     }
                     macDetails(p)
                     macPhotoTab(p)
@@ -646,7 +646,7 @@ extension WebsiteEditPieceScreen {
                     Task { await runAI(photo, op, params, label) }
                 }
                 if let photoWarning {
-                    Label(photoWarning, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.owed.color)
+                    Label(photoWarning, systemImage: "exclamationmark.triangle").foregroundStyle(Tone.owed.ink)
                 }
                 Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
                     .font(.house(.callout))
@@ -659,7 +659,7 @@ extension WebsiteEditPieceScreen {
                 Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
                     .font(.house(.callout)).foregroundStyle(.secondary)
                 if let problem = photo?.problem {
-                    Text(problem).font(.house(.callout)).foregroundStyle(Tone.problem.color)
+                    Text(problem).font(.house(.callout)).foregroundStyle(Tone.problem.ink)
                 }
                 Button { Task { await beginPhoto(p) } } label: {
                     Text(photo?.loading == true ? "Fetching the Photo…" : "Re-make the Photo…")
@@ -694,7 +694,7 @@ extension WebsiteEditPieceScreen {
                     if p.changed {
                         Button("Undo Every Change…", role: .destructive) { confirm = .all }
                             .buttonStyle(.plain)
-                            .foregroundStyle(Tone.problem.color)
+                            .foregroundStyle(Tone.problem.ink)
                     }
                     Spacer(minLength: 8)
                     Button { confirm = .save } label: { Text("Save to the Website") }
@@ -725,7 +725,7 @@ extension WebsiteEditPieceScreen {
             List {
                 Group {
                     if let said {
-                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                        Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
                     }
                     wordsSection(p)
                     weightSection(p)

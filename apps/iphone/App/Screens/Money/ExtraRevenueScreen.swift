@@ -408,7 +408,7 @@ extension ExtraRevenueScreen {
     private func macGroups(for ids: Set<String>) -> [[MacAction]] {
         let r = macEntry(ids)
         let onRepair = !(r?.repairId ?? "").isEmpty
-        let add = MacAction("New Revenue\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        let add = MacAction("New Revenue\u{2026}", symbol: "plus",
                             id: "new") { adding = true }
         let edit = MacAction(onRepair ? "Open Repair" : "Edit\u{2026}", symbol: onRepair ? "wrench.and.screwdriver" : "pencil",
                              shortcut: KeyboardShortcut(.return, modifiers: []), enabled: r != nil, id: "edit") {

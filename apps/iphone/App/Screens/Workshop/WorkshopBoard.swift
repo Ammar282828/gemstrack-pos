@@ -257,8 +257,8 @@ struct WorkshopBoard: View {
                 set: { on in Motion.run(reduce: reduceMotion) { showTotals = on } }
             )) {
             FigureGrid {
-                FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
-                FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
+                FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.ink : Color.primary)
+                FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.ink : Color.primary)
                 FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "—")
                 if session.isOwner {
                     FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "—")
@@ -286,7 +286,7 @@ struct WorkshopBoard: View {
             AdaptiveStack(spacing: pt(8), alignment: .center) {
                 HStack(spacing: pt(6)) {
                     Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
-                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Theme.accent)
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.ink : Theme.accent)
                     LedgerHeading(title: load.isUnassigned ? "Unassigned" : load.karigarName)
                 }
                 Spacer(minLength: 8)
@@ -1102,7 +1102,7 @@ extension WorkshopBoard {
             .pickerStyle(.menu)
         } else {
             Text(j.isUnassigned ? "Needs a karigar" : j.karigarName)
-                .foregroundStyle(j.isUnassigned ? Tone.owed.color : Color.primary)
+                .foregroundStyle(j.isUnassigned ? Tone.owed.ink : Color.primary)
         }
     }
 
@@ -1274,7 +1274,7 @@ extension WorkshopBoard {
         var preset = filter.karigarId
         if jobs.count == 1, let j = jobs.first, !j.isUnassigned { preset = j.karigarId }
         let karigarId = preset
-        return MacAction("Assign Stock Work\u{2026}", symbol: "plus.circle", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        return MacAction("Assign Stock Work\u{2026}", symbol: "plus.circle",
                          enabled: session.isOwner) { assigning = WorkshopStockJobAsk(karigarId: karigarId) }
     }
 
@@ -1317,7 +1317,7 @@ extension WorkshopBoard {
             },
         ])
         groups.append([
-            MacAction("Making Details\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+            MacAction("Making Details\u{2026}", symbol: "pencil",
                       enabled: single != nil && writable) { if let j = single { openDetails(j) } },
             MacAction(single?.invoiceId != nil ? "Open Invoice" : "Open Order", symbol: "doc.text",
                       enabled: single.map { $0.invoiceId != nil || $0.orderId != nil } ?? false) { if let j = single { macOpenJob(j) } },

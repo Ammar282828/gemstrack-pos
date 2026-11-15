@@ -103,7 +103,7 @@ private struct TaheriBookImportPage: View {
                 if let done {
                     Section {
                         Label("\(done.customers) customers and \(done.karigars) karigars added", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(Tone.settled.color)
+                            .foregroundStyle(Tone.settled.ink)
                     } header: {
                         LedgerHeading(title: "Imported")
                     } footer: {
@@ -160,7 +160,7 @@ private struct TaheriBookImportPage: View {
             FigureRow(spacing: pt(10)) {
                 FigureTile(label: "New", value: "\(new)")
                 FigureTile(label: "Already here", value: "\(here)")
-                FigureTile(label: "Half-matches", value: "\(half)", tint: half > 0 ? Tone.owed.color : .primary)
+                FigureTile(label: "Half-matches", value: "\(half)", tint: half > 0 ? Tone.owed.ink : .primary)
             }
             #endif
         }

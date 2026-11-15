@@ -486,7 +486,7 @@ private struct InvoiceWhatsAppSend: ViewModifier {
                     Label("Sending the PDF…", systemImage: "paperplane")
                         .font(.house(.footnote).weight(.medium))
                         .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
-                        .glassEffect(.regular, in: .capsule)
+                        .background(.regularMaterial, in: .capsule)
                         .padding(.top, pt(8))
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }

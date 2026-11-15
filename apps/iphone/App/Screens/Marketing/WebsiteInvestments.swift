@@ -39,6 +39,12 @@ struct WebsiteInvestmentsScreen: View {
         }
         .navigationTitle("Investments")
         .hubTitleDisplay()
+        #if os(macOS)
+        // The toolbar's one command is also in the menu bar.
+        .macRecordMenu(MacRecordMenu(title: "Investments", groups: [[
+            MacAction("Add by Hand\u{2026}", symbol: "plus", enabled: gold.phase == .loaded, id: "add") { adding = true },
+        ]]))
+        #endif
         .toolbar {
             ToolbarItem(placement: .trailingAction) {
                 Button { adding = true } label: { Label("Add by hand", systemImage: "plus") }
@@ -92,7 +98,7 @@ struct WebsiteInvestmentsScreen: View {
                             .font(.house(.caption)).foregroundStyle(.secondary)
                     }
                 } icon: {
-                    Image(systemName: "clock").foregroundStyle(Tone.owed.color)
+                    Image(systemName: "clock").foregroundStyle(Tone.owed.ink)
                 }
             }
         }
@@ -112,7 +118,7 @@ struct WebsiteInvestmentsScreen: View {
                                     .font(.house(.caption)).foregroundStyle(.secondary)
                             }
                         } icon: {
-                            Image(systemName: "clock").foregroundStyle(Tone.owed.color)
+                            Image(systemName: "clock").foregroundStyle(Tone.owed.ink)
                         }
                     }
                 }
@@ -172,7 +178,7 @@ struct WebsiteInvestmentsScreen: View {
                           : "The scheduler last checked in \(WebsiteGoldTime.ago(s.lastTick)). It should every 5 minutes: until it does, nothing goes out by itself.",
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.house(.subheadline))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
                 Button { editing = true } label: { Label("Edit the schedule", systemImage: "calendar.badge.clock") }
             } else {
@@ -311,7 +317,7 @@ struct WebsiteGoldDaySheet: View {
         return List {
             Group {
                 if let said {
-                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
+                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink) }
                 }
                 Section {
                     TextField("The WhatsApp post", text: $post, axis: .vertical)
@@ -336,7 +342,7 @@ struct WebsiteGoldDaySheet: View {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         if edited {
                             Text("You've changed the words: what you send now is your version, and it's saved when it goes.\(scheduled ? " The schedule sends the saved words, so send by hand to use these." : "")")
-                                .foregroundStyle(Tone.owed.color)
+                                .foregroundStyle(Tone.owed.ink)
                         }
                         Text(arrivedWords(d))
                     }
@@ -456,7 +462,7 @@ struct WebsiteGoldDaySheet: View {
                 // A plan on time is the expected state: only a warning is coloured.
                 Label(line, systemImage: "calendar.badge.clock")
                     .font(.house(.caption))
-                    .foregroundStyle(part?.tone == "warn" ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(part?.tone == "warn" ? Tone.owed.ink : Color.secondary)
             }
             HStack(spacing: pt(16)) {
                 Button(went == nil ? "Send now" : "Send again…") { ask = .send([t.id], force: went != nil) }

@@ -35,12 +35,12 @@ struct DesignWorkspaceView: View {
     @FocusState private var macWordFocus: String?
     #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
     /// An iPad's wide window: the page and its strip stay in sight on the left, the words and the photograph scroll on the right.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         Group {
@@ -241,7 +241,7 @@ struct DesignWorkspaceView: View {
                     .buttonStyle(.bordered).largeOnPhone()
             }
             if w.stale.contains(page.id) {
-                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
             }
         }
         .ledgerCard()
@@ -364,7 +364,7 @@ private struct PageCell: View {
                 if page.id == work.master { Image(systemName: "star.fill").imageScale(.small) }
                 Text(work.stripNote(page)).font(.house(.caption2))
             }
-            .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.color : Color.secondary)
+            .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.ink : Color.secondary)
             if on { menu }
         }
         .padding(pt(8))

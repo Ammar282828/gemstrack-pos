@@ -236,12 +236,12 @@ private fun RowScope.DayCell(day: Int, key: String, data: ShopCalendarDay?, due:
             maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
         )
         Row(Modifier.heightIn(min = 12.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (data != null && data.invoices > 0) Count(data.invoices, Tone.settled)
-            if (data != null && data.orders > 0) Count(data.orders, Tone.working)
+            if (data != null && data.invoices > 0) Count(data.invoices, Tone.settled, Symbols.Receipt)
+            if (data != null && data.orders > 0) Count(data.orders, Tone.working, Symbols.Handyman)
             if (due > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Symbols.EventAvailable, null, Modifier.size(9.dp), tint = Tone.owed.color())
-                    Text("$due", fontSize = 9.sp, color = Tone.owed.color())
+                    Icon(Symbols.EventAvailable, null, Modifier.size(11.dp), tint = Tone.owed.color())
+                    Text("$due", style = MaterialTheme.typography.labelSmall, color = Tone.owed.color())
                 }
             }
         }
@@ -249,10 +249,11 @@ private fun RowScope.DayCell(day: Int, key: String, data: ShopCalendarDay?, due:
 }
 
 @Composable
-private fun Count(n: Int, tone: Tone) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Box(Modifier.size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(tone.color()))
-        Text("$n", fontSize = 9.sp, color = tone.color())
+private fun Count(n: Int, tone: Tone, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    // A glyph beside the number, so a sale and an order differ by shape, not only by colour.
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+        Icon(icon, null, Modifier.size(11.dp), tint = tone.color())
+        Text("$n", style = MaterialTheme.typography.labelSmall, color = tone.color())
     }
 }
 

@@ -19,7 +19,7 @@ struct UpdateBanner: View {
         if UpdateGate.blocked {
             Label(UpdateGate.words, systemImage: "arrow.down.circle")
                 .font(.house(.footnote).weight(.semibold))
-                .foregroundStyle(Tone.owed.color)
+                .foregroundStyle(Tone.owed.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, pt(16))
                 .padding(.vertical, pt(8))
