@@ -489,6 +489,35 @@ extension View {
     }
 }
 
+// MARK: Undo and Copy (Edit menu)
+
+/// ⌘Z and ⇧⌘Z for the changes a Mac place makes that can simply be put back: an order's status (a menu, a board drag,
+/// Mark Ready, Cancel), a piece ticked, a repair's step. Never money: a payment, an invoice or a refund has its own way
+/// back (Refund, Cancel Invoice, the delete code), as the HIG asks of an action that can't be reversed by a keystroke.
+/// `undo` makes the change back through the same write; made while undoing, it registers the redo itself (UndoManager).
+/// The Edit menu says "Undo <name>".
+enum MacUndo {
+    private final class Target {}
+    private static let target = Target()
+
+    static func register(_ manager: UndoManager?, _ name: String, _ undo: @escaping () -> Void) {
+        guard let manager else { return }
+        manager.registerUndo(withTarget: target) { _ in undo() }
+        manager.setActionName(name)
+    }
+}
+
+extension View {
+    /// ⌘C (Edit › Copy) copies the picked rows as lines of text, as Finder copies its items' names: one line a row, ready
+    /// to paste into WhatsApp, Mail or Notes. `lines` says each picked row; nothing picked copies nothing.
+    func macCopiesSelection(_ selection: Set<String>, _ lines: @escaping (Set<String>) -> [String]) -> some View {
+        onCopyCommand {
+            let text = lines(selection).joined(separator: "\n")
+            return text.isEmpty ? [] : [NSItemProvider(object: text as NSString)]
+        }
+    }
+}
+
 // MARK: Opening a picked row
 
 extension View {

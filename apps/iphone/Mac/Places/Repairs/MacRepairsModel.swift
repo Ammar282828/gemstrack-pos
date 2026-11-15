@@ -22,6 +22,26 @@ final class MacRepairsModel {
     var deleted = false
     /// Tickets whose balance is being taken on the way out, so a second click cannot take it twice.
     private var handing: Set<String> = []
+    /// The window's undo manager and the shelf's latest copy of a ticket, set by the view that owns the model: a step made
+    /// by the desk goes on it, so ⌘Z puts the ticket back (MacUndo). Not observed.
+    @ObservationIgnored var undoManager: UndoManager?
+    @ObservationIgnored var latest: (String) -> Repair? = { _ in nil }
+
+    init() {
+        desk.stepped = { [weak self] (id: String, from: String, to: String) in self?.stepped(id, from: from, to: to) }
+    }
+
+    /// ⌘Z for a step: back to the status the ticket had, where the Repair machine allows that move (In the shop again from
+    /// Ready, Collected or Cancelled). A hand-back that took the balance is not a desk step (`takeAndCollect`), so money taken
+    /// is never undone by a keystroke.
+    private func stepped(_ id: String, from: String, to: String) {
+        guard Machines.shared.canSetRepair(from: to, to: from) else { return }
+        let name = to == "ready" ? "Mark Ready" : to == "collected" ? "Hand Back" : to == "cancelled" ? "Cancel Repair" : "Repair Step"
+        MacUndo.register(undoManager, name) { [weak self] in
+            guard let self, let r = self.latest(id) else { return }
+            self.desk.setStatus(r, from)
+        }
+    }
 
     // MARK: The steps
 

@@ -67,6 +67,15 @@ struct MacOrdersListView<RowMenu: View>: View {
             open(ids)
         }
         .macOpensOnReturn(selection, open)
+        // ⌘C: the picked orders as lines ("ORD-000123 · Ayesha · Drop earrings · Ready to hand over").
+        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
+            rows.filter { ids.contains($0.id) }.map(Self.line)
+        }
+    }
+
+    /// One order as a line of text, for ⌘C and a drag out of the list.
+    static func line(_ r: MacOrdersListRow) -> String {
+        [r.id, r.customer, r.what, r.stageWords].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
     }
 
     // MARK: Groups
@@ -110,18 +119,18 @@ struct MacOrdersListView<RowMenu: View>: View {
     private func section(_ g: MacOrdersGroup) -> some View {
         if g.title.isEmpty {
             Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true).macOpensOnDoubleClick { open([r.id]) } }
+                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
             }
             .houseRows()
         } else if namedByTitle(g) {
             Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) } }
+                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
             }
             .houseRows()
         } else {
             Section {
                 if isOpen(g) {
-                    ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) } }
+                    ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
                 }
             } header: {
                 header(g)

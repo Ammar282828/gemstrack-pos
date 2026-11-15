@@ -77,6 +77,27 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
   speaks the least of MQTT itself (`MQTTOnce`, Network framework). Name the counter Mac in Settings → Labels → Label LIVE
   ("counter-mac.local"); the phone must be on the shop's Wi-Fi. The broker has no password: keep port 1883 off the internet.
 
+## Edit menu: Undo, Copy, drag (2026-11-15)
+
+Owner, 2026-11-15, Apple's HIG checklist ("support standard shortcuts (Cmd+N, Cmd+W, Cmd+Z)", drag and drop, the menu bar):
+the Mac had New, Open, Print, Find, Quick Open, Go (⌘1–9, ⌘[ ⌘]) and a record menu, but no Undo, no Copy and nothing to
+drag out.
+
+- **⌘Z / ⇧⌘Z** (`MacUndo` in `Mac/Kit/MacParts.swift`, the window's `undoManager`): an order's status (the menu, a board
+  drag, Mark Ready, Cancel Order) back to what it was, where the Order machine allows that move; a piece ticked in the
+  inspector; a repair's step (`RepairsDesk.stepped` tells `MacRepairsModel`), where the Repair machine allows it. Undone, the
+  same write registers the redo. **Never money**: a payment, an invoice, a refund or a hand-back that took the balance has
+  its own way back (Refund, Cancel Invoice, the delete code), so no keystroke reverses it.
+- **⌘C** (`macCopiesSelection`): the picked rows of Orders, Invoices, Repairs, Customers and Stock as lines of text
+  ("ORD-000123 · Ayesha · Drop earrings · Ready to hand over"); customers copy name and number, never what they spent.
+- **Drag out**: an order, invoice or repair row drags as the same line, into WhatsApp, Mail or Notes.
+
+**Profiling.** Every figure a `Memo` works out (`App/Data/Book.swift`) is an `OSSignposter` interval in Instruments' Points
+of Interest, named by what it makes; Product › Profile (⌘I) with the Time Profiler shows which screen's figures hold the
+main thread. One over a frame (16 ms) is logged to Console (subsystem `shop.taheri.erp`, category `figures`). Hangs and
+crashes from real Macs already reach Firestore `app_diagnostics` (MetricKit, `App/Support/Diagnostics.swift`, call
+stacks included); the daily speed summary is iOS-only there.
+
 ## Building it
 
 - **Xcode Cloud's "Mac release" workflow** (made by `asc.mjs mac-setup`, copied from the iPhone's release workflow): archives

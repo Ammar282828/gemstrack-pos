@@ -273,6 +273,13 @@ struct MacCustomersPlace: View {
             for id in ids.prefix(5) { go(CustomerKit.route(id)) }
         }
         .macOpensOnReturn(selection) { (ids: Set<String>) in for id in ids.prefix(5) { go(CustomerKit.route(id)) } }
+        // ⌘C: the picked customers as lines, name and number ("Ayesha Khan · 0300 1234567"); never what they spent.
+        .macCopiesSelection(selection) { [book] (ids: Set<String>) -> [String] in
+            ids.sorted().compactMap { book.customers.item($0) }.map { (c: Customer) -> String in
+                [CustomerKit.shown(c), CustomerKit.filled(c.phone) ?? c.altPhone ?? ""].filter { !$0.isEmpty }
+                    .joined(separator: " \u{00B7} ")
+            }
+        }
         .overlay { if rows.isEmpty { emptyState } }
         .macSummaryBar(summary(rows, b))
     }

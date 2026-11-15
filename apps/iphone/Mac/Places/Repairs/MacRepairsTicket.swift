@@ -355,6 +355,7 @@ struct MacRepairsTicketWindow: View {
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
 
     private var current: Repair? { book.repairs.item(id) ?? seed }
@@ -369,7 +370,12 @@ struct MacRepairsTicketWindow: View {
             .onChange(of: model.deleted) { _, gone in
                 if gone { dismiss() }
             }
-            .onAppear { book.repairs.need() }
+            .onAppear {
+                book.repairs.need()
+                // ⌘Z for a step taken here (MacRepairsModel): this window's undo manager, and the shelf's ticket to put back.
+                model.undoManager = undoManager
+                model.latest = { [book] (id: String) -> Repair? in book.repairs.item(id) }
+            }
     }
 
     private func actions() -> [[MacAction]] {

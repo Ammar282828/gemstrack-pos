@@ -209,6 +209,13 @@ struct MacStockPlace: View {
             open(Array(ids))
         }
         .macOpensOnReturn(selection) { (ids: Set<String>) in open(Array(ids)) }
+        // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
+        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
+            ids.sorted().compactMap { data.byId[$0] }.map { (r: MacStockPlaceRow) -> String in
+                [r.sku, r.name, r.weight > 0 ? String(format: "%.2f g", r.weight) : ""].filter { !$0.isEmpty }
+                    .joined(separator: " \u{00B7} ")
+            }
+        }
     }
 
     private func listRow(_ r: MacStockPlaceRow) -> some View {

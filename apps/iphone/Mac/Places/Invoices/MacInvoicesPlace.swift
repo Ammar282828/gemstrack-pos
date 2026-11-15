@@ -131,6 +131,8 @@ struct MacInvoicesPlace: View {
                         MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
                             .tag(r.id)
                             .macOpensOnDoubleClick { open([r.id], cx) }
+                            // Dragged out (to WhatsApp, Mail, Notes): the same line ⌘C copies.
+                            .draggable(book.invoices.item(r.id).map(MacInvoicesPlace.line) ?? r.id)
                     }
                 } header: {
                     // The days' headings, but not one the window's own title already says ("Today" over today's list).
@@ -150,6 +152,10 @@ struct MacInvoicesPlace: View {
             open(ids, cx)
         }
         .macOpensOnReturn(selection) { (ids: Set<String>) in open(ids, cx) }
+        // ⌘C: the picked invoices as lines ("INV-000123 · Ayesha · PKR 1,20,000 · Due PKR 20,000").
+        .macCopiesSelection(selection) { [book] (ids: Set<String>) -> [String] in
+            ids.sorted().compactMap { book.invoices.item($0) }.map(MacInvoicesPlace.line)
+        }
         .onKeyPress(.space) {
             // Space looks at the PDF, as it looks at a file in Finder.
             guard selection.count == 1, let id = selection.first, let inv = book.invoices.item(id) else { return .ignored }
@@ -276,6 +282,17 @@ struct MacInvoicesPlace: View {
         let shop = session.shop.name
         cx.message = { inv in CustomerMessages.invoice(inv, shop: shop) }
         return cx
+    }
+
+    /// One invoice as a line of text, for ⌘C and a drag out of the list: what it came to, then where it stands (a refunded
+    /// one owes nothing, under a rupee is settled).
+    static func line(_ inv: Invoice) -> String {
+        let standing: String
+        if inv.status == .refunded { standing = "Refunded" }
+        else if owesMoney(inv.balanceDue) { standing = "Due " + Money.pkr(inv.balanceDue) }
+        else { standing = "Paid" }
+        return [inv.id, InvoiceFacts.customerName(inv, walkIn: "Walk-in"), Money.pkr(inv.grandTotal), standing]
+            .joined(separator: " \u{00B7} ")
     }
 
     // MARK: Titles and the foot

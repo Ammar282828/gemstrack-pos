@@ -31,6 +31,8 @@ struct MacOrdersPlace: View {
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The window's: a status change goes on it, so ⌘Z puts it back (MacUndo).
+    @Environment(\.undoManager) private var undoManager
 
     @AppStorage(MacOrdersPlace.viewKey) private var viewRaw = MacOrdersView.table.rawValue
     @AppStorage("mac.orders.sort") private var sortRaw = MacOrdersSort.stage.rawValue
@@ -376,6 +378,12 @@ struct MacOrdersPlace: View {
             Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
         }
         MacOrdersWrites.setStatus(order, status, from: from)
+        // ⌘Z: back to the status it had, where the Order machine allows that move from here (an invoiced order's status
+        // is fixed); undone, the same call registers the redo.
+        if from != status, OrdersLogic.canSetStatus(order, to: from, shown: status) {
+            let name = status == "Completed" ? "Mark Ready" : status == "Cancelled" ? "Cancel Order" : "Status Change"
+            MacUndo.register(undoManager, name) { setStatus(order, from) }
+        }
     }
 
     private var cancelShown: Binding<Bool> {

@@ -66,6 +66,7 @@ struct MacRepairsPlace: View {
     @Environment(Session.self) private var session
     @Environment(\.openPlaceWindow) private var openPlace
     @Environment(\.openURL) private var openURL
+    @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
     @State private var query = ""
     @State private var selection = Set<String>()
@@ -102,7 +103,12 @@ struct MacRepairsPlace: View {
                 model.deleted = false
             }
         }
-        .onAppear { book.repairs.need() }
+        .onAppear {
+            book.repairs.need()
+            // ⌘Z for a step taken here (MacRepairsModel): this window's undo manager, and the shelf's ticket to put back.
+            model.undoManager = undoManager
+            model.latest = { [book] (id: String) -> Repair? in book.repairs.item(id) }
+        }
     }
 
     // MARK: The rows

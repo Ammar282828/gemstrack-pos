@@ -252,6 +252,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
+| Mac's Edit menu (HIG): ⌘Z / ⇧⌘Z undo an order's status (menu, board drag, Mark Ready, Cancel), a piece ticked and a repair's step (never money); ⌘C copies the picked rows of Orders, Invoices, Repairs, Customers and Stock as lines of text; an order, invoice or repair row drags out as that line (to WhatsApp, Mail, Notes) | n/a (the browser's own) | n/a (touch; an iPad keyboard could take ⌘Z later) | n/a | wip (`MacUndo`, `macCopiesSelection` in `Mac/Kit/MacParts.swift`; repairs through `RepairsDesk.stepped`), waiting on its Mac build (GitHub Actions locked over billing since 2026-11-15) | 2026-11-15 | [Mac app](features/mac-app.md#edit-menu-undo-copy-drag-2026-11-15) |
 | Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `Data/Outbox.swift`, Android `data/Outbox.kt` + `ui/OutboxHost.kt`; Android: settings, labels, voice, ads Run/Pause, posting and queueing, website photos and weights, edit-a-piece, Design save and publish go through it (saveWebsiteConfig has no Android screen yet); money ops stay awaited |
 | Books paint from the phone's own copy before Firestore answers | n/a | ✓ | ✓ | ✓ | 2026-10-20 | Android: Firestore persistent cache |
 | Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `LaunchClock` (Android `device/LaunchClock.kt`, `platform: "android"`) |

@@ -75,6 +75,15 @@ struct MacRepairsListView<RowMenu: View>: View {
             open(ids)
         }
         .macOpensOnReturn(selection, open)
+        // ⌘C: the picked tickets as lines ("REP-000012 · Sana · Ring resize · Ready").
+        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
+            rows.filter { ids.contains($0.id) }.map(Self.line)
+        }
+    }
+
+    /// One ticket as a line of text, for ⌘C and a drag out of the list.
+    static func line(_ r: MacRepairsRow) -> String {
+        [r.number, r.customer, r.summary, r.statusLabel].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
     }
 
     // MARK: Groups
@@ -120,18 +129,18 @@ struct MacRepairsListView<RowMenu: View>: View {
     private func section(_ g: MacRepairsGroup) -> some View {
         if g.title.isEmpty {
             Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true).macOpensOnDoubleClick { open([r.id]) } }
+                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
             }
             .houseRows()
         } else if namedByTitle(g) {
             Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) } }
+                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
             }
             .houseRows()
         } else {
             Section {
                 if isOpen(g) {
-                    ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) } }
+                    ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
                 }
             } header: {
                 header(g)
