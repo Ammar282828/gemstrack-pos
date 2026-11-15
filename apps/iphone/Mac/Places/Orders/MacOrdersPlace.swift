@@ -13,17 +13,15 @@ import ERPCore
 
 /// The place's two views.
 enum MacOrdersView: String, CaseIterable, Identifiable {
-    case table, board
+    case table, cards, board
     var id: String { rawValue }
-    var title: String { self == .table ? "List" : "Board" }
-    var symbol: String { self == .table ? "list.bullet" : "rectangle.split.3x1" }
 }
 
 struct MacOrdersPlace: View {
     /// The sidebar's path: "/orders", or "/orders?list=late".
     let path: String
 
-    /// The key the view is kept under; View › as Table / as Board writes it too.
+    /// The key the view is kept under; View › as List / as Cards / as Board writes it too.
     static let viewKey = "mac.orders.view"
 
     @Environment(Book.self) private var book
@@ -76,6 +74,7 @@ struct MacOrdersPlace: View {
         .toolbar { placeToolbar(base) }
         .macInspector { inspectorPanel(base) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: pickedGroups))
+        .macViewFilters(viewFilters(base))
         .macOrdersSheets($sheet, advanced: advanced, moved: onlineMoved, sent: docSent)
         .orderUndo($undo, open: $web)
         .ordersWebDestination($web)
@@ -118,9 +117,10 @@ struct MacOrdersPlace: View {
     @ViewBuilder
     private func content(_ base: MacOrdersBase, key: [Int]) -> some View {
         Group {
-            if view == .table {
+            if view != .board {
                 MacOrdersListView(rows: base.rows, version: key, sort: sort, searching: !query.trimmingCharacters(in: .whitespaces).isEmpty,
-                                  listTitle: list == nil ? nil : title, selection: $selection, open: openPicked) { ids in
+                                  listTitle: list == nil ? nil : title, layout: view == .cards ? .cards : .list,
+                                  selection: $selection, open: openPicked) { ids in
                     rowMenu(ids)
                 }
             } else {
@@ -181,13 +181,7 @@ struct MacOrdersPlace: View {
     @ToolbarContentBuilder
     private func placeToolbar(_ base: MacOrdersBase) -> some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("View", selection: $viewRaw) {
-                ForEach(MacOrdersView.allCases) { (v: MacOrdersView) in
-                    Label(v.title, systemImage: v.symbol).tag(v.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
-            .help("The orders as a list or by stage (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            MacLayoutPicker(selection: $viewRaw, choices: [.list, .cards, .board])
         }
         // New and the one filter; the picked order's actions are the inspector's, the Order menu's and the right-click
         // menu's, never the toolbar's (a Tahoe toolbar of nine capsules overflowed a 13-inch screen).
@@ -196,6 +190,17 @@ struct MacOrdersPlace: View {
                 .help("New order (\u{21E7}\u{2318}N)")
             filterMenu(base)
         }
+    }
+
+    /// The Filter menu's pickers for View (the menu bar has every command the toolbar has).
+    private func viewFilters(_ base: MacOrdersBase) -> [MacViewFilter] {
+        let people = session.shop.takenBy.isEmpty ? base.people : session.shop.takenBy
+        return [
+            MacViewFilter("Taken By", any: "Anyone", values: people, selected: takenBy) { (v: String) in takenBy = v },
+            MacViewFilter("Payment", any: "Any Payment", values: OrdersLogic.filterPayments, selected: payment) { (v: String) in payment = v },
+            MacViewFilter(title: "Sort By", options: MacOrdersSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                          selected: sortRaw) { (v: String) in sortRaw = v },
+        ]
     }
 
     private func filterMenu(_ base: MacOrdersBase) -> some View {
@@ -381,7 +386,7 @@ struct MacOrdersPlace: View {
         // ⌘Z: back to the status it had, where the Order machine allows that move from here (an invoiced order's status
         // is fixed); undone, the same call registers the redo.
         if from != status, OrdersLogic.canSetStatus(order, to: from, shown: status) {
-            let name = status == "Completed" ? "Mark Ready" : status == "Cancelled" ? "Cancel Order" : "Status Change"
+            let name = status == "Completed" ? "Mark Ready" : status == "Cancelled" ? "Void Order" : "Status Change"
             MacUndo.register(undoManager, name) { setStatus(order, from) }
         }
     }

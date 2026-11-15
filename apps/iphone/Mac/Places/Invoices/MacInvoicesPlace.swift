@@ -80,6 +80,8 @@ struct MacInvoicesPlace: View {
     @Environment(\.openPlaceWindow) private var openPlace
 
     @State private var selection = Set<String>()
+    /// List or Cards (the toolbar's control, View › as List / as Cards).
+    @AppStorage("mac.invoices.view") private var layoutRaw = "table"
     @State private var query = ""
     /// "" is anyone.
     @State private var takenBy = ""
@@ -108,6 +110,7 @@ struct MacInvoicesPlace: View {
         .macSearchable(text: $query, prompt: "Search Invoices")
         .macInspector { MacInvoiceInspector(invoice: picked, count: selection.count, cx: cx) }
         .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx) + importGroups(cx)))
+        .macViewFilters(viewFilters())
         .toolbar { toolbarItems(cx) }
         .modifier(MacInvoiceSheetHost(desk: desk))
         .navigationTitle(title(list))
@@ -124,37 +127,31 @@ struct MacInvoicesPlace: View {
                         _ cx: MacInvoiceContext) -> some View {
         let person = session.shop.person ?? ""
         let named = list == nil ? "" : title(list)
-        return List(selection: $selection) {
-            ForEach(groups) { (g: MacInvoicesPlaceGroup) in
-                Section {
-                    ForEach(g.rows) { (r: MacInvoicesPlaceRow) in
-                        MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
-                            .tag(r.id)
-                            .macOpensOnDoubleClick { open([r.id], cx) }
-                            // Dragged out (to WhatsApp, Mail, Notes): the same line ⌘C copies.
-                            .draggable(book.invoices.item(r.id).map(MacInvoicesPlace.line) ?? r.id)
-                    }
-                } header: {
-                    // The days' headings, but not one the window's own title already says ("Today" over today's list).
-                    if sort == .date && g.title.caseInsensitiveCompare(named) != .orderedSame {
-                        LedgerHeading(title: g.title, count: g.rows.count,
-                                      trailing: session.isOwner ? Money.pkrLac(g.billed, digits: 1) : nil)
-                    }
-                }
-                .houseRows()
+        let owner = session.isOwner
+        let sections = groups.map { (g: MacInvoicesPlaceGroup) -> MacRecordSection<MacInvoicesPlaceRow> in
+            // The days' headings, but not one the window's own title already says ("Today" over today's list).
+            let said = sort == .date && g.title.caseInsensitiveCompare(named) != .orderedSame
+            return MacRecordSection(id: g.id, title: said ? g.title : "", count: g.rows.count,
+                                    trailing: said && owner ? Money.pkrLac(g.billed, digits: 1) : nil, items: g.rows)
+        }
+        let books = book
+        return MacRecordCollection(layout: layoutRaw == "cards" ? .cards : .list, sections: sections, selection: $selection,
+                                   open: { (ids: Set<String>) in open(ids, cx) },
+                                   // ⌘C: the picked invoices as lines ("INV-000123 · Ayesha · PKR 1,20,000 · Due PKR 20,000").
+                                   lines: { (ids: Set<String>) -> [String] in
+                                       ids.sorted().compactMap { books.invoices.item($0) }.map(MacInvoicesPlace.line)
+                                   },
+                                   // Dragged out (to WhatsApp, Mail, Notes): the same line ⌘C copies.
+                                   dragText: { (r: MacInvoicesPlaceRow) -> String in
+                                       books.invoices.item(r.id).map(MacInvoicesPlace.line) ?? r.id
+                                   }) { (r: MacInvoicesPlaceRow) in
+            if layoutRaw == "cards" {
+                MacInvoiceCard(row: r, mine: !person.isEmpty && r.takenBy == person, photo: cardPhoto(r.id))
+            } else {
+                MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
             }
-        }
-        .listStyle(.inset)
-        .modifier(HouseGround())
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+        } menu: { (ids: Set<String>) in
             rowMenu(ids, cx)
-        } primaryAction: { (ids: Set<String>) in
-            open(ids, cx)
-        }
-        .macOpensOnReturn(selection) { (ids: Set<String>) in open(ids, cx) }
-        // ⌘C: the picked invoices as lines ("INV-000123 · Ayesha · PKR 1,20,000 · Due PKR 20,000").
-        .macCopiesSelection(selection) { [book] (ids: Set<String>) -> [String] in
-            ids.sorted().compactMap { book.invoices.item($0) }.map(MacInvoicesPlace.line)
         }
         .onKeyPress(.space) {
             // Space looks at the PDF, as it looks at a file in Finder.
@@ -212,6 +209,9 @@ struct MacInvoicesPlace: View {
     /// right-click menu's, never the toolbar's.
     @ToolbarContentBuilder
     private func toolbarItems(_ cx: MacInvoiceContext) -> some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            MacLayoutPicker(selection: $layoutRaw, choices: [.list, .cards])
+        }
         ToolbarItemGroup(placement: .automatic) {
             Button { cx.open(Route(path: "/invoices/new")) } label: { Label("New Sale", systemImage: "plus") }
                 .help("New sale (\u{2318}N)")
@@ -226,14 +226,33 @@ struct MacInvoicesPlace: View {
         NavMap.hasShopifySection ? [] : [[MacInvoiceMenu.importOrders(cx)]]
     }
 
-    /// Taken by and Source: the toolbar's pop-up (the saved lists are the sidebar's).
-    private func filterMenu() -> some View {
+    /// Who took the invoices and where they came from, once per change of the books (the Filter menu's and View's).
+    private func filterLists() -> (who: [String], channels: [String]) {
         let who = people([book.invoices.revision]) {
             Array(Set(book.invoices.items.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted()
         }
         let channelNames = channels([book.invoices.revision]) {
             Array(Set(book.invoices.items.compactMap { MacInvoiceWords.source($0) })).sorted()
         }
+        return (who, channelNames)
+    }
+
+    /// The Filter menu's pickers for View (the menu bar has every command the toolbar has).
+    private func viewFilters() -> [MacViewFilter] {
+        let lists = filterLists()
+        return [
+            MacViewFilter(title: "Sort By", options: MacInvoicesSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                          selected: sort.rawValue) { (v: String) in sort = MacInvoicesSort(rawValue: v) ?? .date },
+            MacViewFilter("Taken By", any: "Anyone", values: lists.who, selected: takenBy) { (v: String) in takenBy = v },
+            MacViewFilter("Source", any: "Every Source", values: lists.channels, selected: source) { (v: String) in source = v },
+        ]
+    }
+
+    /// Taken by and Source: the toolbar's pop-up (the saved lists are the sidebar's).
+    private func filterMenu() -> some View {
+        let lists = filterLists()
+        let who = lists.who
+        let channelNames = lists.channels
         return Menu {
             Picker("Sort By", selection: $sort) {
                 ForEach(MacInvoicesSort.allCases) { (o: MacInvoicesSort) in Text(o.title).tag(o) }
@@ -322,6 +341,20 @@ struct MacInvoicesPlace: View {
         let billedSum = picked.reduce(0) { $0 + $1.total }
         let owedSum = picked.reduce(0) { $0 + $1.due }
         return ["\(picked.count) of \(shown.rows.count) selected", billedWords(billedSum), owedWords(owedSum)]
+    }
+
+    /// An invoice card's picture, looked up only for the cards on screen: the order it was made from (its first reference
+    /// photo), else the first piece sold whose stock record still has a photo.
+    private func cardPhoto(_ id: String) -> PhotoSource? {
+        guard let inv = book.invoices.item(id) else { return nil }
+        if let oid = inv.sourceOrderId, !oid.isEmpty, let order = book.orders.item(oid), let p = MacOrdersLogic.photo(order) {
+            return p
+        }
+        for item in inv.items where !item.sku.isEmpty {
+            let url = (book.products.item(item.sku)?.imageUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !url.isEmpty { return PhotoSource(id: "sku-" + item.sku, uri: url) }
+        }
+        return nil
     }
 
     private func billedWords(_ n: Double) -> String { Money.pkrLac(n, digits: 1) + " billed" }
@@ -480,6 +513,53 @@ struct MacInvoiceListRow: View {
             Pill("In credit", tone: .credit)
         } else if row.due >= 1 {
             Pill("\(Money.pkr(row.due)) due", tone: row.tone)
+        }
+    }
+}
+
+/// An invoice as a card (the place's Cards): the piece's photo, who and which bill with where it stands, what was sold,
+/// then the day and the money, with what is still due.
+struct MacInvoiceCard: View {
+    let row: MacInvoicesPlaceRow
+    var mine = false
+    /// The order's reference photo or the stock piece's (`MacInvoicesPlace.cardPhoto`), nil for none.
+    var photo: PhotoSource?
+
+    var body: some View {
+        let r = row
+        VStack(alignment: .leading, spacing: 10) {
+            MacCardPhoto(source: photo)
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: r.customer, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.customer).font(.house(.headline)).lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(r.id).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                        if mine { MineTag() }
+                    }
+                }
+                Spacer(minLength: 6)
+                Pill(r.statusText, tone: r.tone)
+            }
+            if !r.sold.isEmpty {
+                Text(r.sold).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2)
+            }
+            if !r.whatsapp.isEmpty {
+                Text(r.whatsapp).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(r.dateText.isEmpty ? r.timeText : r.dateText)
+                    .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 6)
+                RowAmount(amount: r.total, tone: .primary)
+            }
+            if r.due >= 1 {
+                HStack {
+                    Spacer(minLength: 0)
+                    Text("Due " + Money.pkr(r.due)).font(.house(.caption).weight(.semibold))
+                        .foregroundStyle(Tone.owed.color).monospacedDigit().lineLimit(1)
+                }
+            }
         }
     }
 }

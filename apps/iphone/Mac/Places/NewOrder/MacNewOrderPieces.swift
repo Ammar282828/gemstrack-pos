@@ -53,7 +53,7 @@ struct MacNewOrderPieces: View {
             table
             Divider()
             bar
-                .background(Theme.ground)
+                .macGround()
             MacNewOrderTotals(totals: totals, pieces: rows.count)
         }
     }
@@ -66,7 +66,7 @@ struct MacNewOrderPieces: View {
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .macGround()
         .contextMenu(forSelectionType: UUID.self) { ids in
             if !ids.isEmpty {
                 Button { duplicate(ids) } label: { Label("Duplicate Piece", systemImage: "plus.square.on.square") }
@@ -148,7 +148,7 @@ struct MacNewOrderTotals: View {
         .frame(maxWidth: .infinity, alignment: .trailing)
         .houseCard()
         .padding(10)
-        .background(Theme.ground)
+        .macGround()
     }
 
     private func line(_ label: String, _ value: String, tone: Tone? = nil, bold: Bool = false) -> some View {

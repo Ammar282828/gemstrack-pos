@@ -27,7 +27,7 @@ struct MacNewOrderPieceForm: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .macGround()
     }
 
     // MARK: The piece

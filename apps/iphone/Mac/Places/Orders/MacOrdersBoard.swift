@@ -49,7 +49,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 }
             }
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The same board as the Workshop's: a card for each column on the ground, twelve points apart.
@@ -150,8 +150,10 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 .strokeBorder(picked ? Theme.accent : Color.primary.opacity(0.07), lineWidth: picked ? 2 : 0.5)
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { open(r.id) }
+        // The click picks at once; the second click of a double-click opens (two exclusive gestures held every pick back
+        // by the double-click interval), as Stock's gallery does.
         .onTapGesture { pick(r.id) }
+        .simultaneousGesture(TapGesture(count: 2).onEnded { open(r.id) })
         .draggable(r.id)
         .contextMenu {
             menu(r.id)

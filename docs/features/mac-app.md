@@ -84,7 +84,7 @@ the Mac had New, Open, Print, Find, Quick Open, Go (⌘1–9, ⌘[ ⌘]) and a r
 drag out.
 
 - **⌘Z / ⇧⌘Z** (`MacUndo` in `Mac/Kit/MacParts.swift`, the window's `undoManager`): an order's status (the menu, a board
-  drag, Mark Ready, Cancel Order) back to what it was, where the Order machine allows that move; a piece ticked in the
+  drag, Mark Ready, Void Order) back to what it was, where the Order machine allows that move; a piece ticked in the
   inspector; a repair's step (`RepairsDesk.stepped` tells `MacRepairsModel`), where the Repair machine allows it. Undone, the
   same write registers the redo. **Never money**: a payment, an invoice, a refund or a hand-back that took the balance has
   its own way back (Refund, Cancel Invoice, the delete code), so no keystroke reverses it.
@@ -97,6 +97,34 @@ of Interest, named by what it makes; Product › Profile (⌘I) with the Time Pr
 main thread. One over a frame (16 ms) is logged to Console (subsystem `shop.taheri.erp`, category `figures`). Hangs and
 crashes from real Macs already reach Firestore `app_diagnostics` (MetricKit, `App/Support/Diagnostics.swift`, call
 stacks included); the daily speed summary is iOS-only there.
+
+## Cards, List and Liquid Glass (2026-11-15)
+
+Owner, 2026-11-15: "add cards for every available view / the list view looks very dated, i want a list view also but a better
+more modern one that matches ui elements / also ffs use glassmorphism/liquid glass", then a review against
+github.com/dickwu/apple-design-skill: [Design review](mac-design-audit.md).
+
+- **One collection, two layouts** (`MacRecordCollection` in `Mac/Kit/MacRecordCollection.swift`): List is a column of tiles
+  (each record on its own rounded card surface, in place of an inset List with hairlines); Cards is a grid of 280-point-or-wider
+  cards. Both keep what a Mac list does: click, ⌘-click, ⇧-click, double-click and Return open, ↑ ↓ (← → among cards), Esc,
+  ⌘A, the record's right-click menu, ⌘C, drag out, groups that fold (Done, Cancelled) and open while searching.
+- **Every place**: Orders (List, Cards, Board), Invoices, Repairs, Customers (List, Cards), Stock (List of tiles, Gallery),
+  Workshop (Table, Board). The toolbar's centre holds a segmented control; View › as List / as Cards / as Board does the
+  same for whichever place is open (`viewWays` in `Mac/MacCommands.swift`; no key: Control-key shortcuts were dropped in
+  2.7.9). Each place remembers its own (`mac.<place>.view`).
+- **Cards lead with the piece** (`MacCardPhoto`): an order's first reference photo (else its catalogue pick), an invoice's
+  order photo or the sold piece's stock photo; read only for the cards on screen. The List stays words, dense.
+- **A click picks at once**: the double-click that opens is a simultaneous gesture, so no click waits out the
+  double-click interval (rows and the Orders board).
+- **Filters in the menu bar**: each place's toolbar Filter menu is also View › Taken By / Payment / Source / Sort By
+  (`MacViewFilter`, published by the place like its record menu).
+- **Liquid Glass where Apple puts it**: the window's functional layer. The inspector no longer paints a ground over its own
+  glass; the list's sums float as a capsule of regular glass at its foot (`MacSummaryBar`); the sidebar and toolbar were
+  always the system's. Tiles and cards are content, so opaque: glass on cards or rows is a defect by the HIG's own checklist.
+- **The house under the glass**: every page's ground is `MacGround` (`.macGround()`), the house ground with the accent's soft
+  wash (the iPhone's Liquid Glass ground, drawn on the Mac whatever the glass setting), extended under the sidebar
+  (`backgroundExtensionEffect()`), so the glass takes the house's colour. Increase Contrast gets the plain ground. The
+  iPhone's code is untouched.
 
 ## Building it
 

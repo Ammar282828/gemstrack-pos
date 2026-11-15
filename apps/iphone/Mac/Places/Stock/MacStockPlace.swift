@@ -13,10 +13,11 @@ import ERPCore
 /// The two views of Stock, chosen in the toolbar.
 enum MacStockView: String, CaseIterable, Identifiable {
     case table, gallery
-    /// The key the choice is kept under (this Mac's), which View › as Table / as Gallery writes too.
+    /// The key the choice is kept under (this Mac's), which View › as List / as Gallery writes too.
     static let key = "mac.stock.view"
     var id: String { rawValue }
-    var title: String { self == .table ? "Table" : "Gallery" }
+    /// "List": the pieces as tiles since 2026-11-15 (the record collection), stored as "table" as before.
+    var title: String { self == .table ? "List" : "Gallery" }
     var symbol: String { self == .table ? "list.bullet" : "square.grid.2x2" }
 }
 
@@ -184,37 +185,25 @@ struct MacStockPlace: View {
             ContentUnavailableView("No Pieces Here", systemImage: "tag", description: Text("Nothing is in this category."))
         } else {
             ContentUnavailableView("No Pieces Yet", systemImage: "tag",
-                                   description: Text(session.isOwner ? "Make a piece with \u{2303}\u{2318}N." : "The owner adds pieces to the stock."))
+                                   description: Text(session.isOwner ? "Make a piece with New Piece in the toolbar or the Piece menu." : "The owner adds pieces to the stock."))
         }
     }
 
     /// The iPhone's rows: the photo, the name over its SKU and what it is made of, today's price at the right.
+    /// The pieces as tiles in a column (the record collection's List), their photo leading.
     private func table(_ data: MacStockPlaceRows) -> some View {
-        List(selection: $selection) {
-            ForEach(data.rows) { (r: MacStockPlaceRow) in
-                listRow(r)
-            }
+        let line = { (r: MacStockPlaceRow) -> String in
+            [r.sku, r.name, r.weight > 0 ? String(format: "%.2f g", r.weight) : ""].filter { !$0.isEmpty }
+                .joined(separator: " \u{00B7} ")
         }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
-        .contextMenu(forSelectionType: String.self) { ids in
-            if ids.isEmpty {
-                // The empty part of the table: what is not about one piece.
-                MacActionItems(groups: [[newAction, bulkAction]])
-            } else {
-                MacActionItems(groups: actionGroups(Array(ids)))
-            }
-        } primaryAction: { ids in
-            open(Array(ids))
-        }
-        .macOpensOnReturn(selection) { (ids: Set<String>) in open(Array(ids)) }
-        // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
-        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
-            ids.sorted().compactMap { data.byId[$0] }.map { (r: MacStockPlaceRow) -> String in
-                [r.sku, r.name, r.weight > 0 ? String(format: "%.2f g", r.weight) : ""].filter { !$0.isEmpty }
-                    .joined(separator: " \u{00B7} ")
-            }
+        return MacRecordCollection(layout: .list, sections: [MacRecordSection(id: "all", items: data.rows)],
+                                   selection: $selection, open: { (ids: Set<String>) in open(Array(ids)) },
+                                   // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
+                                   lines: { (ids: Set<String>) -> [String] in ids.sorted().compactMap { data.byId[$0] }.map(line) },
+                                   dragText: line) { (r: MacStockPlaceRow) in
+            listRow(r)
+        } menu: { (ids: Set<String>) in
+            MacActionItems(groups: actionGroups(Array(ids)))
         }
     }
 
@@ -288,7 +277,7 @@ struct MacStockPlace: View {
             .frame(maxWidth: .infinity)
             .background(Color.clear.contentShape(Rectangle()).onTapGesture { selection = [] })
         }
-        .background(Theme.ground)
+        .macGround()
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.return) {
@@ -353,14 +342,14 @@ struct MacStockPlace: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help("The pieces as a table or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            .help("The pieces as a list or as photographs (also View › as List, as Gallery)")
         }
         // New and the one filter, as every list has them. The picked pieces' Sell and Print are the inspector's, the Piece
         // menu's and the right-click menu's, never the toolbar's; Add in Bulk is the Piece menu's and the empty table's.
         ToolbarItemGroup(placement: .automatic) {
             Button { openRoute(StockKit.addPath) } label: { Label("New Piece", systemImage: "plus") }
                 .disabled(!session.isOwner)
-                .help("New piece (\u{2303}\u{2318}N)")
+                .help("New piece (also in the Piece menu)")
             filterMenu
         }
     }

@@ -57,7 +57,7 @@ struct MacOrderInspector: View {
             }
             .padding(14)
         }
-        .background(Theme.ground)
+        .macGround()
         .onChange(of: signature(order)) { _, _ in reconcile(order) }
     }
 
@@ -263,9 +263,12 @@ struct MacOrderInspector: View {
             } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(done ? Tone.settled.color : Color.secondary)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .help(done ? "Done: click to mark not done" : "Mark as complete")
+            .accessibilityLabel(done ? "Mark piece not done" : "Mark piece done")
         } else {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(done ? Tone.settled.color : Color.secondary.opacity(0.5))

@@ -44,32 +44,35 @@ struct MacOrdersListView<RowMenu: View>: View {
     let searching: Bool
     /// The saved list's title (Late, Not Started), nil on the whole place: a group of that very name is not said twice.
     var listTitle: String?
+    /// Tiles in a column, or cards in a grid (the toolbar's List and Cards).
+    var layout: MacRecordLayout = .list
     @Binding var selection: Set<String>
     let open: (Set<String>) -> Void
     @ViewBuilder let menu: (Set<String>) -> RowMenu
 
     @State private var made = Memo<[MacOrdersGroup]>()
-    @State private var unfolded = Set<String>()
 
     var body: some View {
         let groups = made(version + [sort.hashValue]) { Self.groups(rows, sort: sort) }
-        List(selection: $selection) {
-            ForEach(groups) { (g: MacOrdersGroup) in
-                section(g)
+        let grouped = sort == .stage
+        let owner = session.isOwner
+        let sections = groups.map { (g: MacOrdersGroup) -> MacRecordSection<MacOrdersListRow> in
+            // The window's title already names this group ("Not Started"): no heading is said again, and it never folds.
+            let named = namedByTitle(g)
+            return MacRecordSection(id: g.id, title: named ? "" : g.title, count: g.rows.count,
+                                    trailing: owner && g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil,
+                                    hint: named ? "" : g.hint, folds: g.folds && !named, items: g.rows)
+        }
+        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection, open: open,
+                            lines: { (ids: Set<String>) -> [String] in rows.filter { ids.contains($0.id) }.map(Self.line) },
+                            dragText: { (r: MacOrdersListRow) -> String in Self.line(r) }) { (r: MacOrdersListRow) in
+            if layout == .cards {
+                MacOrderCard(row: r)
+            } else {
+                MacOrdersRow(row: r, showsStage: !grouped)
             }
-        }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+        } menu: { (ids: Set<String>) in
             menu(ids)
-        } primaryAction: { (ids: Set<String>) in
-            open(ids)
-        }
-        .macOpensOnReturn(selection, open)
-        // ⌘C: the picked orders as lines ("ORD-000123 · Ayesha · Drop earrings · Ready to hand over").
-        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
-            rows.filter { ids.contains($0.id) }.map(Self.line)
         }
     }
 
@@ -111,57 +114,6 @@ struct MacOrdersListView<RowMenu: View>: View {
         return g.title.caseInsensitiveCompare(listTitle) == .orderedSame
     }
 
-    private func isOpen(_ g: MacOrdersGroup) -> Bool {
-        !g.folds || searching || namedByTitle(g) || unfolded.contains(g.id)
-    }
-
-    @ViewBuilder
-    private func section(_ g: MacOrdersGroup) -> some View {
-        if g.title.isEmpty {
-            Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: true).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-            }
-            .houseRows()
-        } else if namedByTitle(g) {
-            Section {
-                ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-            }
-            .houseRows()
-        } else {
-            Section {
-                if isOpen(g) {
-                    ForEach(g.rows) { (r: MacOrdersListRow) in MacOrdersRow(row: r, showsStage: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-                }
-            } header: {
-                header(g)
-            }
-            .houseRows()
-        }
-    }
-
-    private func header(_ g: MacOrdersGroup) -> some View {
-        Button {
-            guard g.folds, !searching else { return }
-            if unfolded.contains(g.id) { unfolded.remove(g.id) } else { unfolded.insert(g.id) }
-        } label: {
-            HStack(alignment: .top, spacing: 6) {
-                if g.folds && !searching {
-                    Image(systemName: isOpen(g) ? "chevron.down" : "chevron.right")
-                        .font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    LedgerHeading(title: g.title, count: g.rows.count,
-                                  trailing: session.isOwner && g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil)
-                    if !g.hint.isEmpty {
-                        Text(g.hint).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.top, 6)
-    }
 }
 
 /// An order's row: the hub card's head at a pointer's scale.
@@ -232,6 +184,71 @@ struct MacOrdersRow: View {
             }
         }
         .frame(minWidth: 96, alignment: .trailing)
+    }
+}
+
+/// An order as a card (the place's Cards): the piece's photo, who and which order with where it stands, the piece, the
+/// four steps, then the promise and what is owed. The iPad's `RecordCard` anatomy at a pointer's scale, on the
+/// collection's opaque card; the photo is what the List does not have, so a ring is found by sight.
+struct MacOrderCard: View {
+    let row: MacOrdersListRow
+
+    var body: some View {
+        let r = row
+        VStack(alignment: .leading, spacing: 10) {
+            MacCardPhoto(source: r.photo)
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: r.customer, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.customer)
+                        .font(.house(.headline))
+                        .foregroundStyle(r.stage == .done ? Color.secondary : Color.primary)
+                        .lineLimit(1)
+                    Text(r.id).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                }
+                Spacer(minLength: 6)
+                Pill(r.stageWords, tone: r.stageTone)
+            }
+            if !r.what.isEmpty {
+                Text(r.what).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2)
+            }
+            if r.stage != .closed {
+                StageTrack(stage: r.stage).frame(maxWidth: .infinity)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                promise
+                Spacer(minLength: 6)
+                money
+            }
+        }
+        .help(r.promisedHelp)
+    }
+
+    /// Late in red, today in amber, else a quiet date; nothing once it is done or closed.
+    @ViewBuilder
+    private var promise: some View {
+        if row.stage != .done, row.stage != .closed, !row.promisedDay.isEmpty {
+            let urgent = !row.promisedWords.isEmpty
+            Text(urgent ? row.promisedWords : "Due " + row.promisedDay)
+                .font(.house(.caption).weight(urgent ? .semibold : .regular))
+                .foregroundStyle(urgent ? row.promisedTone.color : Color.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    /// What is still owed (amber), in credit (teal), or Paid once nothing is.
+    @ViewBuilder
+    private var money: some View {
+        if row.stage == .closed {
+            EmptyView()
+        } else if abs(row.owed) >= 1 {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(row.owed < 0 ? "In credit" : "Owed").font(.house(.caption)).foregroundStyle(.secondary)
+                RowAmount(amount: abs(row.owed), tone: row.owed < 0 ? Tone.credit.color : Tone.owed.color)
+            }
+        } else {
+            Pill("Paid", tone: .settled)
+        }
     }
 }
 #endif

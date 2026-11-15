@@ -82,7 +82,7 @@ struct MacReportsProducts: View {
         .padding(24)
         .frame(maxWidth: 1400, alignment: .leading)
         .frame(maxWidth: .infinity)
-        .background(Theme.ground)
+        .macGround()
         .macSummaryBar(summary(all, list))
         .macSearchable(text: $search, prompt: "Search every piece by name or SKU")
     }
@@ -215,7 +215,7 @@ struct MacReportsCustomers: View {
         .padding(24)
         .frame(maxWidth: 1400, alignment: .leading)
         .frame(maxWidth: .infinity)
-        .background(Theme.ground)
+        .macGround()
         .macSummaryBar(summary(all, list))
         .macSearchable(text: $search, prompt: "Search everyone by name")
     }
@@ -427,7 +427,7 @@ struct MacReportsCategories: View {
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.ground)
+        .macGround()
         .macSummaryBar(summary(rows))
     }
 

@@ -11,6 +11,7 @@ struct MacCommands: Commands {
     @FocusedValue(\.macPlaces) private var places
     @FocusedValue(\.macRecordMenu) private var recordMenu
     @FocusedValue(\.macRefresh) private var refresh
+    @FocusedValue(\.macViewFilters) private var filters
     @Environment(\.openWindow) private var openWindow
     /// View › Show or Hide Inspector: the title follows the state, as Mail's "Hide Preview" does.
     @AppStorage(MacInspector.key) private var inspectorShown = true
@@ -176,10 +177,30 @@ struct MacCommands: Commands {
         CommandGroup(after: .sidebar) {
             Button(inspectorShown ? "Hide Inspector" : "Show Inspector") { inspectorShown.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
-            Button(viewKey?.first == "list" ? "as List" : "as Table") { setView(table: true) }
-                .disabled(viewKey == nil)
-            Button(viewKey?.other == "gallery" ? "as Gallery" : "as Board") { setView(table: false) }
-                .disabled(viewKey == nil)
+            // The place's ways of showing its records, in its toolbar control's order (the HIG: every toolbar item in the
+            // menu bar). No key: Control-key shortcuts are dropped (docs/design-audit.md). A place with one way disables them.
+            let ways = viewWays
+            ForEach(0..<3, id: \.self) { (i: Int) in
+                let way = i < ways.choices.count ? ways.choices[i] : nil
+                Button("as " + (way?.title ?? (i == 0 ? "List" : i == 1 ? "Cards" : "Board"))) {
+                    if let way, let key = ways.key { UserDefaults.standard.set(way.raw, forKey: key) }
+                }
+                .disabled(way == nil || ways.key == nil)
+            }
+            // The place's toolbar Filter menu, each picker a submenu here (Taken By, Payment, Source, Sort By).
+            if ready, let filters, !filters.isEmpty {
+                Divider()
+                ForEach(filters.indices, id: \.self) { (i: Int) in
+                    let f = filters[i]
+                    Menu(f.title) {
+                        Picker(f.title, selection: Binding(get: { f.selected }, set: { (v: String) in f.choose(v) })) {
+                            ForEach(f.options, id: \.value) { (o: MacViewFilterOption) in Text(o.title).tag(o.value) }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    }
+                }
+            }
             Divider()
             Button("Refresh") {
                 if let refresh { refresh.run() } else { ServerShelf.wake() }
@@ -193,20 +214,17 @@ struct MacCommands: Commands {
         }
     }
 
-    /// The place in front that shows its records two ways (its key, and the word for the other way).
-    private var viewKey: (key: String, other: String, first: String)? {
+    /// The place in front and the ways it shows its records (its stored key, and the choices in its toolbar's order).
+    private var viewWays: (key: String?, choices: [MacLayoutChoice]) {
         switch ScreenRoute.bare(shell?.selection ?? "") {
-        // The first view is stored as "table" whatever it is drawn as (Orders' is a list since 2026-10-27).
-        case "/orders": return ("mac.orders.view", "board", "list")
-        case "/products": return ("mac.stock.view", "gallery", "table")
-        case "/workshop": return ("mac.workshop.view", "board", "table")
-        default: return nil
+        case "/orders": return ("mac.orders.view", [.list, .cards, .board])
+        case "/invoices": return ("mac.invoices.view", [.list, .cards])
+        case "/customers": return ("mac.customers.view", [.list, .cards])
+        case "/repairs": return ("mac.repairs.view", [.list, .cards])
+        case "/products": return ("mac.stock.view", [.list, MacLayoutChoice(raw: "gallery", title: "Gallery", symbol: "square.grid.2x2")])
+        case "/workshop": return ("mac.workshop.view", [MacLayoutChoice(raw: "table", title: "Table", symbol: "tablecells"), .board])
+        default: return (nil, [])
         }
-    }
-
-    private func setView(table: Bool) {
-        guard let v = viewKey else { return }
-        UserDefaults.standard.set(table ? "table" : v.other, forKey: v.key)
     }
 
     // MARK: Go

@@ -33,7 +33,7 @@ struct MacNewOrderPanel<CustomerContent: View, PieceContent: View, OrderContent:
             Divider()
             content
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The Customer tab means the Piece tab once the window is wide enough for the customer's own column.
@@ -77,7 +77,7 @@ struct MacNewOrderFooter: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 }
 #endif

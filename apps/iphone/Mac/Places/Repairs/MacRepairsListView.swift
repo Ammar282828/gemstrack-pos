@@ -52,32 +52,33 @@ struct MacRepairsListView<RowMenu: View>: View {
     let searching: Bool
     /// The saved list's title (In the Shop, Collected), nil on the whole place: a group of that very name is not said twice.
     var listTitle: String?
+    /// Tiles in a column, or cards in a grid (the toolbar's List and Cards).
+    var layout: MacRecordLayout = .list
     @Binding var selection: Set<String>
     let open: (Set<String>) -> Void
     @ViewBuilder let menu: (Set<String>) -> RowMenu
 
     @State private var made = Memo<[MacRepairsGroup]>()
-    @State private var unfolded = Set<String>()
 
     var body: some View {
         let groups = made(version + [sort.hashValue]) { Self.groups(rows, sort: sort) }
-        List(selection: $selection) {
-            ForEach(groups) { (g: MacRepairsGroup) in
-                section(g)
+        let grouped = sort == .status
+        let sections = groups.map { (g: MacRepairsGroup) -> MacRecordSection<MacRepairsRow> in
+            let named = namedByTitle(g)
+            return MacRecordSection(id: g.id, title: named ? "" : g.title, count: g.rows.count,
+                                    trailing: g.owed >= 1 ? Money.pkrLac(g.owed, digits: 1) + " owed" : nil,
+                                    folds: g.folds && !named, items: g.rows)
+        }
+        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection, open: open,
+                            lines: { (ids: Set<String>) -> [String] in rows.filter { ids.contains($0.id) }.map(Self.line) },
+                            dragText: { (r: MacRepairsRow) -> String in Self.line(r) }) { (r: MacRepairsRow) in
+            if layout == .cards {
+                MacRepairCard(row: r)
+            } else {
+                MacRepairsRowView(row: r, showsStatus: !grouped)
             }
-        }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+        } menu: { (ids: Set<String>) in
             menu(ids)
-        } primaryAction: { (ids: Set<String>) in
-            open(ids)
-        }
-        .macOpensOnReturn(selection, open)
-        // ⌘C: the picked tickets as lines ("REP-000012 · Sana · Ring resize · Ready").
-        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
-            rows.filter { ids.contains($0.id) }.map(Self.line)
         }
     }
 
@@ -121,52 +122,8 @@ struct MacRepairsListView<RowMenu: View>: View {
         return g.title.caseInsensitiveCompare(listTitle) == .orderedSame
     }
 
-    private func isOpen(_ g: MacRepairsGroup) -> Bool {
-        !g.folds || searching || namedByTitle(g) || unfolded.contains(g.id)
-    }
-
-    @ViewBuilder
-    private func section(_ g: MacRepairsGroup) -> some View {
-        if g.title.isEmpty {
-            Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: true).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-            }
-            .houseRows()
-        } else if namedByTitle(g) {
-            Section {
-                ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-            }
-            .houseRows()
-        } else {
-            Section {
-                if isOpen(g) {
-                    ForEach(g.rows) { (r: MacRepairsRow) in MacRepairsRowView(row: r, showsStatus: false).macOpensOnDoubleClick { open([r.id]) }.draggable(Self.line(r)) }
-                }
-            } header: {
-                header(g)
-            }
-            .houseRows()
-        }
-    }
-
-    private func header(_ g: MacRepairsGroup) -> some View {
-        Button {
-            guard g.folds, !searching else { return }
-            if unfolded.contains(g.id) { unfolded.remove(g.id) } else { unfolded.insert(g.id) }
-        } label: {
-            HStack(alignment: .top, spacing: 6) {
-                if g.folds && !searching {
-                    Image(systemName: isOpen(g) ? "chevron.down" : "chevron.right")
-                        .font(.house(.caption).weight(.semibold)).foregroundStyle(.secondary).frame(width: 12).padding(.top, 3)
-                }
-                LedgerHeading(title: g.title, count: g.rows.count, trailing: g.owed >= 1 ? Money.pkrLac(g.owed, digits: 1) + " owed" : nil)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.top, 6)
-    }
 }
+
 
 /// A ticket's row: the phone's, at a pointer's scale.
 struct MacRepairsRowView: View {
@@ -233,6 +190,47 @@ struct MacRepairsRowView: View {
             }
         }
         .frame(minWidth: 96, alignment: .trailing)
+    }
+}
+
+/// A repair ticket as a card (the place's Cards): who and which ticket with its status, what is being done, then when it is
+/// promised and what is owed.
+struct MacRepairCard: View {
+    let row: MacRepairsRow
+
+    var body: some View {
+        let r = row
+        let greyed = r.status == .collected || r.status == .cancelled
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: r.customer, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.customer).font(.house(.headline)).foregroundStyle(greyed ? Color.secondary : Color.primary).lineLimit(1)
+                    Text(r.number).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                }
+                Spacer(minLength: 6)
+                Pill(r.statusLabel, tone: r.statusTone)
+            }
+            if !r.summary.isEmpty {
+                Text(r.summary).font(.house(.callout)).foregroundStyle(.secondary).lineLimit(2)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if r.status == .received && !r.readyBy.isEmpty {
+                    Text("Ready by " + r.readyBy)
+                        .font(.house(.caption).weight(r.readyByTone == .quiet ? .regular : .semibold))
+                        .foregroundStyle(r.readyByTone == .quiet ? Color.secondary : r.readyByTone.color)
+                        .lineLimit(1)
+                } else if !r.received.isEmpty {
+                    Text("Taken in " + ShopDate.say(r.received, withTime: false))
+                        .font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 6)
+                if r.owed >= 1 {
+                    Text("Owed").font(.house(.caption)).foregroundStyle(.secondary)
+                    RowAmount(amount: r.owed, tone: Tone.owed.color)
+                }
+            }
+        }
     }
 }
 #endif

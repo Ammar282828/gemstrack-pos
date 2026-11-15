@@ -351,7 +351,11 @@ struct MacShell: View {
 /// window's grey behind the toolbar while a list showed the ground (owner's snapshots, 2026-10-27).
 struct MacPageGround: ViewModifier {
     func body(content: Content) -> some View {
-        content.background(Theme.ground.ignoresSafeArea())
+        // The house's ground with its accent's wash (MacGround), extended under the floating sidebar so the sidebar's glass
+        // has the page to show (HIG Sidebars: "Extend visually rich content beneath the sidebar").
+        content
+            .environment(\.macGrounded, true)
+            .background { MacGround().backgroundExtensionEffect().ignoresSafeArea() }
     }
 }
 

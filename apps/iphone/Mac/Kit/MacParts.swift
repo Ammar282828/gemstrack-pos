@@ -31,27 +31,32 @@ struct MacStatus: View {
 // MARK: The list's summary bar
 
 /// The one line under a list: what it holds, or what is picked ("214 invoices · PKR 32.4 lac billed · PKR 1.2 lac owed").
+/// A floating capsule of Liquid Glass at the foot of the list (2026-11-15, the design audit): a functional element over the
+/// content, so glass, the regular variant (text on it; HIG Materials), which blurs what scrolls beneath rather than showing
+/// it through the words as the plain translucent bar of 2026-10-27 did. The list's last row comes to rest above it (the
+/// inset). Reduce Transparency and Increase Contrast get the system's solid version of the material.
 struct MacSummaryBar: View {
     let parts: [String]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 0) {
-                Text(parts.filter { !$0.isEmpty }.joined(separator: "  ·  "))
+        let said = parts.filter { !$0.isEmpty }.joined(separator: "  \u{00B7}  ")
+        HStack {
+            Spacer(minLength: 0)
+            if !said.isEmpty {
+                Text(said)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .monospacedDigit()
-                Spacer(minLength: 0)
+                    .font(.house(.callout))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .frame(height: 30)
+                    .glassEffect(.regular, in: .capsule)
             }
-            .font(.house(.callout))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .frame(height: 26)
+            Spacer(minLength: 0)
         }
-        // Opaque, on the page's ground: a translucent bar showed the list's last rows through the words (owner's
-        // snapshots, 2026-10-27).
-        .background(Theme.ground)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
     }
 }
 
@@ -457,9 +462,10 @@ private struct MacInspectorModifier<Panel: View>: ViewModifier {
             .inspector(isPresented: $shown) {
                 panel()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    // Every inspector on the page's ground: some panels drew it, some showed the window's grey, so two
-                    // places side by side looked like two apps (owner's snapshots, 2026-10-27).
-                    .background(Theme.ground)
+                    // The inspector is the window's: Tahoe floats it on Liquid Glass, so nothing paints under its panels
+                    // (`macGround` draws nothing in here). It was the page's ground until 2026-11-15, which hid the glass;
+                    // every panel is now the same glass, so two places side by side still look like one app.
+                    .environment(\.macGrounded, true)
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
                     // Declared inside the inspector, the toggle sits above it at the window's trailing edge, as
                     // Xcode's and Keynote's do; declared on the list it lands among the list's own buttons.
@@ -487,6 +493,82 @@ extension View {
     func macInspector<Panel: View>(@ViewBuilder _ panel: @escaping () -> Panel) -> some View {
         modifier(MacInspectorModifier(panel: panel))
     }
+}
+
+// MARK: The page under the glass
+
+/// The Mac's page under its content: the house's ground with its accent's soft wash, drawn on every Mac page so the window's
+/// glass (sidebar, toolbar, inspector, the summary capsule) has the house's colour to take up: HIG Branding, "consider
+/// moving it into the content layer, where it scrolls beneath the glass and the material picks it up". The same three
+/// radial gradients as the iPhone's Liquid Glass ground (`HouseGroundFill`, App/UI/GlassSurface.swift), drawn here whatever
+/// the app's glass setting, since a Mac window's glass is the system's; kept apart so the iPhone's file is untouched.
+/// One Canvas, never animated, no redraw while a list scrolls over it. Increase Contrast: the plain ground.
+struct MacGround: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        if contrast == .increased {
+            Theme.ground
+        } else {
+            let ground = Theme.ground
+            let accent = Theme.accent
+            let strength: Double = scheme == .dark ? 0.15 : 0.11
+            Canvas { (context: inout GraphicsContext, size: CGSize) in
+                let rect = CGRect(origin: .zero, size: size)
+                let reach = max(size.width, size.height)
+                context.fill(Path(rect), with: .color(ground))
+                // (x, y, radius, share of the strength): top-leading, middle-trailing, bottom-leading.
+                let blobs: [(CGFloat, CGFloat, CGFloat, Double)] = [
+                    (0.10, 0.04, 0.62, 1.0),
+                    (0.95, 0.46, 0.55, 0.7),
+                    (0.20, 0.98, 0.58, 0.55),
+                ]
+                for (x, y, r, share) in blobs {
+                    let tint = accent.opacity(strength * share)
+                    context.fill(Path(rect),
+                                 with: .radialGradient(Gradient(colors: [tint, accent.opacity(0)]),
+                                                       center: CGPoint(x: size.width * x, y: size.height * y),
+                                                       startRadius: 0, endRadius: reach * r))
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct MacGroundedKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// Something under this view already draws: the page's ground (the shell's `MacPageGround`, or an outer `macGround`) or
+    /// the inspector's glass. A panel inside paints nothing, so the wash runs on unbroken behind it (a strip that drew its
+    /// own would scale the three gradients to itself and show a seam) and the inspector's glass is not hidden.
+    var macGrounded: Bool {
+        get { self[MacGroundedKey.self] }
+        set { self[MacGroundedKey.self] = newValue }
+    }
+}
+
+struct MacGroundModifier: ViewModifier {
+    @Environment(\.macGrounded) private var grounded
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if grounded {
+            content
+        } else {
+            content
+                .environment(\.macGrounded, true)
+                .background { MacGround().ignoresSafeArea() }
+        }
+    }
+}
+
+extension View {
+    /// A Mac page's ground (MacGround) where nothing under it draws one yet: a record's own window, a panel on its own.
+    /// Inside a place (the shell already draws the page) or the inspector (glass) it paints nothing. Every Mac page and
+    /// panel uses it in place of a flat `Theme.ground`.
+    func macGround() -> some View { modifier(MacGroundModifier()) }
 }
 
 // MARK: Undo and Copy (Edit menu)

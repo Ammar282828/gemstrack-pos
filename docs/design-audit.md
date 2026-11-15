@@ -61,3 +61,4 @@ figure). Not a template; keep it.
   pushes its own pages because a path-driven stack "did not hold steady"). Needs that reworked with a build.
 - Check on a device: Bold Text with Inter, the contact row at AX5, text on glass cards, round-off chip height, the
   700 pt switch (Xcode Device Hub), a notification arriving while New sale is open.
+- The Mac's own deeper pass (glass, lists, cards, interaction): [Mac design review](features/mac-design-audit.md).

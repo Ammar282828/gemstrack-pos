@@ -87,7 +87,7 @@ struct MacWorkshopBoardView: View {
             .padding(14)
             .frame(maxHeight: .infinity, alignment: .top)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     // MARK: A column
@@ -134,10 +134,13 @@ struct MacWorkshopBoardView: View {
                 }
             }
             if col.kind == .karigar, let id = col.karigarId {
-                Button { openKarigar(id) } label: { Image(systemName: "chevron.right.circle") }
+                Button { openKarigar(id) } label: {
+                    Image(systemName: "chevron.right.circle").frame(minWidth: 22, minHeight: 22).contentShape(Rectangle())
+                }
                     .buttonStyle(.borderless)
                     .foregroundStyle(.secondary)
                     .help("Open " + col.title)
+                    .accessibilityLabel("Open " + col.title)
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 12)
