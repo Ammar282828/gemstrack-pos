@@ -132,7 +132,7 @@ public func withoutOrderAdvance(_ order: Order, lineIndex: Int) -> OrderAdvanceR
 /// less the discount; with no subtotal kept, the balance with the advances put back. `grandTotal` is the balance, so lists
 /// lead with this and show the balance beside it as "Due".
 public func orderFullTotal(_ order: Order) -> Double {
-    func n(_ x: Double?) -> Double { guard let x, !x.isNaN else { return 0 } return x }
+    func n(_ x: Double?) -> Double { guard let x, !x.isNaN else { return 0 }; return x }
     let subtotal = order.subtotal
     if subtotal.isFinite && subtotal > 0 { return max(0, subtotal - n(order.discountAmount)) }
     return max(0, n(order.grandTotal) + n(order.advancePayment) + n(order.advanceInExchangeValue))
