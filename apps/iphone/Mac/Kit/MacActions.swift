@@ -166,6 +166,49 @@ extension View {
     }
 }
 
+// MARK: - The place's filters (View menu)
+
+/// One value a filter can take ("" is any: "Anyone", "Every Source").
+struct MacViewFilterOption: Hashable {
+    let value: String
+    let title: String
+}
+
+/// One of the place's filters, its toolbar Filter menu's picker mirrored as a submenu of View: Taken By, Payment, Source,
+/// Sort By. HIG ("Use the menu bar to give people easy access to all the commands they need"; the toolbar is a shortcut to
+/// some): the design audit of 2026-11-15, docs/features/mac-design-audit.md.
+struct MacViewFilter {
+    let title: String
+    let options: [MacViewFilterOption]
+    let selected: String
+    let choose: (String) -> Void
+}
+
+extension MacViewFilter {
+    /// A filter over a list of words, with "" first as `any` ("Anyone") when it has one.
+    init(_ title: String, any: String?, values: [String], selected: String, choose: @escaping (String) -> Void) {
+        let first: [MacViewFilterOption] = any.map { [MacViewFilterOption(value: "", title: $0)] } ?? []
+        self.init(title: title, options: first + values.map { MacViewFilterOption(value: $0, title: $0) },
+                  selected: selected, choose: choose)
+    }
+}
+
+private struct MacViewFiltersKey: FocusedValueKey { typealias Value = [MacViewFilter] }
+
+extension FocusedValues {
+    var macViewFilters: [MacViewFilter]? {
+        get { self[MacViewFiltersKey.self] }
+        set { self[MacViewFiltersKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Publishes the place's filters for the View menu. The place's root view calls it, beside its record menu.
+    func macViewFilters(_ filters: [MacViewFilter]) -> some View {
+        focusedSceneValue(\.macViewFilters, filters)
+    }
+}
+
 // MARK: - Refresh (⌘R) and Find (⌘F)
 
 /// What View › Refresh does for the place in front: re-ask what the place reads from the ERP or Meta. Places that read

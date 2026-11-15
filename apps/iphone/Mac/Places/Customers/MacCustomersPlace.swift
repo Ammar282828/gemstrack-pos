@@ -153,6 +153,10 @@ struct MacCustomersPlace: View {
         .macInspector { inspector(b) }
         .toolbar { toolbar }
         .macRecordMenu(MacRecordMenu(title: "Customer", groups: actionGroups(for: selection)))
+        // The Filter menu's sort, for View (the menu bar has every command the toolbar has; Tidy Up is the Customer menu's).
+        .macViewFilters([MacViewFilter(title: "Sort By",
+                                       options: sortChoices.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                                       selected: sort.rawValue) { (v: String) in sort = MacCustomersSort(rawValue: v) ?? sort }])
         .sheet(isPresented: $adding) { MacCustomersNewSheet { (id: String) in created(id) } }
         .sheet(item: $editing) { (e: MacCustomersEdit) in editSheet(e.id) }
         .sheet(isPresented: $merging) { CustomerMergeSheet().presentationSizing(.page) }

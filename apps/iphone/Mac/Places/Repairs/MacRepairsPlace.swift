@@ -95,6 +95,10 @@ struct MacRepairsPlace: View {
         .macInspector { ticketPanel() }
         .toolbar { placeToolbar() }
         .macRecordMenu(MacRecordMenu(title: "Repair", groups: groups))
+        // The Filter menu's one picker, for View (the menu bar has every command the toolbar has).
+        .macViewFilters([MacViewFilter(title: "Sort By",
+                                       options: MacRepairsSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                                       selected: sortRaw) { (v: String) in sortRaw = v }])
         .modifier(MacRepairsDialogs(model: model))
         .sheet(isPresented: $newSheet) {
             RepairsForm { id, _ in selection = [id] }

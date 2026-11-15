@@ -11,6 +11,7 @@ struct MacCommands: Commands {
     @FocusedValue(\.macPlaces) private var places
     @FocusedValue(\.macRecordMenu) private var recordMenu
     @FocusedValue(\.macRefresh) private var refresh
+    @FocusedValue(\.macViewFilters) private var filters
     @Environment(\.openWindow) private var openWindow
     /// View › Show or Hide Inspector: the title follows the state, as Mail's "Hide Preview" does.
     @AppStorage(MacInspector.key) private var inspectorShown = true
@@ -181,6 +182,20 @@ struct MacCommands: Commands {
                     if let way, let key = ways.key { UserDefaults.standard.set(way.raw, forKey: key) }
                 }
                 .disabled(way == nil || ways.key == nil)
+            }
+            // The place's toolbar Filter menu, each picker a submenu here (Taken By, Payment, Source, Sort By).
+            if ready, let filters, !filters.isEmpty {
+                Divider()
+                ForEach(filters.indices, id: \.self) { (i: Int) in
+                    let f = filters[i]
+                    Menu(f.title) {
+                        Picker(f.title, selection: Binding(get: { f.selected }, set: { (v: String) in f.choose(v) })) {
+                            ForEach(f.options, id: \.value) { (o: MacViewFilterOption) in Text(o.title).tag(o.value) }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    }
+                }
             }
             Divider()
             Button("Refresh") {

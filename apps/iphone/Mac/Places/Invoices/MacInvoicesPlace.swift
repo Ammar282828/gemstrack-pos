@@ -110,6 +110,7 @@ struct MacInvoicesPlace: View {
         .macSearchable(text: $query, prompt: "Search Invoices")
         .macInspector { MacInvoiceInspector(invoice: picked, count: selection.count, cx: cx) }
         .macRecordMenu(MacRecordMenu(title: "Invoice", groups: MacInvoiceMenu.groups(picked, cx) + importGroups(cx)))
+        .macViewFilters(viewFilters())
         .toolbar { toolbarItems(cx) }
         .modifier(MacInvoiceSheetHost(desk: desk))
         .navigationTitle(title(list))
@@ -145,7 +146,7 @@ struct MacInvoicesPlace: View {
                                        books.invoices.item(r.id).map(MacInvoicesPlace.line) ?? r.id
                                    }) { (r: MacInvoicesPlaceRow) in
             if layoutRaw == "cards" {
-                MacInvoiceCard(row: r, mine: !person.isEmpty && r.takenBy == person)
+                MacInvoiceCard(row: r, mine: !person.isEmpty && r.takenBy == person, photo: cardPhoto(r.id))
             } else {
                 MacInvoiceListRow(row: r, mine: !person.isEmpty && r.takenBy == person, dated: sort != .date)
             }
@@ -225,14 +226,33 @@ struct MacInvoicesPlace: View {
         NavMap.hasShopifySection ? [] : [[MacInvoiceMenu.importOrders(cx)]]
     }
 
-    /// Taken by and Source: the toolbar's pop-up (the saved lists are the sidebar's).
-    private func filterMenu() -> some View {
+    /// Who took the invoices and where they came from, once per change of the books (the Filter menu's and View's).
+    private func filterLists() -> (who: [String], channels: [String]) {
         let who = people([book.invoices.revision]) {
             Array(Set(book.invoices.items.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted()
         }
         let channelNames = channels([book.invoices.revision]) {
             Array(Set(book.invoices.items.compactMap { MacInvoiceWords.source($0) })).sorted()
         }
+        return (who, channelNames)
+    }
+
+    /// The Filter menu's pickers for View (the menu bar has every command the toolbar has).
+    private func viewFilters() -> [MacViewFilter] {
+        let lists = filterLists()
+        return [
+            MacViewFilter(title: "Sort By", options: MacInvoicesSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                          selected: sort.rawValue) { (v: String) in sort = MacInvoicesSort(rawValue: v) ?? .date },
+            MacViewFilter("Taken By", any: "Anyone", values: lists.who, selected: takenBy) { (v: String) in takenBy = v },
+            MacViewFilter("Source", any: "Every Source", values: lists.channels, selected: source) { (v: String) in source = v },
+        ]
+    }
+
+    /// Taken by and Source: the toolbar's pop-up (the saved lists are the sidebar's).
+    private func filterMenu() -> some View {
+        let lists = filterLists()
+        let who = lists.who
+        let channelNames = lists.channels
         return Menu {
             Picker("Sort By", selection: $sort) {
                 ForEach(MacInvoicesSort.allCases) { (o: MacInvoicesSort) in Text(o.title).tag(o) }
@@ -321,6 +341,20 @@ struct MacInvoicesPlace: View {
         let billedSum = picked.reduce(0) { $0 + $1.total }
         let owedSum = picked.reduce(0) { $0 + $1.due }
         return ["\(picked.count) of \(shown.rows.count) selected", billedWords(billedSum), owedWords(owedSum)]
+    }
+
+    /// An invoice card's picture, looked up only for the cards on screen: the order it was made from (its first reference
+    /// photo), else the first piece sold whose stock record still has a photo.
+    private func cardPhoto(_ id: String) -> PhotoSource? {
+        guard let inv = book.invoices.item(id) else { return nil }
+        if let oid = inv.sourceOrderId, !oid.isEmpty, let order = book.orders.item(oid), let p = MacOrdersLogic.photo(order) {
+            return p
+        }
+        for item in inv.items where !item.sku.isEmpty {
+            let url = (book.products.item(item.sku)?.imageUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !url.isEmpty { return PhotoSource(id: "sku-" + item.sku, uri: url) }
+        }
+        return nil
     }
 
     private func billedWords(_ n: Double) -> String { Money.pkrLac(n, digits: 1) + " billed" }
@@ -483,15 +517,18 @@ struct MacInvoiceListRow: View {
     }
 }
 
-/// An invoice as a card (the place's Cards): who and which bill with where it stands, what was sold, then the day and the
-/// money, with what is still due.
+/// An invoice as a card (the place's Cards): the piece's photo, who and which bill with where it stands, what was sold,
+/// then the day and the money, with what is still due.
 struct MacInvoiceCard: View {
     let row: MacInvoicesPlaceRow
     var mine = false
+    /// The order's reference photo or the stock piece's (`MacInvoicesPlace.cardPhoto`), nil for none.
+    var photo: PhotoSource?
 
     var body: some View {
         let r = row
         VStack(alignment: .leading, spacing: 10) {
+            MacCardPhoto(source: photo)
             HStack(alignment: .top, spacing: 10) {
                 Monogram(name: r.customer, size: Monogram.Size.row)
                 VStack(alignment: .leading, spacing: 2) {

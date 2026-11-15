@@ -21,7 +21,7 @@ struct MacOrdersPlace: View {
     /// The sidebar's path: "/orders", or "/orders?list=late".
     let path: String
 
-    /// The key the view is kept under; View › as Table / as Board writes it too.
+    /// The key the view is kept under; View › as List / as Cards / as Board writes it too.
     static let viewKey = "mac.orders.view"
 
     @Environment(Book.self) private var book
@@ -74,6 +74,7 @@ struct MacOrdersPlace: View {
         .toolbar { placeToolbar(base) }
         .macInspector { inspectorPanel(base) }
         .macRecordMenu(MacRecordMenu(title: "Order", groups: pickedGroups))
+        .macViewFilters(viewFilters(base))
         .macOrdersSheets($sheet, advanced: advanced, moved: onlineMoved, sent: docSent)
         .orderUndo($undo, open: $web)
         .ordersWebDestination($web)
@@ -189,6 +190,17 @@ struct MacOrdersPlace: View {
                 .help("New order (\u{21E7}\u{2318}N)")
             filterMenu(base)
         }
+    }
+
+    /// The Filter menu's pickers for View (the menu bar has every command the toolbar has).
+    private func viewFilters(_ base: MacOrdersBase) -> [MacViewFilter] {
+        let people = session.shop.takenBy.isEmpty ? base.people : session.shop.takenBy
+        return [
+            MacViewFilter("Taken By", any: "Anyone", values: people, selected: takenBy) { (v: String) in takenBy = v },
+            MacViewFilter("Payment", any: "Any Payment", values: OrdersLogic.filterPayments, selected: payment) { (v: String) in payment = v },
+            MacViewFilter(title: "Sort By", options: MacOrdersSort.allCases.map { MacViewFilterOption(value: $0.rawValue, title: $0.title) },
+                          selected: sortRaw) { (v: String) in sortRaw = v },
+        ]
     }
 
     private func filterMenu(_ base: MacOrdersBase) -> some View {

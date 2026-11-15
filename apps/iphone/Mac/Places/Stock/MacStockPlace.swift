@@ -13,10 +13,11 @@ import ERPCore
 /// The two views of Stock, chosen in the toolbar.
 enum MacStockView: String, CaseIterable, Identifiable {
     case table, gallery
-    /// The key the choice is kept under (this Mac's), which View › as Table / as Gallery writes too.
+    /// The key the choice is kept under (this Mac's), which View › as List / as Gallery writes too.
     static let key = "mac.stock.view"
     var id: String { rawValue }
-    var title: String { self == .table ? "Table" : "Gallery" }
+    /// "List": the pieces as tiles since 2026-11-15 (the record collection), stored as "table" as before.
+    var title: String { self == .table ? "List" : "Gallery" }
     var symbol: String { self == .table ? "list.bullet" : "square.grid.2x2" }
 }
 
@@ -341,7 +342,7 @@ struct MacStockPlace: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help("The pieces as a table or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            .help("The pieces as a list or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
         }
         // New and the one filter, as every list has them. The picked pieces' Sell and Print are the inspector's, the Piece
         // menu's and the right-click menu's, never the toolbar's; Add in Bulk is the Piece menu's and the empty table's.

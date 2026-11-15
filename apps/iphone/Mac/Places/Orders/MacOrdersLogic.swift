@@ -8,6 +8,21 @@ import ERPCore
 // (`OrdersLogic.subtotal`, `discount`, `balance`) and, once invoiced, the invoice's.
 
 enum MacOrdersLogic {
+    // MARK: The picture
+
+    /// An order's picture: the first piece with a reference photo of its own (`photoSources`, the order page's), else the
+    /// first catalogue pick (`referenceImage`, the bill's printed reference); nil when no piece has one.
+    static func photo(_ o: Order) -> PhotoSource? {
+        for item in o.items {
+            if let first = item.photoSources.first { return first }
+        }
+        for item in o.items {
+            let ref = (item.referenceImage ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !ref.isEmpty { return PhotoSource(id: "ref-\(ref.utf8.count)-\(ref.suffix(24))", uri: ref) }
+        }
+        return nil
+    }
+
     // MARK: The stage
 
     /// Where the table's Stage column sorts: the order they are worked in.
@@ -127,6 +142,9 @@ struct MacOrdersListRow: Identifiable {
     /// What it is, in a line: "Ring +2 more".
     let what: String
     let takenBy: String
+    /// The picture its card leads with (Cards only; the List stays words): the first piece's reference photo, else a
+    /// catalogue pick's. Where it is kept, not the photo: read when a card shows.
+    let photo: PhotoSource?
 
     init(_ o: Order, stage: OrderStage, invoice: Invoice?, invoiceOwed: Double, names: [String: String], now: Date) {
         let timing = orderTiming(o, now: now)
@@ -168,6 +186,7 @@ struct MacOrdersListRow: Identifiable {
         owed = MacOrdersLogic.owed(o, stage: stage, invoiceOwed: invoiceOwed)
         self.what = what.text + (what.extra.map { " " + $0 } ?? "")
         takenBy = o.takenBy ?? ""
+        photo = MacOrdersLogic.photo(o)
     }
 }
 

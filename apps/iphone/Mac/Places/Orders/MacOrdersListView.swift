@@ -187,14 +187,16 @@ struct MacOrdersRow: View {
     }
 }
 
-/// An order as a card (the place's Cards): who and which order with where it stands, the piece, the four steps, then the
-/// promise and what is owed. The iPad's `RecordCard` anatomy at a pointer's scale, on the collection's opaque card.
+/// An order as a card (the place's Cards): the piece's photo, who and which order with where it stands, the piece, the
+/// four steps, then the promise and what is owed. The iPad's `RecordCard` anatomy at a pointer's scale, on the
+/// collection's opaque card; the photo is what the List does not have, so a ring is found by sight.
 struct MacOrderCard: View {
     let row: MacOrdersListRow
 
     var body: some View {
         let r = row
         VStack(alignment: .leading, spacing: 10) {
+            MacCardPhoto(source: r.photo)
             HStack(alignment: .top, spacing: 10) {
                 Monogram(name: r.customer, size: Monogram.Size.row)
                 VStack(alignment: .leading, spacing: 2) {

@@ -172,11 +172,10 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
                     .allowsHitTesting(false)
             }
             .contentShape(shape)
-            // One tap gesture, the click count read from the event: a `count: 2` gesture beside a single tap makes every
-            // click wait out the double-click interval before it picks, and a list must pick on the click.
-            .onTapGesture {
-                if (NSApp.currentEvent?.clickCount ?? 1) >= 2 { open([item.id]) } else { pick(item.id) }
-            }
+            // The click picks at once; the second click of a double-click opens (two exclusive gestures would hold the
+            // pick back by the double-click interval), as Stock's gallery does.
+            .onTapGesture { pick(item.id) }
+            .simultaneousGesture(TapGesture(count: 2).onEnded { open([item.id]) })
             .draggable(dragText(item))
             .contextMenu { menu(selection.contains(item.id) ? selection : [item.id]) }
             .pointerHover(.rect(cornerRadius: radius, style: .continuous))
@@ -223,6 +222,39 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
         anchor = id
         proxy.scrollTo(id)
         return .handled
+    }
+}
+
+// MARK: A card's picture
+
+/// A card's picture across its top (HIG Collections: a collection is for what is seen; the List is for what is read): the
+/// piece's photo, read once through `PieceGalleryStore` (an order's own reference photos, or a stock piece's), filling a
+/// 16:10 frame. A quiet photo mark while it reads or when the record has none, so the cards of a row keep one height.
+/// Only the cards on screen read theirs (the grid is lazy), at about a card's width on a Retina screen.
+struct MacCardPhoto: View {
+    let source: PhotoSource?
+    @State private var image: UIImage?
+
+    var body: some View {
+        Rectangle()
+            .fill(.quaternary)
+            .aspectRatio(16.0 / 10.0, contentMode: .fit)
+            .overlay {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else if source == nil {
+                    Image(systemName: "photo").font(.title2).foregroundStyle(.tertiary)
+                }
+            }
+            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .task(id: source?.id) {
+                guard let source else { image = nil; return }
+                let pixels = 760
+                if let hit = PieceGalleryStore.cachedImage(of: source, maxPixel: pixels) { image = hit; return }
+                image = await PieceGalleryStore.image(of: source, maxPixel: pixels)
+            }
     }
 }
 
