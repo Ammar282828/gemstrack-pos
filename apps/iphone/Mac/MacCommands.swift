@@ -75,6 +75,10 @@ struct MacCommands: Commands {
 
     private var appMenu: some Commands {
         CommandGroup(after: .appSettings) {
+            // The shop's shared records (the shop, bank accounts, alerts, data, connections), apart from this Mac's Settings.
+            Button("Shop Settings\u{2026}") { openWindow(id: MacWindows.shopSettings) }
+                .keyboardShortcut(",", modifiers: [.command, .shift])
+                .disabled(!ready || !isOwner)
             Divider()
             Button("Lock Now") { AppLock.shared.lockNow() }
                 .disabled(!ready || !AppLock.shared.enabled)
@@ -260,7 +264,7 @@ struct MacCommands: Commands {
     private static func withoutReserved(_ groups: [[MacAction]]) -> [[MacAction]] {
         let reserved: [(KeyEquivalent, EventModifiers)] = [
             ("p", .command), ("n", .command), ("n", [.command, .shift]), ("n", [.command, .option]), ("o", .command),
-            ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command),
+            ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command), (",", [.command, .shift]),
             ("h", [.command, .shift]), ("[", .command), ("]", .command), ("t", [.command, .shift]), ("b", [.command, .shift]),
             ("r", [.command, .shift]), ("w", [.command, .shift]), ("a", [.command, .shift]), ("e", .command), ("p", [.command, .option]),
         ]
@@ -299,7 +303,7 @@ enum MacShortcutsWindow {
             ("The record's next step", "⌘↩"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
             ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"), ("Today\u{2019}s Rates", "⇧⌘R"),
             ("Today", "⇧⌘H"), ("The sidebar's places", "⌘1 – ⌘9"), ("Back", "⌘["), ("Forward", "⌘]"), ("Businesses", "⇧⌘B"),
-            ("Settings", "⌘,"),
+            ("Settings", "⌘,"), ("Shop Settings", "⇧⌘,"),
         ]
         let alert = NSAlert()
         alert.messageText = "Keyboard Shortcuts"

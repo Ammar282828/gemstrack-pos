@@ -162,14 +162,14 @@ struct FigureGrid<Content: View>: View {
     var spacing: CGFloat = 12
     @ViewBuilder let content: () -> Content
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var availableWidth: CGFloat = 0
 
     /// Two across, up to four where 240 pt each fit; on an iPad's wide window four across as soon as 160 pt each do
     /// (a dashboard's figures in one row). Accessibility sizes stack in one column.
     private var columns: Int {
         if typeSize.isAccessibilitySize { return 1 }
-        if sizeClass.isPadLayout, availableWidth >= 640 { return 4 }
+        if wideLayout, availableWidth >= 640 { return 4 }
         return max(2, min(4, Int(availableWidth / 240)))
     }
 
@@ -299,18 +299,49 @@ extension EnvironmentValues {
     }
 }
 
-extension Optional where Wrapped == UserInterfaceSizeClass {
-    /// The iPad layout: an iPad whose window is wide. A Plus or Max iPhone turned sideways is `.regular` too, and must keep
-    /// the phone's tabs and floating button; an iPad in Split View or Slide Over is `.compact` and takes the phone path.
-    @MainActor var isPadLayout: Bool {
-        #if os(macOS)
-        // A Mac window is always the wide layout (the iPad's columns, lists beside their item).
-        self == .regular
-        #else
-        UIDevice.current.userInterfaceIdiom == .pad && self == .regular
-        #endif
+/// Whether the window takes the wide layout (the sidebar, lists beside their item, columns). Set once at the window's
+/// root by `WideLayoutReader`; sheets and covers presented below it inherit the window's answer (and add their own
+/// width class, below).
+private struct WideLayoutKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// The wide layout, decided by size class and the window's width, never by the kind of device (HIG, Layout: "determine
+    /// layout based on size classes"): regular width and regular height, and at least 700 pt across. A Plus or Max iPhone
+    /// turned sideways is regular width but compact height, so it keeps the phone's tabs and floating button; an iPad in
+    /// Split View or Slide Over is compact (or under 700 pt) and takes the phone path; a wide window on any device (an
+    /// iPhone's large inner display, a wide Stage Manager window) gets the wide layout.
+    var wideLayout: Bool {
+        get {
+            #if os(macOS)
+            // A Mac window is always the wide layout (the iPad's columns, lists beside their item).
+            true
+            #else
+            // The window's answer, and the place's own width class too: a sheet that is compact inside a wide
+            // window lays itself out as a phone, as it always has.
+            self[WideLayoutKey.self] && horizontalSizeClass == .regular
+            #endif
+        }
+        set { self[WideLayoutKey.self] = newValue }
     }
 }
+
+#if os(iOS)
+/// Measures the window once, at its root, and sets `wideLayout` for everything in it.
+struct WideLayoutReader: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontal
+    @Environment(\.verticalSizeClass) private var vertical
+    /// At least 700 pt across (as HubSplit measures its columns). Until the first layout measures it, the device's kind is
+    /// the guess, so an iPad's first frame is already the wide one rather than the phone's tabs rebuilt a moment later.
+    @State private var wideWindow = UIDevice.current.userInterfaceIdiom == .pad
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onGeometryChange(for: Bool.self) { $0.size.width >= 700 } action: { wideWindow = $0 }
+            .environment(\.wideLayout, horizontal == .regular && vertical == .regular && wideWindow)
+    }
+}
+#endif
 
 extension EnvironmentValues {
     /// The width class the screens lay themselves out by: the phone's and iPad's horizontal size class, and on the Mac,
@@ -329,15 +360,15 @@ extension EnvironmentValues {
 /// List or Form insets its rows and keeps its scroll edge to edge; a phone (compact width) is never touched.
 struct ReadableColumn: ViewModifier {
     var maxWidth: CGFloat = 720
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {
-        let inset = sizeClass.isPadLayout ? max(0, ((width - maxWidth) / 2).rounded()) : 0
+        let inset = wideLayout ? max(0, ((width - maxWidth) / 2).rounded()) : 0
         Group {
             // Branching on the size class only (it does not change as the page is measured), so the page keeps
             // its state when the margin arrives.
-            if sizeClass.isPadLayout {
+            if wideLayout {
                 // A large title stays at the window's edge while the rows sit centred; in the bar, centred over
                 // the column, the name and the page read as one.
                 content.safeAreaPadding(.horizontal, inset)

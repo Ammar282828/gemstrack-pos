@@ -11,7 +11,7 @@ struct PostPiecesScreen: View {
     var tray: PostTrayModel?
     private var store: PostsStore { PostsStore.shared }
     @State private var refused: String?
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
@@ -119,7 +119,7 @@ struct PostPiecesScreen: View {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
                                            description: Text("Clear the search, pick another collection, or show what went out lately."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass.isPadLayout ? 180 : 140), spacing: pt(12))], spacing: pt(14)) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: wideLayout ? 180 : 140), spacing: pt(12))], spacing: pt(14)) {
                         ForEach(Array(items.prefix(shown))) { (p: PostPiece) in
                             if let tray {
                                 Button { refused = tray.pick(p) } label: {

@@ -18,7 +18,7 @@ struct CalendarScreen: View {
     @State private var selected = CalendarScreen.todayKey()
     @State private var reckoned = Memo<Reckoned>()
     @State private var width: CGFloat = 0
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// A day cell's height grows with the reader's text.
@@ -122,7 +122,7 @@ struct CalendarScreen: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     @ViewBuilder
     private func monthSections(_ figures: ShopCalendarMonth, _ books: Reckoned) -> some View {

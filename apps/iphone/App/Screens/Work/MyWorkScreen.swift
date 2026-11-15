@@ -40,7 +40,7 @@ struct MyWorkScreen: View {
     /// Bumped when a tick has gone through, so the success tap fires on the event.
     @State private var tickCount = 0
     @State private var width: CGFloat = 0
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     #if os(macOS)
     @State private var macPick: String?
@@ -50,7 +50,7 @@ struct MyWorkScreen: View {
     #endif
 
     /// An iPad's wide window: the orders stand as cards in a grid rather than one long column.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     private var previewId: String? {
         guard let id = WorkPaths.query("preview", in: path), !id.isEmpty else { return nil }

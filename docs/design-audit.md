@@ -39,12 +39,25 @@ figure). Not a template; keep it.
   items, three groups and More; no app-level appearance switch; state-aware Show/Hide Inspector; the menu bar extra
   can be removed; "this Mac" and "Click" instead of phone words.
 
-## Open (deliberately not done without a compiler and a device)
+## The open items, done 2026-11-15 (ERP 2.8; owner: "do the open items too")
 
-- Layout by device idiom instead of size class (`App/UI/Kit.swift:310`, 32 call sites): blocks iPhone Duo's inner
-  display and wide iPhone windows. Do it with a build and Xcode's Device Hub.
-- New sale / New order as a sheet with its own stack and child sheets (`RootView.swift:271-285`): move to full-screen
-  covers and pushed questions.
-- Undo in the Edit menu (`UndoManager`) on the Mac; Settings window reworked to ~5 panes for this Mac; Save out of the
-  bottom bar into the toolbar.
-- Check on a device: Bold Text with Inter, the contact row at AX5, text on glass cards, round-off chip height.
+- **Size class, not device idiom.** `\.wideLayout` (App/UI/Kit.swift `WideLayoutReader`, set once on the window): regular
+  width and height and at least 700 pt wide. Every iPad and iPhone looks as before (a Plus iPhone turned sideways keeps
+  the phone layout: compact height); an iPhone Duo's inner display or a wide iPhone window now gets the wide layout. The
+  keyboard's Done buttons stay on the device type (they are about the keyboard).
+- **New sale and New order full screen** (`fullScreenCover`, its Close as before; the draft stays in Drafts). Their
+  questions are sheets over a full screen, no longer sheets on sheets.
+- **Mac Undo in the Edit menu:** a note's undo is registered with the window's UndoManager (Edit › Undo <what>, ⌘Z),
+  once only; the label designer's history goes through it and its buttons no longer own ⌘Z.
+- **Mac Settings:** five tabs for this Mac (This Mac, Businesses, Account, Printing, Label LIVE), the last one
+  remembered, fixed sizes; the shop's own records (Shop, Bank Accounts, Alerts, Data, Selling Online, Connect an AI,
+  Voice) in a Shop Settings window (⇧⌘,).
+- **Mac Save off the bottom bar** in the window pages (New Sale, Overheads, Orders): the toolbar's confirmation action;
+  the foot keeps only what it will do. Sheets keep their button row at the foot, as Mac dialogs do.
+
+## Still open
+
+- Notification and voice targets open as a sheet, not in their tab: the tabs keep no navigation path (`TabStack`
+  pushes its own pages because a path-driven stack "did not hold steady"). Needs that reworked with a build.
+- Check on a device: Bold Text with Inter, the contact row at AX5, text on glass cards, round-off chip height, the
+  700 pt switch (Xcode Device Hub), a notification arriving while New sale is open.

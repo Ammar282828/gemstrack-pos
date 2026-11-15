@@ -570,8 +570,9 @@ extension SaleForm {
 
     // MARK: The footer
 
-    /// What Save will do, and Save: the document's footer. ⌘S saves (the Sale menu's key); Return saves only from the
-    /// stock's box while it is empty.
+    /// What Save will do: the document's footer, a summary only. Save itself is the toolbar's confirmation action
+    /// (`macSaveButton`; Apple's HIG keeps a window's critical actions out of a bottom bar). ⌘S saves (the Sale menu's
+    /// key); Return saves only from the stock's box while it is empty.
     private func macFooter(_ f: SaleFigures, _ actions: SaleMacActions) -> some View {
         VStack(spacing: 0) {
             UpdateBanner()
@@ -579,18 +580,23 @@ extension SaleForm {
             HStack(alignment: .center, spacing: 12) {
                 macFooterStatus(f)
                 Spacer(minLength: 12)
-                Button { actions.save.perform() } label: {
-                    Text(macSaveTitle(f)).busy(saving)
-                    .frame(minWidth: 140)
-                }
-                .buttonStyle(.houseProminent)
-                .disabled(!actions.save.enabled)
-                .help(actions.save.help)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
         .background(.bar)
+    }
+
+    /// Save, at the toolbar's trailing end where a Mac window keeps its confirming action. No key of its own: ⌘S is the
+    /// Sale menu's (`macActions`), so the key has one item.
+    private func macSaveButton(_ f: SaleFigures, _ actions: SaleMacActions) -> some View {
+        Button { actions.save.perform() } label: {
+            Text(macSaveTitle(f)).busy(saving)
+                .frame(minWidth: 120)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(!actions.save.enabled)
+        .help(actions.save.help)
     }
 
     @ViewBuilder
@@ -701,6 +707,9 @@ extension SaleForm {
                         MacToolbarAction(action: a.createOrder)
                         MacToolbarAction(action: a.startOver)
                     }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    macSaveButton(f, a)
                 }
             }
             .sheet(isPresented: $scanning) {

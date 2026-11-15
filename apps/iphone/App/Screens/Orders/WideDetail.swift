@@ -11,11 +11,11 @@ struct WideDetailList<Left: View, Right: View>: View {
     @ViewBuilder let left: () -> Left
     @ViewBuilder let right: () -> Right
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= wideFrom && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= wideFrom && !typeSize.isAccessibilitySize }
 
     var body: some View {
         Group {

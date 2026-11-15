@@ -15,11 +15,11 @@ struct AnaSplit<Head: View, Left: View, Right: View>: View {
     var search: Binding<String>?
     var searchPrompt: LocalizedStringKey = "Search"
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         #if os(macOS)

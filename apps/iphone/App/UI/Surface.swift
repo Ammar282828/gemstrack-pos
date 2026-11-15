@@ -90,8 +90,10 @@ extension View {
     @ViewBuilder
     func actionBar(primary: ActionBar.Action, secondary: [ActionBar.Action] = [], summary: String? = nil) -> some View {
         #if os(macOS)
+        // A sheet or dialog keeps its buttons in its own button row at the foot, as every Mac dialog does. The few pages
+        // that are windows of their own (New Sale, Overheads, Orders) put theirs in the toolbar with macActionToolbar.
         safeAreaInset(edge: .bottom, spacing: 0) {
-            MacActionFooter(primary: primary, secondary: secondary, summary: summary)
+            MacDialogFooter(primary: primary, secondary: secondary, summary: summary)
         }
         #else
         safeAreaBar(edge: .bottom, spacing: 0) {
@@ -102,9 +104,89 @@ extension View {
 }
 
 #if os(macOS)
-/// The Mac's form of the one primary action: a dialog's footer, as System Settings and every Mac sheet have it. What
-/// it will do (the balance) on the left, the other actions, then the primary as the default button (Return) on the right.
+/// How a Mac window's primary action answers the keyboard: Return (a dialog's default button, as the footer had it) or
+/// ⌘S (a document's Save, when Return belongs to the fields).
+enum MacPrimaryKey {
+    case defaultAction, save, none
+}
+
+extension View {
+    /// The Mac's form of the one primary action (Apple's HIG, Windows › macOS: no critical action in a bottom bar): the
+    /// primary as the toolbar's confirmation action (in a window, the toolbar's trailing end; in a sheet, the dialog's
+    /// button row), any secondary ones beside it, and what it will do (the balance, "not saved yet") left at the foot as a
+    /// summary only. No primary (a step with nothing to offer): no button, and the summary alone.
+    func macActionToolbar(_ primary: ActionBar.Action?, secondary: [ActionBar.Action] = [], summary: String? = nil,
+                          key: MacPrimaryKey = .defaultAction) -> some View {
+        modifier(MacActionToolbar(primary: primary, secondary: secondary, summary: summary, key: key))
+    }
+}
+
+private struct MacActionToolbar: ViewModifier {
+    let primary: ActionBar.Action?
+    let secondary: [ActionBar.Action]
+    let summary: String?
+    let key: MacPrimaryKey
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItemGroup(placement: .confirmationAction) {
+                    if let primary {
+                        ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
+                            Button(role: item.role, action: item.action) { MacActionLabel(item: item) }
+                                .disabled(item.isDisabled || item.isBusy || primary.isBusy)
+                        }
+                        primaryButton(primary)
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                MacActionFooter(summary: summary)
+            }
+    }
+
+    @ViewBuilder
+    private func primaryButton(_ primary: ActionBar.Action) -> some View {
+        let button = Button(role: primary.role, action: primary.action) { MacActionLabel(item: primary) }
+            .buttonStyle(.borderedProminent)
+            .disabled(primary.isDisabled || primary.isBusy)
+        switch key {
+        case .defaultAction: button.keyboardShortcut(.defaultAction)
+        case .save: button.keyboardShortcut("s", modifiers: .command)
+        case .none: button
+        }
+    }
+}
+
+/// The foot of a Mac page under its action: what the toolbar's action will do (the balance, "not saved yet"), and nothing
+/// to press. Nothing to say: no footer.
 struct MacActionFooter: View {
+    var summary: String?
+
+    var body: some View {
+        if let summary, !summary.isEmpty {
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: 10) {
+                    Text(summary)
+                        .font(.house(.callout))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .lineLimit(2)
+                    Spacer(minLength: 12)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+            }
+            .background(.bar)
+        }
+    }
+}
+
+/// A Mac dialog's button row (a sheet's foot, as System Settings and every Mac sheet have it): what it will do on the
+/// left, the other actions, then the primary as the default button (Return) on the right.
+struct MacDialogFooter: View {
     let primary: ActionBar.Action
     var secondary: [ActionBar.Action] = []
     var summary: String?
@@ -123,11 +205,11 @@ struct MacActionFooter: View {
                 }
                 Spacer(minLength: 12)
                 ForEach(Array(secondary.enumerated()), id: \.offset) { _, item in
-                    Button(role: item.role, action: item.action) { label(item) }
+                    Button(role: item.role, action: item.action) { MacActionLabel(item: item) }
                         .controlSize(.regular)
                         .disabled(item.isDisabled || item.isBusy || primary.isBusy)
                 }
-                Button(role: primary.role, action: primary.action) { label(primary) }
+                Button(role: primary.role, action: primary.action) { MacActionLabel(item: primary) }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
@@ -138,8 +220,13 @@ struct MacActionFooter: View {
         }
         .background(.bar)
     }
+}
 
-    private func label(_ item: ActionBar.Action) -> some View {
+/// A Mac action's label: its symbol, or a small spinner in its place while it works (the button keeps its size).
+private struct MacActionLabel: View {
+    let item: ActionBar.Action
+
+    var body: some View {
         HStack(spacing: 6) {
             if item.isBusy {
                 ProgressView().controlSize(.small)

@@ -508,11 +508,11 @@ private struct InsightPage<Narrow: View, Wide: View>: View {
     var refresh: () async -> Void
     @ViewBuilder let narrow: () -> Narrow
     @ViewBuilder let wide: (CGFloat) -> Wide
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
-    private var isWide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var isWide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         Group {

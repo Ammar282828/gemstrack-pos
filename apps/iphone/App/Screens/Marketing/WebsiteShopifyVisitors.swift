@@ -10,11 +10,11 @@ struct ShopifyVisitorsView: View {
     @Environment(Session.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
 
     /// An iPad's (or a Mac's) wide window: two columns of cards.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     @State private var period: String
     @State private var report: ShopReport?

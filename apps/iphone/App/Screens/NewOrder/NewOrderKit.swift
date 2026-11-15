@@ -13,12 +13,12 @@ import ERPCore
 /// a phone and a compact iPad window are never touched.
 private struct FormColumn: ViewModifier {
     var maxWidth: CGFloat
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {
         Group {
-            if sizeClass.isPadLayout {
+            if wideLayout {
                 content.safeAreaPadding(.horizontal, max(0, ((width - maxWidth) / 2).rounded()))
             } else {
                 content

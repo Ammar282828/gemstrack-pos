@@ -35,7 +35,7 @@ struct AdsCampaignsScreen: View {
     @State private var exporting = false
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
     @State private var macSelection = Set<String>()
@@ -418,7 +418,7 @@ struct AdsCampaignsScreen: View {
             }
         }
         return Section {
-            if sizeClass.isPadLayout {
+            if wideLayout {
                 // The same cards in an adaptive grid: a square picture at 1,000 points wide is not an ad.
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: pt(14), alignment: .top)], spacing: pt(14)) {
                     ForEach(ads) { ad in

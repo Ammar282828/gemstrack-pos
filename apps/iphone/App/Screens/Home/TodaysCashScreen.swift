@@ -18,7 +18,7 @@ struct TodaysCashScreen: View {
     @State private var now = Date()
     @State private var cashMemo = Memo<TodaysCash>()
     @State private var width: CGFloat = 0
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -90,7 +90,7 @@ struct TodaysCashScreen: View {
         #endif
     }
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     @ViewBuilder
     private func figureSections(_ t: TodaysCash) -> some View {

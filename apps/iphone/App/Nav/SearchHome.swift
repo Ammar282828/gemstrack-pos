@@ -10,7 +10,7 @@ import ERPCore
 struct SearchView: View {
     @Environment(Session.self) private var session
     @Environment(Book.self) private var book
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.accessibilityReduceMotion) private var reduce
     let map: NavMap
     /// Home's pull-down search lends its words and gets only the results back, drawn here and nowhere else: the same
@@ -64,7 +64,7 @@ struct SearchView: View {
             session.signOut()
         }
         .toolbar {
-            if !sizeClass.isPadLayout { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
+            if !wideLayout { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
         }
         .onAppear {
             focusIfWanted(ShellCommands.shared.searchWanted)

@@ -28,12 +28,12 @@ struct ScanTag: View {
     /// The new sale, opened from the bar's Open the sale.
     @State private var openSale: Route?
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
     /// A wide iPad window: the camera takes the room, what it found stands at its side.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         #if os(macOS)

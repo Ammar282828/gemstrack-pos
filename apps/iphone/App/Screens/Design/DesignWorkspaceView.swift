@@ -35,12 +35,12 @@ struct DesignWorkspaceView: View {
     @FocusState private var macWordFocus: String?
     #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
     /// An iPad's wide window: the page and its strip stay in sight on the left, the words and the photograph scroll on the right.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         Group {

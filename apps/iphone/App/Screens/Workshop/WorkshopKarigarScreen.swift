@@ -27,7 +27,7 @@ struct WorkshopKarigarScreen: View {
     @State private var expanded: Set<String> = []
     @State private var showingAccounts = false
     @State private var width: CGFloat = 0
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     #if os(macOS)
     /// The rows picked in his Work table and in his Payments table.
@@ -44,7 +44,7 @@ struct WorkshopKarigarScreen: View {
     @Environment(\.openPlaceWindow) private var openPlace
     #endif
 
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         content

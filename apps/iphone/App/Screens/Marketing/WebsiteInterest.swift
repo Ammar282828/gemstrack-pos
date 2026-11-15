@@ -122,12 +122,12 @@ struct WebsiteInterestScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     /// The window's own width, to choose between the phone's List and an iPad's columns of cards.
     @State private var width: CGFloat = 0
 
     /// An iPad's wide window: tiles four across, the sections in two columns.
-    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     /// The period last chosen on this device (the web keeps it too); Custom is not remembered.
     @AppStorage("erp.websiteInterest.period") private var storedPeriod = "30d"

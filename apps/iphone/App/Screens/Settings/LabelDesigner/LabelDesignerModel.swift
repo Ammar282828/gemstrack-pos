@@ -38,6 +38,13 @@ final class LabelDesignerModel {
 
     @ObservationIgnored var onChange: ((LabelLayout) -> Void)?
 
+    #if os(macOS)
+    /// The window's (Edit › Undo, ⌘Z): each step the history takes is mirrored on it, so the Edit menu owns the keys and
+    /// names the change. The history stays the truth (a drag is one step); the manager only says there is one to take.
+    @ObservationIgnored weak var undoManager: UndoManager?
+    static let undoName = "Tag Change"
+    #endif
+
     var measure: LabelMeasure { LabelMeasurer.measure }
 
     init(layout: LabelLayout) { self.layout = layout }
@@ -90,7 +97,15 @@ final class LabelDesignerModel {
         var next = layout
         change(&next)
         guard next != layout else { return }
+        #if os(macOS)
+        let steps = history.past.count
+        let before = layout
+        #endif
         history.record(before: layout, key: key)
+        #if os(macOS)
+        // A new step, not a run joined to the last (at the history's limit the count holds, and the step is `before`).
+        if history.past.count > steps || (steps == LabelHistory.limit && history.past.last == before) { registerUndo() }
+        #endif
         layout = next
         edited = true
         onChange?(next)
@@ -124,6 +139,10 @@ final class LabelDesignerModel {
         edited = true
         selection = selection.filter { id in previous.fields.contains { $0.id == id } }
         onChange?(previous)
+        #if os(macOS)
+        // Undone by the window's manager: the step it takes back goes on its redo list (registered while it undoes).
+        if undoManager?.isUndoing == true { registerRedo() }
+        #endif
     }
 
     func redo() {
@@ -132,9 +151,47 @@ final class LabelDesignerModel {
         edited = true
         selection = selection.filter { id in next.fields.contains { $0.id == id } }
         onChange?(next)
+        #if os(macOS)
+        if undoManager?.isRedoing == true { registerUndo() }
+        #endif
     }
 
-    func resetHistory() { history.clear() }
+    func resetHistory() {
+        history.clear()
+        #if os(macOS)
+        undoManager?.removeAllActions(withTarget: self)
+        #endif
+    }
+
+    #if os(macOS)
+    /// The toolbar's Undo and Redo do what Edit › Undo and Redo do when the step on top is the tag's (a field's typing in the
+    /// inspector may be above it, which Edit › Undo takes first); else straight on the history.
+    func undoStep() {
+        if let um = undoManager, um.canUndo, um.undoActionName == Self.undoName { um.undo() } else { undo() }
+    }
+
+    func redoStep() {
+        if let um = undoManager, um.canRedo, um.redoActionName == Self.undoName { um.redo() } else { redo() }
+    }
+
+    private func registerUndo() {
+        guard let um = undoManager else { return }
+        um.registerUndo(withTarget: self) { m in MainActor.assumeIsolated { m.undo() } }
+        um.setActionName(Self.undoName)
+    }
+
+    private func registerRedo() {
+        guard let um = undoManager else { return }
+        um.registerUndo(withTarget: self) { m in MainActor.assumeIsolated { m.redo() } }
+        um.setActionName(Self.undoName)
+    }
+
+    /// The designer is leaving its window: nothing of the tag's stays in the window's Edit menu.
+    func detachUndo() {
+        undoManager?.removeAllActions(withTarget: self)
+        undoManager = nil
+    }
+    #endif
 
     // MARK: Selecting
 

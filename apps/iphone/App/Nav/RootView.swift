@@ -83,7 +83,7 @@ struct RootGate: View {
 struct RootView: View {
     @Environment(Session.self) private var session
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     // After a business switch the tab the person was on (BusinessCarry); `selection` falls back to Home when this
     // business has no such tab.
@@ -114,7 +114,7 @@ struct RootView: View {
 
     /// The tabs before Search. Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
     private func tabEntries(_ map: NavMap) -> [NavEntry] {
-        if sizeClass.isPadLayout { return map.entries }
+        if wideLayout { return map.entries }
         if session.role == "marketing" { return Array(map.entries.prefix(4)) }
         return Self.primary(map).compactMap { id in map.entries.first { $0.id == id } }
     }
@@ -171,7 +171,7 @@ struct RootView: View {
     /// only, in its group (the person can pull any of them into the bar: `.tabViewCustomization`). A phone's entries are the
     /// bar already; marketing's few all stay in it.
     private func barEntries(_ entries: [NavEntry]) -> [NavEntry] {
-        guard sizeClass.isPadLayout, session.role != "marketing" else { return entries }
+        guard wideLayout, session.role != "marketing" else { return entries }
         let keep = Set(Self.primary(map))
         let bar = entries.filter { keep.contains($0.id) }
         return bar.isEmpty ? entries : bar
@@ -199,7 +199,7 @@ struct RootView: View {
     @TabContentBuilder<String>
     private func placeTab(_ e: NavEntry, map: NavMap) -> some TabContent<String> {
         Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
-            if sizeClass.isPadLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
+            if wideLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
                 // Orders, Invoices, Customers, Stock, Repairs on an iPad: the list with the item beside it.
                 HubSplit(prompt: prompt) {
                     PlaceScreen(path: e.href, isRoot: true)
@@ -317,30 +317,56 @@ final class Creating {
 private struct CreatingSheet: ViewModifier {
     @Bindable var creating: Creating
     let openFromVoice: (String) -> Void
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
 
     func body(content: Content) -> some View {
         content
             // Voice over the tabs: just above the tab bar on a phone (the + and the mic step aside while it is up), at the
             // foot of the window on an iPad. The page under it keeps working.
             .overlay(alignment: .bottom) {
-                VoiceOverlay(open: openFromVoice, active: creating.route == nil, bottomInset: sizeClass.isPadLayout ? pt(16) : pt(58))
+                VoiceOverlay(open: openFromVoice, active: creating.route == nil, bottomInset: wideLayout ? pt(16) : pt(58))
             }
-            .sheet(item: $creating.route) { r in
-                NavigationStack {
-                    PlaceScreen(path: r.path)
-                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close", systemImage: "xmark") { creating.route = nil }
-                            }
-                        }
+            // A record or a short page (a notification's, voice's, Scan): a sheet over the tabs.
+            .sheet(item: presented(longFlow: false)) { r in
+                page(r).presentationSizing(.page)
+            }
+            // New sale and New order are long flows with sheets of their own: the whole screen, not a sheet with sheets
+            // stacked on it (HIG, Sheets). There is no swipe down; Close leaves, and what was typed waits in Drafts.
+            .fullScreenCover(item: presented(longFlow: true)) { r in
+                page(r)
+            }
+    }
+
+    /// New sale (with its resume, continue and bill-reading forms) and New order.
+    private static func isLongFlow(_ r: Route) -> Bool {
+        let bare = ScreenRoute.bare(r.path)
+        return bare == "/invoices/new" || bare == "/orders/add"
+    }
+
+    /// The open route when it belongs to this presentation. Closing clears it only while it is still this one's, so a
+    /// page opened in its place (a notification over a sale) is not cleared by the old one going away.
+    private func presented(longFlow: Bool) -> Binding<Route?> {
+        Binding(
+            get: { creating.route.flatMap { Self.isLongFlow($0) == longFlow ? $0 : nil } },
+            set: { now in
+                if now == nil, let open = creating.route, Self.isLongFlow(open) != longFlow { return }
+                creating.route = now
+            })
+    }
+
+    private func page(_ r: Route) -> some View {
+        NavigationStack {
+            PlaceScreen(path: r.path)
+                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close", systemImage: "xmark") { creating.route = nil }
+                    }
                 }
-                // A page opened over the tabs keeps voice over it too, above the page's own action bar.
-                .overlay(alignment: .bottom) { VoiceOverlay(open: openFromVoice, bottomInset: pt(76)) }
-                // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
-                .presentationSizing(.page)
-            }
+        }
+        // A page opened over the tabs keeps voice over it too, above the page's own action bar.
+        .overlay(alignment: .bottom) { VoiceOverlay(open: openFromVoice, bottomInset: pt(76)) }
+        // No zoomScope here: a page opened over the tabs has no row to grow from (it would zoom out of a bubble).
     }
 }
 
@@ -382,7 +408,7 @@ private struct CreateAccessory: ViewModifier {
     @State private var reading = ScrollReading()
     @Namespace private var glassSpace
 
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The iPad's tab column, where New opens in place of what is shown (nil: a sheet over the tabs).
     @Environment(\.openInPlace) private var openInPlace
@@ -397,7 +423,7 @@ private struct CreateAccessory: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        if sizeClass.isPadLayout {
+        if wideLayout {
             // An iPad has a toolbar to spare: New and the voice assistant sit in it, so nothing floats over a
             // form or the last row, and the page keeps its whole height. They go beside the rate chip, leaving
             // the trailing side to the page's own actions (filters, Settings), which would otherwise fold away.
@@ -571,7 +597,7 @@ struct PlaceScreen: View {
     /// an owner's opens the form, anyone else's a page to read).
     var isRoot = false
     @Environment(Session.self) private var session
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @State private var chosen: String?
 
     init(path: String, isRoot: Bool = false) {
@@ -629,7 +655,7 @@ struct PlaceScreen: View {
             #if os(iOS)
             .toolbar {
                 // The business at the top of every tab (an iPad keeps it in the sidebar's header).
-                if isRoot && !sizeClass.isPadLayout {
+                if isRoot && !wideLayout {
                     ToolbarItem(placement: .topBarLeading) { BusinessChip() }
                 }
                 if isRoot {

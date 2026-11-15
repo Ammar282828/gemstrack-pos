@@ -260,6 +260,7 @@ struct RecordRow<Accessory: View>: View {
     var status: RecordStatus?
     @ViewBuilder var accessory: () -> Accessory
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.wideLayout) private var wideLayout
 
     #if os(macOS)
     static var monogram: CGFloat { Monogram.Size.row }
@@ -274,7 +275,7 @@ struct RecordRow<Accessory: View>: View {
                     lead.frame(maxWidth: .infinity, alignment: .leading)
                     trailing(true)
                 }
-            } else if !Self.canFold {
+            } else if !canFold {
                 HStack(alignment: .top, spacing: pt(12)) {
                     lead.frame(maxWidth: .infinity, alignment: .leading)
                     trailing(false)
@@ -299,10 +300,11 @@ struct RecordRow<Accessory: View>: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// An iPad's narrow list column folds the figures under the name; a phone keeps its one line as it always has.
-    private static var canFold: Bool {
+    /// An iPad's narrow list column folds the figures under the name, as does any window wide enough for the list beside
+    /// its item (a large iPhone display in the wide layout); a phone's own window keeps its one line as it always has.
+    private var canFold: Bool {
         #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .pad
+        return UIDevice.current.userInterfaceIdiom == .pad || wideLayout
         #else
         return false
         #endif

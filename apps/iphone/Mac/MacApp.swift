@@ -41,9 +41,18 @@ struct ERPMacApp: App {
         }
         .defaultSize(width: 1000, height: 780)
 
+        // ERP › Settings… (⌘,): this Mac's and this person's, a tab per pane at the pane's own size.
         SwiftUI.Settings {
             MacSettingsWindow()
         }
+        .windowResizability(.contentSize)
+
+        // ERP › Shop Settings… (⇧⌘,): the shop's shared records, an owner's, in a window of its own.
+        Window("Shop Settings", id: MacWindows.shopSettings) {
+            MacShopSettingsWindow()
+                .font(.house(.body))
+        }
+        .defaultSize(width: 920, height: 700)
 
         // Today's figures for every business signed in on this Mac, a click away in the menu bar.
         MenuBarExtra(isInserted: $showMenuBar) {
@@ -199,6 +208,7 @@ enum MacLockSheets {
 enum MacWindows {
     static let main = "main"
     static let place = "place"
+    static let shopSettings = "shop-settings"
 
     /// A new sale, order, repair or scan opens a window of its own every time, as File › New does in any Mac app: the
     /// window is found by its route, so each gets a mark of its own (`w=`, which no screen reads) and a second ⌘N is a

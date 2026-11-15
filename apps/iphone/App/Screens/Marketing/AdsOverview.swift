@@ -20,7 +20,7 @@ struct AdsOverviewScreen: View {
     @State private var go: Route?
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     #if os(macOS)
     @Environment(\.openPlaceWindow) private var openPlace
@@ -203,7 +203,7 @@ struct AdsOverviewScreen: View {
             .compactMap { (s: String?) in s }
             .joined(separator: " · ")
         let reachNote = AdsFormat.change(t.reach, b?.reach) ?? "\(AdsFormat.compact(t.impressions)) views"
-        let across = sizeClass.isPadLayout && !typeSize.isAccessibilitySize
+        let across = wideLayout && !typeSize.isAccessibilitySize
         return Section {
             if across {
                 // An iPad: every figure in one grid, four across.

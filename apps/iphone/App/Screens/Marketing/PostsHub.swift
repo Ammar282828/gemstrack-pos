@@ -11,7 +11,7 @@ import ERPCore
 struct PostsHub: View {
     @Environment(Session.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false
@@ -347,7 +347,7 @@ struct PostsHub: View {
         let fresh = store.pieces.filter { (p: PostPiece) in p.newArrival }
         let strip = Array((fresh.isEmpty ? store.pieces : fresh).prefix(12))
         Section {
-            if !strip.isEmpty && sizeClass.isPadLayout && !typeSize.isAccessibilitySize {
+            if !strip.isEmpty && wideLayout && !typeSize.isAccessibilitySize {
                 // The same tiles as an adaptive grid: all twelve in sight, none behind a swipe.
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: pt(12), alignment: .top)], spacing: pt(14)) {
                     ForEach(strip) { (p: PostPiece) in

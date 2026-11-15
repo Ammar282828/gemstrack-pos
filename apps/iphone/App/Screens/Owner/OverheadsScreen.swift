@@ -97,17 +97,16 @@ private struct OverheadsBoard: View {
         }
         #endif
         #if os(macOS)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if dirty {
-                MacActionFooter(
-                    primary: .init("Save from \(monthName)", isBusy: saving) { Task { await save() } },
-                    secondary: [.init("Discard", systemImage: "arrow.uturn.backward", isDisabled: saving) {
-                        lines = OverheadDraftLine.lines(liveItems)
-                        saveError = nil
-                    }],
-                    summary: "The sheet has changes that are not saved yet")
-            }
-        }
+        // Save and Discard in the toolbar while there are changes (no critical action in a bottom bar); the foot only says
+        // so. ⌘S is the Overheads menu's (`macSaveAction`), so the button has no key of its own.
+        .macActionToolbar(
+            dirty ? ActionBar.Action("Save from \(monthName)", isBusy: saving, action: { Task { await save() } }) : nil,
+            secondary: [ActionBar.Action("Discard", systemImage: "arrow.uturn.backward", isDisabled: saving) {
+                lines = OverheadDraftLine.lines(liveItems)
+                saveError = nil
+            }],
+            summary: dirty ? "The sheet has changes that are not saved yet" : nil,
+            key: .none)
         #else
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if dirty { saveBar }

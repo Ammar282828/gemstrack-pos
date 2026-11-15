@@ -18,7 +18,7 @@ struct StockPieceScreen: View {
     /// Set once the ERP has deleted the piece: the page goes back to the list as the code's sheet closes, as the
     /// web's goes to /products.
     @State private var deleted = false
-    @Environment(\.layoutWidthClass) private var sizeClass
+    @Environment(\.wideLayout) private var wideLayout
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
     #if os(macOS)
@@ -29,7 +29,7 @@ struct StockPieceScreen: View {
     #endif
 
     /// A wide window: the photo and facts on the left, the price and how it adds up on the right.
-    private var twoColumns: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+    private var twoColumns: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline, shape: .record) {
