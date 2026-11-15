@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 /** src/lib/staff-pages.test.ts and roles.test.ts, case for case. */
 class StaffAccessTests {
     @Test fun staffGoHomeFromBooksAnalyticsSettingsAndStock() {
-        for (p in listOf("/analytics", "/analytics/sales", "/expenses", "/hisaab/abc", "/settings/shop", "/overheads", "/products", "/products/bulk-add", "/today", "/ads/campaigns", "/insights", "/website/interest", "/ads/setup")) {
+        for (p in listOf("/analytics", "/analytics/sales", "/expenses", "/hisaab/abc", "/settings/shop", "/overheads", "/products", "/collect", "/products/bulk-add", "/today", "/ads/campaigns", "/insights", "/website/interest", "/ads/setup")) {
             assertTrue(StaffAccess.staffBlocked(p, false), p)
         }
     }

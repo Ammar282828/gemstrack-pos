@@ -4,6 +4,7 @@ import erp.app.nav.ScreenRoute
 import erp.app.screens.ads.AdsRoutes
 import erp.app.screens.analytics.AnalyticsRoutes
 import erp.app.screens.businesses.BusinessesRoutes
+import erp.app.screens.collect.CollectRoutes
 import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.design.DesignRoutes
 import erp.app.screens.home.HomeRoutes
@@ -46,6 +47,8 @@ object NativeScreens {
             // The Swift order: Customers, Repairs, Stock and Workshop come between Invoices and Money.
             MoneyRoutes,
             AnalyticsRoutes,
+            // To collect (/collect), Sales' owners-only page: no prefix shared with Analytics.
+            CollectRoutes,
             // My work (a karigar's portal) comes after Analytics in the Swift order; the owners' pages share no prefix with it.
             WorkRoutes,
             OwnerRoutes,

@@ -22,7 +22,7 @@ object StaffAccess {
     /** Never for staff: the books, settings, analytics, stock and the lists of what the shop earns (staff-pages.ts BLOCKED). */
     private val blocked = listOf(
         "/analytics", "/expenses", "/additional-revenue", "/overheads", "/hisaab", "/shareholders", "/settings", "/activity-log", "/today",
-        "/products", "/ads/setup", "/ads/audiences", "/ads/rules", "/ads/tests",
+        "/products", "/collect", "/ads/setup", "/ads/audiences", "/ads/rules", "/ads/tests",
     )
 
     /** Only for marketing: reachable by a staff member listed in the marketing list too. */
