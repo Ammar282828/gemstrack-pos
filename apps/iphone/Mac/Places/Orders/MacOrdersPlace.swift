@@ -256,7 +256,7 @@ struct MacOrdersPlace: View {
         let input = MacOrdersMenuInput(order: order, stage: stage, invoiceOwed: invoiceOwed,
                                        status: localStatus[order.id] ?? order.status.rawValue,
                                        unassigned: pieceCounts(order.items).unassigned,
-                                       isOwner: session.isOwner, role: session.role)
+                                       isOwner: session.isOwner, role: session.role, shopName: session.shop.name)
         return MacOrdersMenu.groups(input, run: run(order, stage: stage, invoiceOwed: invoiceOwed))
     }
 

@@ -1076,6 +1076,8 @@ extension InvoiceScreen {
             MacContact.number(InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { customers.item($0) }),
                               customerId: inv.customerId, customerName: inv.customerName)
         }
+        let shop = session.shop.name
+        cx.message = { inv in CustomerMessages.invoice(inv, shop: shop) }
         return cx
     }
 

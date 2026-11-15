@@ -20,6 +20,8 @@ struct MacOrdersMenuInput {
     var unassigned = 0
     var isOwner = false
     var role = "none"
+    /// The shop's name, for the message WhatsApp Chat and Message open with ("… is ready at Taheri").
+    var shopName = ""
 }
 
 /// What each action does, bound to the order by whoever builds it.
@@ -146,7 +148,13 @@ enum MacOrdersMenu {
             MacAction("Send Order PDF on WhatsApp\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendPDF", perform: r.sendPDF),
             MacAction("Order PDF", symbol: "doc.richtext", enabled: o != nil, id: "orderPDF", perform: r.orderPDF),
         ]
-        out.append(contentsOf: MacContact.actions(number, document: document))
+        // Typed for where the order stands, as the order's inspector has it (CustomerMessages.order).
+        let message = o.map { (order: Order) -> String in
+            i.shopName.isEmpty ? "" : CustomerMessages.order(order, stage: i.stage,
+                                                             balance: MacOrdersLogic.owed(order, stage: i.stage, invoiceOwed: i.invoiceOwed),
+                                                             shop: i.shopName)
+        } ?? ""
+        out.append(contentsOf: MacContact.actions(number, document: document, message: message))
         // TCS booked from the ERP (owners and the counter), and the Shopify way (owners; Universal Courier books it).
         let canBookTcs = o.map { OrderActions.canBookTcs($0, role: i.role) } ?? false
         let canCancelTcs = o.map { OrderActions.canCancelTcs($0, role: i.role, state: nil) } ?? false

@@ -1334,7 +1334,7 @@ extension OrderScreen {
     private func macGroups(_ order: Order, stage: OrderStage, owed: Double) -> [[MacAction]] {
         let input = MacOrdersMenuInput(order: order, stage: stage, invoiceOwed: owed, status: shownStatus(order),
                                        unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
-                                       isOwner: session.isOwner, role: session.role)
+                                       isOwner: session.isOwner, role: session.role, shopName: session.shop.name)
         return MacOrdersMenu.groups(input, run: macRun(order, stage: stage, owed: owed))
     }
 
