@@ -410,6 +410,8 @@ enum CardColumns {
 struct StatusBadge: View {
     let text: String
     let color: Color
+    /// Set when the badge was made from a tone, so its words wear the tone's ink and its tint the fill.
+    private var tone: Tone?
 
     init(_ text: String, color: Color) {
         self.text = text
@@ -419,6 +421,7 @@ struct StatusBadge: View {
     /// A badge in a tone: the same as `Pill`, which new code uses directly.
     init(_ text: String, tone: Tone) {
         self.init(text, color: tone.color)
+        self.tone = tone
     }
 
     init(order status: OrderStatus) {
@@ -429,7 +432,9 @@ struct StatusBadge: View {
     static func color(for s: OrderStatus) -> Color { Tone(status: s).color }
 
     // A thin wrapper: one capsule look for every badge, which is `Pill`'s.
-    var body: some View { Pill(text, color: color) }
+    var body: some View {
+        if let tone { Pill(text, tone: tone) } else { Pill(text, color: color) }
+    }
 }
 
 /// Show cached books immediately; only a confirmed network loss warrants an offline warning.
@@ -462,7 +467,7 @@ struct ShelfState<Content: View>: View {
         content()
             .safeAreaInset(edge: .top, spacing: 0) {
                 if showingOfflineCopy {
-                    Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
+                    Label("Offline: showing \(DeviceWords.thisDevice)'s copy", systemImage: "icloud.slash")
                         .font(.house(.footnote).weight(.medium))
                         .padding(.horizontal, pt(14)).padding(.vertical, pt(7))
                         .glassEffect(.regular, in: .capsule)
@@ -760,9 +765,9 @@ struct PaymentSheet: View {
                     }
                 } footer: {
                     if let problem {
-                        Text(problem).foregroundStyle(Tone.problem.color)
+                        Text(problem).foregroundStyle(Tone.problem.ink)
                     } else if let creditNote {
-                        Text(creditNote).foregroundStyle(Tone.credit.color)
+                        Text(creditNote).foregroundStyle(Tone.credit.ink)
                     }
                 }
                 Section("How it was paid") {
@@ -771,7 +776,7 @@ struct PaymentSheet: View {
                     }
                     .pickerStyle(.segmented)
                     if askReference && method != "Cash" {
-                        TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("Optional"))
+                        TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("\(PaymentText.referenceLabel(method)) (optional)"))
                     }
                     if noteDefault != nil {
                         TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
@@ -896,7 +901,7 @@ extension PaymentSheet {
         }
         .pickerStyle(.menu)
         if askReference && method != "Cash" {
-            TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("Optional"))
+            TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("\(PaymentText.referenceLabel(method)) (optional)"))
         }
         if noteDefault != nil {
             TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
@@ -922,9 +927,9 @@ extension PaymentSheet {
     @ViewBuilder
     private var macNotes: some View {
         if let problem {
-            Text(problem).foregroundStyle(Tone.problem.color)
+            Text(problem).foregroundStyle(Tone.problem.ink)
         } else if let creditNote {
-            Text(creditNote).foregroundStyle(Tone.credit.color)
+            Text(creditNote).foregroundStyle(Tone.credit.ink)
         }
     }
 }
@@ -964,6 +969,30 @@ extension View {
         listRowBackground(Group {
             if mine { MineRowBackground() } else { Theme.card }
         })
+        #endif
+    }
+}
+
+/// The words that name the device in the reader's hand: a phone's "tap" is a Mac's "click", a swipe a right-click
+/// (docs/features/mac-app.md). Any sentence a person reads that says "this phone", "Tap" or "Swipe" takes them from here.
+enum DeviceWords {
+    #if os(macOS)
+    static let tap = "click", Tap = "Click", thisDevice = "this Mac", yourDevice = "your Mac", symbol = "desktopcomputer"
+    static let swipe = "right-click", Swipe = "Right-click"
+    #else
+    static let tap = "tap", Tap = "Tap", thisDevice = "this phone", yourDevice = "your phone", symbol = "iphone"
+    static let swipe = "swipe", Swipe = "Swipe"
+    #endif
+}
+
+extension View {
+    /// A sheet that saves: `busy` blocks every way out; words typed and not saved (`dirty`) block the swipe down on a phone,
+    /// so Cancel is the way out of a form that would otherwise lose them. A Mac's Esc is never held by typing.
+    func keepWhileTyping(busy: Bool, dirty: Bool) -> some View {
+        #if os(iOS)
+        interactiveDismissDisabled(busy || dirty)
+        #else
+        interactiveDismissDisabled(busy)
         #endif
     }
 }

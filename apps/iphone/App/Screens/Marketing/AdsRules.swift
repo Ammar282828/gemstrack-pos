@@ -173,7 +173,7 @@ struct AdsRulesScreen: View {
                 AdsAlertsSection(status: s)
                 if let loadProblem {
                     Section {
-                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                         Button("Try again") { Task { await loadRules() } }
                     }
                 }
@@ -272,7 +272,7 @@ struct AdsRulesScreen: View {
             #if os(macOS)
             if let data, !data.rules.isEmpty { Text("Right-click a rule to delete it.") }
             #else
-            if let data, !data.rules.isEmpty { Text("Swipe a rule to delete it.") }
+            if let data, !data.rules.isEmpty { Text("\(DeviceWords.Swipe) a rule to delete it.") }
             #endif
         }
     }
@@ -310,7 +310,7 @@ extension AdsRulesScreen {
     private var macPickedRules: [AdsRuleRow] { macRules.filter { (r: AdsRuleRow) in macPicked.contains(r.id) } }
 
     private var macNewRule: MacAction {
-        MacAction("New Rule…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: busy == nil && data != nil) {
+        MacAction("New Rule…", symbol: "plus", enabled: busy == nil && data != nil) {
             macMaking = true
         }
     }
@@ -337,7 +337,7 @@ extension AdsRulesScreen {
             AdsMacAlertBar(status: s)
             if let loadProblem {
                 Label(loadProblem, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
                     .padding(8)
             }
             VSplitView {

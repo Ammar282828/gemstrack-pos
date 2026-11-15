@@ -341,7 +341,7 @@ struct WebsiteInterestScreen: View {
     var liveLabel: some View {
         HStack(spacing: pt(10)) {
             Image(systemName: "dot.radiowaves.left.and.right")
-                .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
+                .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.ink : Color.secondary)
             if let n = liveNow {
                 Text("\(n) on the site now").monospacedDigit()
                     .contentTransition(.numericText(value: Double(n)))

@@ -349,7 +349,7 @@ struct SearchView: View {
                 Spacer(minLength: 8)
                 // Owing by the settlement rule: a refunded invoice owes nothing and under 1 rupee is settled.
                 let owing = balanceLineOf(i).state == .due
-                RowAmount(amount: owing ? i.balanceDue : i.grandTotal, tone: owing ? Tone.owed.color : Color.primary)
+                RowAmount(amount: owing ? i.balanceDue : i.grandTotal, tone: owing ? Tone.owed.ink : Color.primary)
             }
         }
     }
@@ -365,13 +365,13 @@ struct SearchView: View {
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(o.id)
                     Text(o.customerName ?? "").font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
-                    Text(o.status.rawValue).font(.house(.caption)).foregroundStyle(Tone(status: o.status).color)
+                    Text(o.status.rawValue).font(.house(.caption)).foregroundStyle(Tone(status: o.status).ink)
                 }
                 Spacer(minLength: 8)
                 // The whole order (owner, 2026-11-03: "the full order amount, don't minus advance"); what is owed under it.
                 VStack(alignment: .trailing, spacing: pt(2)) {
                     RowAmount(amount: OrdersLogic.fullAmount(o))
-                    if due > 0 { Text("\(Money.pkr(due)) due").font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                    if due > 0 { Text("\(Money.pkr(due)) due").font(.house(.caption)).foregroundStyle(Tone.owed.ink) }
                 }
             }
         }

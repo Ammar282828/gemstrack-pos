@@ -278,7 +278,7 @@ struct SiteSourcesSection: View {
             // WhatsApp is the one coloured thing on the row, and only when someone asked.
             Text(asked(s))
                 .font(.house(.footnote).weight(s.enquire > 0 ? .semibold : .regular))
-                .foregroundStyle(s.enquire > 0 ? Tone.settled.color : Color.secondary)
+                .foregroundStyle(s.enquire > 0 ? Tone.settled.ink : Color.secondary)
                 .monospacedDigit()
         }
         .accessibilityElement(children: .combine)

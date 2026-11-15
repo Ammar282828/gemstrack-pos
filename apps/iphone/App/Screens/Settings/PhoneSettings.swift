@@ -29,6 +29,10 @@ struct PhoneSettings: View {
     @State private var linking = false
     @State private var linkFailed = false
     @AppStorage("deviceTheme") private var deviceTheme = ""
+    #if os(macOS)
+    /// Mac/MacApp.swift's MenuBarExtra: on unless turned off here.
+    @AppStorage("mac.menuBarExtra") private var showMenuBar = true
+    #endif
     @State private var lockOn = AppLock.shared.enabled
     @Environment(\.openURL) private var openURL
 
@@ -48,7 +52,7 @@ struct PhoneSettings: View {
                 switch allowed {
                 case .denied:
                     Label("Notifications are off for this app", systemImage: "bell.slash")
-                    Button("Open Settings") {
+                    Button("Open settings") {
                         #if os(macOS)
                         if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { openURL(url) }
                         #else
@@ -89,7 +93,7 @@ struct PhoneSettings: View {
                     }
                 }
                 if let providerStatus { Text(providerStatus).font(.house(.caption)).foregroundStyle(.secondary) }
-                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.ink) }
             } header: {
                 LedgerHeading(title: "Notifications on this phone")
             } footer: {
@@ -328,7 +332,7 @@ extension PhoneSettings {
                     }
                 }
                 if let providerStatus { Text(providerStatus).font(.house(.caption)).foregroundStyle(.secondary) }
-                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.house(.caption)).foregroundStyle(Tone.problem.ink) }
             } header: {
                 Text("Notifications on this Mac")
             } footer: {
@@ -345,16 +349,13 @@ extension PhoneSettings {
                 }
             }
 
+            // Light and dark follow System Settings › Appearance; the app has no picker of its own.
             Section {
-                Picker("Appearance", selection: $deviceTheme) {
-                    Text("Follow the Mac").tag("")
-                    Text("Light").tag("default")
-                    Text("Dark").tag("taheri")
-                }
+                Toggle("Show today\u{2019}s figures in the menu bar", isOn: $showMenuBar)
             } header: {
-                Text("Appearance")
+                Text("Menu bar")
             } footer: {
-                Text("The theme for this Mac. If not chosen, it follows the shop's appearance in the ERP.")
+                Text("A diamond in the menu bar opens today\u{2019}s figures for every business signed in on this Mac.")
             }
 
             Section {

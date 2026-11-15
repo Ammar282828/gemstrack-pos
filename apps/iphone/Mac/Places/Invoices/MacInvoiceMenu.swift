@@ -65,7 +65,7 @@ enum MacInvoiceMenu {
 
     static func takePayment(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
         let may = inv.map { MacInvoiceWords.mayTakePayment($0, canPay: cx.canPay) } ?? false
-        return MacAction("Take Payment…", symbol: "banknote", shortcut: KeyboardShortcut("p", modifiers: [.command, .option]),
+        return MacAction("Take Payment…", symbol: "banknote",
                          enabled: may) {
             if let inv { cx.desk.paying = inv }
         }
@@ -95,7 +95,7 @@ enum MacInvoiceMenu {
     }
 
     static func sendOnWhatsApp(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
-        MacAction("Send PDF on WhatsApp\u{2026}", symbol: "paperplane", shortcut: KeyboardShortcut("w", modifiers: [.command, .shift]),
+        MacAction("Send PDF on WhatsApp\u{2026}", symbol: "paperplane",
                   enabled: inv != nil) {
             if let inv { cx.desk.sending = inv }
         }
@@ -157,7 +157,7 @@ enum MacInvoiceMenu {
 
     /// The sale document on this invoice.
     static func edit(_ inv: Invoice?, _ cx: MacInvoiceContext) -> MacAction {
-        MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: inv != nil) {
+        MacAction("Edit\u{2026}", symbol: "pencil", enabled: inv != nil) {
             if let inv { cx.open(Route(path: InvoiceFacts.editPath(inv.id))) }
         }
     }

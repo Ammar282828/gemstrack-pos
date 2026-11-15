@@ -79,7 +79,7 @@ private struct SafepaySection: View {
         } footer: {
             if !trimmed.isEmpty && !SafepayLink.isPublicKey(trimmed) {
                 Text("That is not a public key: it starts with sec_ and is letters and numbers only.")
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
             } else {
                 Text("Safepay dashboard \u{2192} Developer \u{2192} API \u{2192} Public key (starts with sec_). Never the Secret key.")
             }

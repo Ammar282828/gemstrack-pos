@@ -202,7 +202,7 @@ struct AdsPhotoRow: View {
             .font(.house(.caption))
             .foregroundStyle(.secondary)
         } else if let e = photo.error {
-            Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.color)
+            Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.ink)
         } else if carousel {
             TextField("Card headline", text: $photo.headline)
             if ownLinks {

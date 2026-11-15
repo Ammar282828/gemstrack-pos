@@ -510,7 +510,7 @@ extension WorkshopGivenScreen {
     }
 
     private var macRecordAction: MacAction {
-        MacAction("Record Item Given\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        MacAction("Record Item Given\u{2026}", symbol: "plus",
                   enabled: session.isOwner) { adding = true }
     }
 
@@ -522,7 +522,7 @@ extension WorkshopGivenScreen {
 
     private func macEditAction(_ items: [GivenItem]) -> MacAction {
         let single: GivenItem? = items.count == 1 ? items.first : nil
-        return MacAction("Edit\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        return MacAction("Edit\u{2026}", symbol: "pencil",
                          enabled: session.isOwner && single != nil) { editing = single }
     }
 

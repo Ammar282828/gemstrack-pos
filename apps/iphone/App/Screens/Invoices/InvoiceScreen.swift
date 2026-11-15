@@ -297,10 +297,10 @@ struct InvoiceScreen: View {
             switch line.state {
             case .due:
                 Text("Due").font(.house(.subheadline)).foregroundStyle(.secondary)
-                HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(inv).color)
+                HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(inv).ink)
             case .credit:
                 Text("In credit").font(.house(.subheadline)).foregroundStyle(.secondary)
-                HeroAmount(amount: line.amount, tone: Tone.credit.color)
+                HeroAmount(amount: line.amount, tone: Tone.credit.ink)
             case .paid:
                 // Paid is what an invoice is meant to be: said in the ink, not as a green badge (CONVENTIONS rule 15).
                 Text("Paid in full")
@@ -457,7 +457,7 @@ struct InvoiceScreen: View {
                 Label("\(line.label), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
                       systemImage: "arrow.uturn.left.circle.fill")
                     .font(.house(.footnote).weight(.medium))
-                    .foregroundStyle(Tone.credit.color)
+                    .foregroundStyle(Tone.credit.ink)
                 // Finish the credit by handing the money over (an owner's; a walk-in holds none).
                 if session.isOwner && InvoiceCredit.held(inv) >= 1 {
                     Button { act(.giveBack, inv) } label: {
@@ -814,7 +814,7 @@ private struct InvoicePaymentRow: View {
         HStack(alignment: .center, spacing: pt(12)) {
             Image(systemName: symbol)
                 .font(.house(.subheadline).weight(.semibold))
-                .foregroundStyle(tone.color)
+                .foregroundStyle(tone.ink)
                 .frame(width: iconSize, height: iconSize)
                 .background(tone.color.opacity(0.12), in: .circle)
                 .accessibilityHidden(true)
@@ -923,8 +923,8 @@ private struct InvoiceMarginRow: View {
     }
 
     private func tone(_ m: Margin) -> Color {
-        if m.assumed { return Tone.quiet.color }
-        return m.percent < 0 ? Tone.late.color : Tone.settled.color
+        if m.assumed { return Tone.quiet.ink }
+        return m.percent < 0 ? Tone.late.ink : Tone.settled.ink
     }
 
     private func words(_ m: Margin) -> String {
@@ -1349,7 +1349,7 @@ private struct MacInvoiceTotalsBlock: View {
             Spacer(minLength: 12)
             Text(value)
                 .monospacedDigit()
-                .foregroundStyle(tone == .quiet ? Color.primary : tone.color)
+                .foregroundStyle(tone == .quiet ? Color.primary : tone.ink)
         }
         .fontWeight(bold ? .semibold : .regular)
     }
@@ -1443,7 +1443,7 @@ private struct MacInvoicePaymentsTable: View {
             if let credit {
                 HStack(spacing: 12) {
                     Label(credit.note, systemImage: "arrow.uturn.left.circle.fill")
-                        .foregroundStyle(Tone.credit.color)
+                        .foregroundStyle(Tone.credit.ink)
                     Spacer()
                     if let giveBack = credit.giveBack {
                         Button(credit.giveBackTitle, action: giveBack)

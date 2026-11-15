@@ -446,7 +446,7 @@ private struct StockBulkEditor: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.house(.largeTitle))
                         .imageScale(.large)
-                        .foregroundStyle(Tone.settled.color)
+                        .foregroundStyle(Tone.settled.ink)
                     Text("Bulk add complete").font(.house(.title2).weight(.semibold))
                     Text("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.")
                         .foregroundStyle(.secondary)
@@ -664,7 +664,7 @@ extension StockBulkEditor {
         Form {
             Section {
                 Label("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(Tone.settled.ink)
             }
             Section("Added") {
                 ForEach(skus, id: \.self) { (sku: String) in

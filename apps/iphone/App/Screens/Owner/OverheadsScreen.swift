@@ -244,7 +244,7 @@ private struct OverheadsBoard: View {
 
     private func monthRow(_ r: OverheadMonthRow) -> some View {
         // A month that met its target is the expected end: no colour (rule 15); one that fell short is amber.
-        let tone: Color = r.inProgress || r.met ? Color.secondary : Tone.owed.color
+        let tone: Color = r.inProgress || r.met ? Color.secondary : Tone.owed.ink
         let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
         return HStack(spacing: pt(12)) {
             Image(systemName: symbol).foregroundStyle(tone)
@@ -259,7 +259,7 @@ private struct OverheadsBoard: View {
             Text(OwnerText.signed(r.surplus))
                 .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.color))
+                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.ink))
         }
         .accessibilityElement(children: .combine)
     }
@@ -432,7 +432,7 @@ extension OverheadsBoard {
                     }
                     .width(min: 70, ideal: 90)
                     TableColumn("") { (r: OverheadMonthRow) in
-                        if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.color) }
+                        if !r.inProgress { Image(systemName: r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill").foregroundStyle(r.met ? Color.secondary : Tone.owed.ink) }
                     }
                     .width(24)
                 }

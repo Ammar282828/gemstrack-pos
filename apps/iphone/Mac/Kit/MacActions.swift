@@ -58,25 +58,48 @@ struct MacAction: Identifiable {
     }
 }
 
-/// A menu item (the menu bar or a right-click menu): the action with its key.
+/// A menu item. In the menu bar it carries its key and dims when it cannot act; in a right-click menu (`context`) it has no
+/// key (the menu bar owns it) and is left out when it cannot act, as a Finder context menu shows only what applies.
 struct MacActionMenuItem: View {
     let action: MacAction
+    var context: Bool = false
     var body: some View {
-        Button(role: action.role, action: action.perform) {
-            if let symbol = action.symbol { Label(action.title, systemImage: symbol) } else { Text(action.title) }
+        if action.enabled || !context {
+            Button(role: action.role, action: action.perform) {
+                if let symbol = action.symbol { Label(action.title, systemImage: symbol) } else { Text(action.title) }
+            }
+            .keyboardShortcut(context ? nil : action.shortcut)
+            .disabled(!action.enabled)
         }
-        .keyboardShortcut(action.shortcut)
-        .disabled(!action.enabled)
     }
 }
 
-/// Groups of actions as menu items, a divider between groups: a record's menu and its right-click menu.
+/// Groups of actions as menu items, a divider between groups: a record's menu in the menu bar (`context: false`, every
+/// action, dimmed when it cannot act) and a right-click menu (`context: true`, the default: only the actions that apply,
+/// at most three groups, the rest in one More submenu).
 struct MacActionItems: View {
     let groups: [[MacAction]]
+    var context: Bool = true
+    /// The groups a right-click menu shows: the disabled left out, the empty groups dropped.
+    private var applicable: [[MacAction]] {
+        groups.map { (group: [MacAction]) -> [MacAction] in group.filter { (a: MacAction) -> Bool in a.enabled } }
+            .filter { (group: [MacAction]) -> Bool in !group.isEmpty }
+    }
+    private var top: [[MacAction]] { context ? Array(applicable.prefix(3)) : groups }
+    private var rest: [[MacAction]] { context ? Array(applicable.dropFirst(3)) : [] }
     var body: some View {
-        ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+        ForEach(Array(top.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
-            ForEach(group) { MacActionMenuItem(action: $0) }
+            ForEach(group) { MacActionMenuItem(action: $0, context: context) }
+        }
+        if !rest.isEmpty {
+            Divider()
+            Menu("More") {
+                ForEach(Array(rest.enumerated()), id: \.offset) { i, group in
+                    if i > 0 { Divider() }
+                    ForEach(group) { MacActionMenuItem(action: $0, context: true) }
+                }
+            }
         }
     }
 }

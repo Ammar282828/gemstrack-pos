@@ -392,7 +392,7 @@ struct MacStockPlace: View {
     // MARK: The actions, declared once
 
     private var newAction: MacAction {
-        MacAction("New Piece\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        MacAction("New Piece\u{2026}", symbol: "plus",
                   enabled: session.isOwner) { openRoute(StockKit.addPath) }
     }
 
@@ -407,7 +407,7 @@ struct MacStockPlace: View {
     private func printAction(_ skus: [String], now: Bool) -> MacAction {
         if now {
             return MacAction(skus.count > 1 ? "Print \(skus.count) Tags Now" : "Print Tag Now", symbol: "printer.fill",
-                             shortcut: KeyboardShortcut("p", modifiers: [.command, .option]), enabled: !skus.isEmpty) { printTags(skus, now: true) }
+                             enabled: !skus.isEmpty) { printTags(skus, now: true) }
         }
         return MacAction(skus.count > 1 ? "Print \(skus.count) Tags\u{2026}" : "Print Tag\u{2026}", symbol: "printer",
                          shortcut: KeyboardShortcut("p", modifiers: .command), enabled: !skus.isEmpty) { printTags(skus, now: false) }
@@ -420,7 +420,7 @@ struct MacStockPlace: View {
         let some = !skus.isEmpty
         let making: [MacAction] = [newAction, bulkAction]
         let selling: [MacAction] = [sellAction(skus), printAction(skus, now: false), printAction(skus, now: true)]
-        let editAction = MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: owner && one) { edit(skus) }
+        let editAction = MacAction("Edit\u{2026}", symbol: "pencil", enabled: owner && one) { edit(skus) }
         // Return opens the picked pieces from the Piece menu too, as Hisaab's ledger and Expenses do: Stock's list let the
         // key go past the list's own handling (the Mac check, 2026-10-27), the menu's key equivalent never misses it.
         let windowAction = MacAction("Open in New Window", symbol: "macwindow.badge.plus",

@@ -639,7 +639,7 @@ struct InsightsOverviewScreen: View {
                 ForEach(found) { (f: InsightFinding) in
                     HStack(alignment: .top, spacing: pt(10)) {
                         Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
-                            .foregroundStyle(f.tone == "good" ? Tone.settled.color : (f.tone == "warn" ? Tone.owed.color : Color.secondary))
+                            .foregroundStyle(f.tone == "good" ? Tone.settled.ink : (f.tone == "warn" ? Tone.owed.ink : Color.secondary))
                         VStack(alignment: .leading, spacing: pt(4)) {
                             Text(f.title).font(.house(.body).weight(.medium))
                             Text(f.why).font(.house(.subheadline)).foregroundStyle(.secondary)
@@ -1003,7 +1003,7 @@ struct InsightsPostsScreen: View {
                 HStack(spacing: pt(6)) {
                     Text(InsightWords.kind[p.kind] ?? p.kind).font(.house(.caption).weight(.medium))
                     Text(ShopDate.say(p.at)).font(.house(.caption)).foregroundStyle(.secondary)
-                    if live { StatusBadge("Up now", color: Tone.settled.color) }
+                    if live { StatusBadge("Up now", tone: .settled) }
                     if p.older { Text("before this range").font(.house(.caption)).foregroundStyle(.secondary) }
                     Spacer(minLength: 0)
                     if let link = p.link, let url = URL(string: link) {
@@ -1248,7 +1248,7 @@ extension InsightsOverviewScreen {
                     ForEach(found) { (f: InsightFinding) in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
-                                .foregroundStyle(f.tone == "good" ? Tone.settled.color : (f.tone == "warn" ? Tone.owed.color : Color.secondary))
+                                .foregroundStyle(f.tone == "good" ? Tone.settled.ink : (f.tone == "warn" ? Tone.owed.ink : Color.secondary))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(f.title).fontWeight(.medium)
                                 Text(f.why).foregroundStyle(.secondary)
@@ -1504,7 +1504,7 @@ extension InsightsPostsScreen {
                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(p.caption.isEmpty ? (InsightWords.kind[p.kind] ?? p.kind) : p.caption).lineLimit(1)
-                if d.live.contains(p.id) { Text("Up now").font(.house(.caption)).foregroundStyle(Tone.settled.color) }
+                if d.live.contains(p.id) { Text("Up now").font(.house(.caption)).foregroundStyle(Tone.settled.ink) }
                 else if p.older { Text("before this range").font(.house(.caption)).foregroundStyle(.secondary) }
                 else { Text(InsightWords.kind[p.kind] ?? p.kind).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1) }
             }

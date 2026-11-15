@@ -120,7 +120,7 @@ struct WaitingToSendSheet: View {
             }
             if item.status == .failed {
                 if !item.message.isEmpty {
-                    Text(item.message).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                    Text(item.message).font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
                 }
                 HStack(spacing: pt(10)) {
                     Button("Retry") { outbox.retry(item.id) }.buttonStyle(.bordered)
@@ -171,6 +171,7 @@ struct PendingRecords: View {
                     RecordGrid(items: rows, width: width) { (item: Outbox.Item) in
                         RecordCard { row(item) }
                             .onTapGesture { outbox.queueOpen = true }
+                            .accessibilityAddTraits(.isButton)
                     }
                 }
             } else {
@@ -179,6 +180,7 @@ struct PendingRecords: View {
                         row(item)
                             .contentShape(Rectangle())
                             .onTapGesture { outbox.queueOpen = true }
+                            .accessibilityAddTraits(.isButton)
                     }
                 } header: {
                     LedgerHeading(title: "Waiting to send", count: rows.count)

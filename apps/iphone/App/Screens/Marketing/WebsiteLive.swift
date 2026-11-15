@@ -152,7 +152,7 @@ struct WebsiteLiveScreen: View {
         HStack(spacing: pt(14)) {
                 Image(systemName: "circle.fill")
                     .font(.house(.caption))
-                    .foregroundStyle(l.visitors > 0 ? Tone.settled.color : Color.secondary.opacity(0.4))
+                    .foregroundStyle(l.visitors > 0 ? Tone.settled.ink : Color.secondary.opacity(0.4))
                     .symbolEffect(.pulse, isActive: l.visitors > 0 && !reduceMotion)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: pt(4)) {

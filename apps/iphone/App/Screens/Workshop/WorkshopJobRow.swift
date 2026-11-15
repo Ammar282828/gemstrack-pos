@@ -328,7 +328,7 @@ struct WorkshopJobRow: View {
         // One row: who has it, and when it went. Amber only for the one thing missing (no karigar).
         if job.isUnassigned {
             Label("No karigar yet", systemImage: "hammer")
-                .font(.house(.subheadline)).foregroundStyle(Tone.owed.color)
+                .font(.house(.subheadline)).foregroundStyle(Tone.owed.ink)
         } else {
             AdaptiveStack(spacing: pt(8)) {
                 Label(job.karigarName, systemImage: "hammer").fontWeight(.medium)

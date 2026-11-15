@@ -152,7 +152,7 @@ struct ArtworkRunsRows: View {
     var body: some View {
         Group {
             if layer.n("curve") != 0 {
-                Text("Bent text is drawn in one style. Set its Curve to 0 to style single words.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Text("Bent text is drawn in one style. Set its Curve to 0 to style single words.").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
             }
             if length == 0 {
                 Text("Type some words first.").font(.house(.footnote)).foregroundStyle(.secondary)

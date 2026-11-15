@@ -153,7 +153,7 @@ struct RateChip: View {
                     .contentTransition(.numericText(value: s?[keyPath: RateKeys.main.value] ?? 0))
             }
             .font(.house(.footnote))
-            .foregroundStyle(today ? Color.primary : Tone.owed.color)
+            .foregroundStyle(today ? Color.primary : Tone.owed.ink)
             .frame(minHeight: Metrics.tap)
             .contentShape(Rectangle())
         }

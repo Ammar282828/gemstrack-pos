@@ -13,15 +13,14 @@ struct RootGate: View {
 
     private var preferredScheme: ColorScheme? {
         #if os(macOS)
-        // A Mac follows its own appearance (System Settings › Appearance) unless This Mac picks one: a Mac app does not
-        // take its light or dark from a shop setting (2026-10-25 design, rule 9).
-        let theme = deviceTheme
+        // A Mac follows System Settings › Appearance, always: a Mac app has no light or dark of its own (HIG, Dark Mode).
+        return nil
         #else
         let theme = deviceTheme.isEmpty ? (book.settings.value?.theme ?? lastShopTheme) : deviceTheme
-        #endif
         if theme == "default" { return .light }
         if theme == "taheri" || theme == "slate" { return .dark }
         return nil
+        #endif
     }
 
     var body: some View {
@@ -88,7 +87,11 @@ struct RootView: View {
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     // After a business switch the tab the person was on (BusinessCarry); `selection` falls back to Home when this
     // business has no such tab.
-    @State private var tab = BusinessCarry.carriedTab() ?? UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
+    // Kept per window, so the app reopens on the tab it was left on (HIG: restore state); a business switch or the demo check
+    // sets it on appear.
+    @SceneStorage("tab") private var tab = "home"
+    /// The iPad's tab bar and sidebar as the person arranged them (iPadOS 18's tab customization).
+    @AppStorage("erp.tabCustomization") private var customization = TabViewCustomization()
     /// The page opened over the tabs (a notification's, voice's, a shortcut's, the phone's +). Kept in an object read only by
     /// `CreatingSheet`, never by this body: a change here used to redraw the whole TabView, and its iPad sidebar visibly
     /// rebuilt on every New order (owner, 2026-11-08: "the sidebar glitches on every new order press").
@@ -103,6 +106,11 @@ struct RootView: View {
         ["home", "orders", "invoices", map.entries.contains { $0.id == "shopify" } ? "shopify" : "customers"]
     }
     private var online: OnlineInbox { .shared }
+
+    /// What a business switch or the simulator check says to open on, in place of the remembered tab.
+    private var openingTab: String? {
+        BusinessCarry.carriedTab() ?? UserDefaults.standard.string(forKey: "ERPDemoTab")
+    }
 
     /// The tabs before Search. Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
     private func tabEntries(_ map: NavMap) -> [NavEntry] {
@@ -159,30 +167,76 @@ struct RootView: View {
         }
     }
 
+    /// An iPad's tab bar holds Home, Orders, Invoices, Customers (or Shopify) and Search; every other place is in the sidebar
+    /// only, in its group (the person can pull any of them into the bar: `.tabViewCustomization`). A phone's entries are the
+    /// bar already; marketing's few all stay in it.
+    private func barEntries(_ entries: [NavEntry]) -> [NavEntry] {
+        guard sizeClass.isPadLayout, session.role != "marketing" else { return entries }
+        let keep = Set(Self.primary(map))
+        let bar = entries.filter { keep.contains($0.id) }
+        return bar.isEmpty ? entries : bar
+    }
+
+    /// The places kept out of the iPad's tab bar, one section per ERP group.
+    private struct SidebarSection: Identifiable {
+        let id: String
+        let title: String
+        let entries: [NavEntry]
+    }
+
+    private func sidebarSections(_ entries: [NavEntry], bar: [NavEntry], map: NavMap) -> [SidebarSection] {
+        let inBar = Set(bar.map(\.id))
+        let rest = entries.filter { !inBar.contains($0.id) }
+        var order: [String] = []
+        for e in rest where !order.contains(e.group) { order.append(e.group) }
+        return order.map { key in
+            let label = map.groups.first { $0.key == key }?.label ?? ""
+            return SidebarSection(id: key, title: label.isEmpty ? "More" : label, entries: rest.filter { $0.group == key })
+        }
+    }
+
+    /// One place as a tab: its page, with the hub's list and item side by side on an iPad.
+    @TabContentBuilder<String>
+    private func placeTab(_ e: NavEntry, map: NavMap) -> some TabContent<String> {
+        Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
+            if sizeClass.isPadLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
+                // Orders, Invoices, Customers, Stock, Repairs on an iPad: the list with the item beside it.
+                HubSplit(prompt: prompt) {
+                    PlaceScreen(path: e.href, isRoot: true)
+                        .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
+                                                  open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
+                }
+            } else {
+                TabStack {
+                    PlaceScreen(path: e.href, isRoot: true)
+                        .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
+                                                  open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
+                }
+                // Outside the stack, so its pages see the same namespace as the rows they zoom from.
+                .zoomScope()
+            }
+        }
+        .badge(badge(for: e))
+        .customizationID(e.id)
+    }
+
     var body: some View {
         let map = map
         let entries = tabEntries(map)
+        let bar = barEntries(entries)
+        let sections = sidebarSections(entries, bar: bar, map: map)
         TabView(selection: selection(entries)) {
-            ForEach(entries) { e in
-                Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
-                    if sizeClass.isPadLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
-                        // Orders, Invoices, Customers, Stock, Repairs on an iPad: the list with the item beside it.
-                        HubSplit(prompt: prompt) {
-                            PlaceScreen(path: e.href, isRoot: true)
-                                .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
-                                                          open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
-                        }
-                    } else {
-                        TabStack {
-                            PlaceScreen(path: e.href, isRoot: true)
-                                .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                          open: { creating.route = Route(path: $0) }, talk: { voice.present() }))
-                        }
-                        // Outside the stack, so its pages see the same namespace as the rows they zoom from.
-                        .zoomScope()
+            ForEach(bar) { e in
+                placeTab(e, map: map)
+            }
+            ForEach(sections) { section in
+                TabSection(section.title) {
+                    ForEach(section.entries) { e in
+                        placeTab(e, map: map)
                     }
                 }
-                .badge(badge(for: e))
+                .defaultVisibility(.hidden, for: .tabBar)
+                .customizationID("section.\(section.id)")
             }
             // Search is also the way to everything else: idle, it lists the ERP's whole map (the web's
             // sidebar) with Settings and the account; typed into, it finds any place by name or by the
@@ -198,6 +252,7 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .tabViewCustomization($customization)
         // The bar folds down while a page scrolls, giving the page its height back.
         .tabBarMinimizeBehavior(.onScrollDown)
         // An iPad's sidebar is headed by the business chip alone: which business this is and the way to the others
@@ -208,7 +263,10 @@ struct RootView: View {
         }
         // The tab is kept outside the view so a business switch can open the next business on it.
         .onChange(of: tab) { _, now in BusinessCarry.noteTab(now) }
-        .onAppear { BusinessCarry.noteTab(tab) }
+        .onAppear {
+            if let opening = openingTab { tab = opening }
+            BusinessCarry.noteTab(tab)
+        }
         // The new business's screens have been made from what was carried.
         .task { BusinessCarry.settled() }
         .onChange(of: ShellCommands.shared.request) { _, r in
@@ -780,7 +838,7 @@ struct TeamNoteEditor: View {
                     VStack(alignment: .leading, spacing: pt(4)) {
                         Text("Visible to everyone until cleared.")
                         Text(over ? "Keep it under \(Self.limit) characters: \(text.count) / \(Self.limit)" : "\(text.count) / \(Self.limit)")
-                            .foregroundStyle(over ? Tone.problem.color : Color.secondary)
+                            .foregroundStyle(over ? Tone.problem.ink : Color.secondary)
                             .monospacedDigit()
                     }
                 }

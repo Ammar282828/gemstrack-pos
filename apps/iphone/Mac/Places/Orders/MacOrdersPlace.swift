@@ -79,11 +79,11 @@ struct MacOrdersPlace: View {
         .macOrdersSheets($sheet, advanced: advanced, moved: onlineMoved, sent: docSent)
         .orderUndo($undo, open: $web)
         .ordersWebDestination($web)
-        .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
-                            message: OrdersLogic.cancelWords, action: "Cancel order", perform: cancelAction(cancelling))
+        .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Void order \($0.id)?" } ?? "Void order?",
+                            message: OrdersLogic.cancelWords, action: "Void order", perform: cancelAction(cancelling))
         .confirmDestructive(isPresented: Binding(get: { cancellingTcs != nil }, set: { if !$0 { cancellingTcs = nil } }),
                             title: "Cancel TCS booking \(cancellingTcs?.tcsBooking?.cn ?? "")?",
-                            message: OrderActions.cancelTcsWords, action: "Cancel booking", perform: cancelTcsAction(cancellingTcs))
+                            message: OrderActions.cancelTcsWords, action: "Void booking", perform: cancelTcsAction(cancellingTcs))
         .failureAlert($tcsFailure)
         .noteToast($note)
         .onChange(of: book.orders.revision) { _, _ in reconcile() }

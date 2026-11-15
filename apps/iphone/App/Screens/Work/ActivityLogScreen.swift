@@ -243,7 +243,7 @@ struct ActivityLogScreen: View {
             Section {
                 Label("Irreversible", systemImage: "exclamationmark.triangle.fill")
                     .font(.house(.subheadline).weight(.semibold))
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
                 Text("Activating this lock will make the app unusable until a developer manually restores access. This is a final security measure for emergencies.")
                     .font(.house(.subheadline))
                     .foregroundStyle(.secondary)

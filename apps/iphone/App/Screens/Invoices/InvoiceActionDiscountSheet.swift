@@ -78,7 +78,7 @@ struct InvoiceActionDiscountSheet: View {
                     LedgerHeading(title: "Discount")
                 } footer: {
                     if let problem {
-                        Text(problem).foregroundStyle(Tone.problem.color)
+                        Text(problem).foregroundStyle(Tone.problem.ink)
                     } else if let d = discount, d > 0 {
                         Text(Money.pkrLac(d))
                     }
@@ -202,7 +202,7 @@ extension InvoiceActionDiscountSheet {
             }
         }
         if let problem {
-            Text(problem).foregroundStyle(Tone.problem.color)
+            Text(problem).foregroundStyle(Tone.problem.ink)
         } else if let d = discount, d > 0 {
             Text(Money.pkrLac(d)).font(.house(.callout)).monospacedDigit().foregroundStyle(.secondary)
         }

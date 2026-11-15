@@ -144,7 +144,7 @@ struct CalendarScreen: View {
         VStack(spacing: pt(10)) {
             if session.seesMoney {
                 FigureRow(alignment: .top, spacing: pt(10)) {
-                    FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
+                    FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.ink)
                     FigureTile(label: "Sales", value: "\(m.sales)")
                 }
                 FigureRow(alignment: .top, spacing: pt(10)) {
@@ -164,9 +164,9 @@ struct CalendarScreen: View {
 
     private var legend: some View {
         HStack(spacing: pt(14)) {
-            Label("Sales", systemImage: "circle.fill").foregroundStyle(Tone.settled.color)
-            Label("Orders", systemImage: "circle.fill").foregroundStyle(Tone.working.color)
-            Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(Tone.owed.color)
+            Label("Sales", systemImage: "circle.fill").foregroundStyle(Tone.settled.ink)
+            Label("Orders", systemImage: "circle.fill").foregroundStyle(Tone.working.ink)
+            Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(Tone.owed.ink)
         }
         .labelStyle(LegendLabel())
         .font(.house(.caption))
@@ -244,7 +244,7 @@ struct CalendarScreen: View {
                             Text("\(due)")
                         }
                         .font(.house(.caption2))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                     }
                 }
                 .frame(minHeight: 12)
@@ -300,7 +300,7 @@ struct CalendarScreen: View {
         return NavigationLink(value: Route(path: path)) {
             HStack(alignment: .top, spacing: pt(12)) {
                 Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
-                    .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
+                    .foregroundStyle(e.isInvoice ? Tone.settled.ink : Tone.working.ink)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text(e.docId).font(.house(.subheadline).monospaced().weight(.semibold)).lineLimit(1)
@@ -330,7 +330,7 @@ struct CalendarScreen: View {
                 ForEach(due) { o in
                     NavigationLink(value: Route(path: WorkPaths.order(o.id))) {
                         HStack(alignment: .top, spacing: pt(12)) {
-                            Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
+                            Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.ink).frame(width: 24)
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text(o.id).font(.house(.subheadline).monospaced().weight(.semibold)).lineLimit(1)
                                 Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
@@ -502,7 +502,7 @@ extension CalendarScreen {
                             Text("\(due)")
                         }
                         .font(.house(.caption2))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                     }
                 }
                 if session.seesMoney, let data, data.total > 0 {

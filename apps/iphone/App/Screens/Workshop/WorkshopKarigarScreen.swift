@@ -310,7 +310,7 @@ struct WorkshopKarigarScreen: View {
                         title: "Gold khata",
                         subtitle: "given less received, in Hisaab",
                         trailing: WorkshopLogic.grams3(p.khataNet),
-                        trailingTint: p.khataNet > 0.0005 ? Tone.owed.color : Color.primary
+                        trailingTint: p.khataNet > 0.0005 ? Tone.owed.ink : Color.primary
                     )
                 }
             }
@@ -326,7 +326,7 @@ struct WorkshopKarigarScreen: View {
         VStack(alignment: .leading, spacing: pt(4)) {
             Text(cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Square"))
                 .font(.house(.subheadline)).foregroundStyle(.secondary)
-            HeroAmount(amount: abs(cash), tone: cash < 0 ? Tone.owed.color : Color.primary)
+            HeroAmount(amount: abs(cash), tone: cash < 0 ? Tone.owed.ink : Color.primary)
             Text(cashHint(open)).font(.house(.footnote)).foregroundStyle(.secondary)
         }
         .heroSheen()
@@ -1034,7 +1034,7 @@ extension WorkshopKarigarScreen {
         .overlay {
             if data.payments.isEmpty {
                 ContentUnavailableView("No Payments Yet", systemImage: "banknote",
-                                       description: Text(session.isOwner ? "Add one with \u{2325}\u{2318}P once a pay batch is open." : ""))
+                                       description: Text(session.isOwner ? "Add one once a pay batch is open." : ""))
                     .allowsHitTesting(false)
             }
         }
@@ -1118,7 +1118,7 @@ extension WorkshopKarigarScreen {
 
     private func macAddPaymentAction(_ data: MacKarigarPageData) -> MacAction {
         let open = data.pay?.open
-        return MacAction("Add Payment\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("p", modifiers: [.command, .option]),
+        return MacAction("Add Payment\u{2026}", symbol: "plus",
                          enabled: session.isOwner && open != nil) { if let open { ask = .pay(open.batch) } }
     }
 
@@ -1134,7 +1134,7 @@ extension WorkshopKarigarScreen {
     }
 
     private var macAssignAction: MacAction {
-        MacAction("Assign Stock Work\u{2026}", symbol: "plus.circle", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        MacAction("Assign Stock Work\u{2026}", symbol: "plus.circle",
                   enabled: session.isOwner) { ask = .assign }
     }
 
@@ -1147,7 +1147,7 @@ extension WorkshopKarigarScreen {
         let copying = MacAction("Copy Work List", symbol: "doc.on.doc", enabled: activeWork) {
             if let load = data.load { UIPasteboard.general.string = WorkshopLogic.shareText(load, shopName: session.shop.name) }
         }
-        let editing = MacAction("Edit Karigar\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), enabled: owner) {
+        let editing = MacAction("Edit Karigar\u{2026}", symbol: "pencil", enabled: owner) {
             macOpenPath("/karigars/" + WorkshopLogic.piece(karigar.id) + "/edit")
         }
         let preview = MacAction("Their View", symbol: "eye", enabled: owner) {

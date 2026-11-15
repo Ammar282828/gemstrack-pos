@@ -171,7 +171,7 @@ private struct EditCustomerForm: View {
 
     private var nameSection: some View {
         Section {
-            TextField("Full name", text: $draft.name, prompt: Text("Optional"))
+            TextField("Full name", text: $draft.name, prompt: Text("Full name (optional)"))
                 .autocorrectionDisabled()
                 .fieldKind(.name)
                 .textInputAutocapitalization(.words)
@@ -183,11 +183,11 @@ private struct EditCustomerForm: View {
     @ViewBuilder
     private var phoneSection: some View {
         Section {
-            TextField("Phone number", text: $draft.phone, prompt: Text("Optional"))
+            TextField("Phone number", text: $draft.phone, prompt: Text("Phone number (optional)"))
                 .keyboardType(.phonePad)
                 .fieldKind(.telephoneNumber)
                 .contactPickable { if !$0.phone.isEmpty { draft.phone = $0.phone } }
-            TextField("Second number", text: $draft.altPhone, prompt: Text("Optional"))
+            TextField("Second number", text: $draft.altPhone, prompt: Text("Second number (optional)"))
                 .keyboardType(.phonePad)
                 .contactPickable { if !$0.phone.isEmpty { draft.altPhone = $0.phone } }
         } header: {
@@ -197,7 +197,7 @@ private struct EditCustomerForm: View {
 
     private var emailSection: some View {
         Section {
-            TextField("Email address", text: $draft.email, prompt: Text("Optional"))
+            TextField("Email address", text: $draft.email, prompt: Text("Email address (optional)"))
                 .keyboardType(.emailAddress)
                 .fieldKind(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -205,13 +205,13 @@ private struct EditCustomerForm: View {
         } header: {
             LedgerHeading(title: "Email")
         } footer: {
-            if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.color) }
+            if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.ink) }
         }
     }
 
     private var addressSection: some View {
         Section {
-            TextField("Address", text: $draft.address, prompt: Text("Optional"), axis: .vertical)
+            TextField("Address", text: $draft.address, prompt: Text("Address (optional)"), axis: .vertical)
                 .lineLimit(2...5)
                 .fieldKind(.fullStreetAddress)
             TextField("City", text: $draft.city, prompt: Text("e.g. Karachi"))

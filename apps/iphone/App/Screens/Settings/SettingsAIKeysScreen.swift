@@ -242,7 +242,7 @@ private struct AIKeysPage: View {
         Form { Group {
             if let pausedText {
                 Section {
-                    Label(pausedText, systemImage: "pause.circle").foregroundStyle(Tone.owed.color)
+                    Label(pausedText, systemImage: "pause.circle").foregroundStyle(Tone.owed.ink)
                 } header: { LedgerHeading(title: "AI keys are paused") }
             }
             if let fresh {
@@ -279,7 +279,7 @@ private struct AIKeysPage: View {
                 Text("One key for each AI, so you can see what each did and stop one without the others.")
             }
             Section {
-                if let problem { Text(problem).foregroundStyle(Tone.problem.color) }
+                if let problem { Text(problem).foregroundStyle(Tone.problem.ink) }
                 if keys == nil { SkeletonRows(count: 2, monogram: false, label: "Loading the keys") }
                 if keys?.isEmpty == true, problem == nil { Text("No keys yet.").foregroundStyle(.secondary) }
                 ForEach(keys ?? []) { k in
@@ -428,14 +428,13 @@ private struct AICopyBlock: View {
 
 #if os(macOS)
 extension AIKeysPage {
-    /// The keys as a table (name, what it may do, made, stops, last used, calls), Make a key… in the toolbar (⌘N is the
-    /// app's, so ⌥⌘N here), Revoke on the right-click menu and the Delete key, and the setup for each AI in a sheet.
+    /// The keys as a table (name, what it may do, made, stops, last used, calls), Make a key… in the toolbar and the Key menu, Revoke on the right-click menu and the Delete key, and the setup for each AI in a sheet.
     @ViewBuilder
     fileprivate var macBody: some View {
         VStack(spacing: 0) {
             if let pausedText {
                 Label(pausedText, systemImage: "pause.circle")
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(Tone.owed.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20).padding(.vertical, 10)
                 Divider()
@@ -505,12 +504,16 @@ extension AIKeysPage {
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button { showingMake = true } label: { Label("Make a key", systemImage: "plus") }
-                    .keyboardShortcut("n", modifiers: [.command, .option])
-                    .help("Make a key for an AI (\u{2325}\u{2318}N)")
+                    .help("Make a key for an AI")
                 Button { showingHow = true } label: { Label("How to connect", systemImage: "questionmark.circle") }
                     .help("What to paste into each AI")
             }
         }
+        // The toolbar's commands are in the menu bar too.
+        .macRecordMenu(MacRecordMenu(title: "Key", groups: [[
+            MacAction("Make a Key\u{2026}", symbol: "plus", id: "make") { showingMake = true },
+            MacAction("How to Connect\u{2026}", symbol: "questionmark.circle", id: "how") { showingHow = true },
+        ]]))
         .noteToast($note)
         .failureAlert($failure, title: "Not done")
         .confirmDestructive(isPresented: Binding(get: { revoking != nil }, set: { if !$0 { revoking = nil } }),

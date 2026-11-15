@@ -57,7 +57,7 @@ struct TagScanner: View {
             Text(cameraSupported ? "Allow it in Settings, or type the SKU below." : "Type the SKU below.")
                 .font(.house(.subheadline)).foregroundStyle(.secondary)
             if cameraSupported {
-                Button("Open Settings") {
+                Button("Open settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
                 .buttonStyle(.bordered)
@@ -197,7 +197,7 @@ struct TagScanner: View {
                 Text("Point the scanner at the tag: it types the SKU. Or type it below, or read a photo of the tag.")
                     .font(.house(.callout)).foregroundStyle(.secondary)
                 if reading { ProgressView().controlSize(.small) }
-                if let said { Text(said).font(.house(.callout)).foregroundStyle(Tone.owed.color) }
+                if let said { Text(said).font(.house(.callout)).foregroundStyle(Tone.owed.ink) }
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: min(height, 200))

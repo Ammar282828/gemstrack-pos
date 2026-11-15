@@ -39,7 +39,7 @@ struct OrderCourierSheet: View {
                     Section {
                         Label(OrderActions.noAddressWarning, systemImage: "exclamationmark.triangle.fill")
                             .font(.house(.subheadline))
-                            .foregroundStyle(Tone.owed.color)
+                            .foregroundStyle(Tone.owed.ink)
                     }
                 }
                 Section {
@@ -101,7 +101,7 @@ struct OrderCourierSheet: View {
     private func step(_ n: Int, _ words: String, done: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(10)) {
             Image(systemName: done ? "checkmark.circle.fill" : "\(n).circle")
-                .foregroundStyle(done ? Tone.settled.color : Color.secondary)
+                .foregroundStyle(done ? Tone.settled.ink : Color.secondary)
             Text(words)
                 .font(.house(.subheadline))
                 .foregroundStyle(done ? Color.secondary : Color.primary)

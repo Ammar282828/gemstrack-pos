@@ -86,7 +86,7 @@ struct NewOrderSampleField: View {
                 Text("A piece takes up to \(NewOrderPieceDraft.maxPhotos) reference pictures.").font(.house(.footnote)).foregroundStyle(.secondary)
             }
             if let problem {
-                Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
             }
         }
         .photosPicker(isPresented: $library, selection: $picked, maxSelectionCount: max(room, 1), matching: .images)
@@ -295,7 +295,7 @@ struct NewOrderCamera: View {
             Text("Choose a photo").font(.house(.headline))
             Text("Pick a picture from your Mac, or drop one here.")
                 .font(.house(.subheadline)).foregroundStyle(.secondary)
-            if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+            if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
             HStack(spacing: 10) {
                 Button("Cancel") { onDone(nil) }
                     .buttonStyle(.bordered)
@@ -394,7 +394,7 @@ struct NewOrderPhotoField: View {
                 if busy { ProgressView() }
             }
             if let problem {
-                Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
             }
         }
         .photosPicker(isPresented: $library, selection: $picked, matching: .images)

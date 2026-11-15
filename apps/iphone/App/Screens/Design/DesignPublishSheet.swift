@@ -88,7 +88,7 @@ struct DesignPublishSheet: View {
                 timing
                 if !(problems + p.wordIssues).isEmpty {
                     VStack(alignment: .leading, spacing: pt(4)) {
-                        ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+                        ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
                     }
                 }
                 if !plan.steps.isEmpty { steps(plan) }
@@ -114,13 +114,13 @@ struct DesignPublishSheet: View {
             if p.healthLoading && p.checks.isEmpty {
                 BusySpinner("Checking the connections", inline: true)
             } else if let f = p.healthFailed {
-                Text(f).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Text(f).font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
             } else if failing.isEmpty {
-                Label("Every connection is fine", systemImage: "checkmark.circle").font(.house(.subheadline)).foregroundStyle(Tone.settled.color)
+                Label("Every connection is fine", systemImage: "checkmark.circle").font(.house(.subheadline)).foregroundStyle(Tone.settled.ink)
             } else {
                 ForEach(failing, id: \.text) { c in
                     VStack(alignment: .leading, spacing: pt(2)) {
-                        Label(c.s("label"), systemImage: "xmark.circle").font(.house(.subheadline).weight(.medium)).foregroundStyle(Tone.problem.color)
+                        Label(c.s("label"), systemImage: "xmark.circle").font(.house(.subheadline).weight(.medium)).foregroundStyle(Tone.problem.ink)
                         if !c.s("fix").isEmpty { Text(c.s("fix")).font(.house(.footnote)).foregroundStyle(.secondary) }
                     }
                 }
@@ -353,7 +353,7 @@ struct DesignPublishSheet: View {
                         icon(st.status).motion(st.status)
                         VStack(alignment: .leading, spacing: pt(2)) {
                             Text(s.label).font(.house(.subheadline))
-                            if let e = st.error { Text(e).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+                            if let e = st.error { Text(e).font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
                         }
                         Spacer(minLength: 0)
                     }
@@ -376,10 +376,10 @@ struct DesignPublishSheet: View {
 
     @ViewBuilder private func icon(_ s: DesignPublishModel.Status) -> some View {
         switch s {
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color).contentTransition(.symbolEffect(.replace))
-        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color).contentTransition(.symbolEffect(.replace))
+        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink).contentTransition(.symbolEffect(.replace))
+        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.ink).contentTransition(.symbolEffect(.replace))
         case .running: ProgressView()
-        case .manual: Image(systemName: "hand.tap").foregroundStyle(Tone.owed.color).contentTransition(.symbolEffect(.replace))
+        case .manual: Image(systemName: "hand.tap").foregroundStyle(Tone.owed.ink).contentTransition(.symbolEffect(.replace))
         case .waiting: Image(systemName: "circle").foregroundStyle(.secondary).contentTransition(.symbolEffect(.replace))
         }
     }
@@ -631,7 +631,7 @@ extension DesignPublishSheet {
     private func macProblems(_ list: [String]) -> some View {
         if !list.isEmpty {
             Section {
-                ForEach(list, id: \.self) { Label($0, systemImage: "exclamationmark.circle").foregroundStyle(Tone.problem.color) }
+                ForEach(list, id: \.self) { Label($0, systemImage: "exclamationmark.circle").foregroundStyle(Tone.problem.ink) }
             }
         }
     }
@@ -696,7 +696,7 @@ extension DesignPublishSheet {
             macIcon(st.status)
             VStack(alignment: .leading, spacing: 2) {
                 Text(s.label)
-                if let e = st.error { Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.color) }
+                if let e = st.error { Text(e).font(.house(.caption)).foregroundStyle(Tone.problem.ink) }
             }
             Spacer(minLength: 8)
             if st.status == .failed { Button("Retry") { Task { await p.run(only: s.id) } }.disabled(p.busy) }
@@ -710,10 +710,10 @@ extension DesignPublishSheet {
     @ViewBuilder
     private func macIcon(_ s: DesignPublishModel.Status) -> some View {
         switch s {
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
-        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color)
+        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.ink)
+        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.ink)
         case .running: ProgressView().controlSize(.small)
-        case .manual: Image(systemName: "hand.point.up.left").foregroundStyle(Tone.owed.color)
+        case .manual: Image(systemName: "hand.point.up.left").foregroundStyle(Tone.owed.ink)
         case .waiting: Image(systemName: "circle").foregroundStyle(.secondary)
         }
     }
@@ -734,13 +734,13 @@ extension DesignPublishSheet {
             if p.healthLoading && p.checks.isEmpty {
                 HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking the connections").foregroundStyle(.secondary) }
             } else if let f = p.healthFailed {
-                Text(f).foregroundStyle(Tone.owed.color)
+                Text(f).foregroundStyle(Tone.owed.ink)
             } else if failing.isEmpty {
-                Label("Every connection is fine", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
+                Label("Every connection is fine", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.ink)
             } else {
                 ForEach(failing, id: \.text) { c in
                     VStack(alignment: .leading, spacing: 2) {
-                        Label(c.s("label"), systemImage: "xmark.circle").foregroundStyle(Tone.problem.color)
+                        Label(c.s("label"), systemImage: "xmark.circle").foregroundStyle(Tone.problem.ink)
                         if !c.s("fix").isEmpty { macNote(c.s("fix")) }
                     }
                 }

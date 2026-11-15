@@ -12,6 +12,8 @@ struct MacCommands: Commands {
     @FocusedValue(\.macRecordMenu) private var recordMenu
     @FocusedValue(\.macRefresh) private var refresh
     @Environment(\.openWindow) private var openWindow
+    /// View › Show or Hide Inspector: the title follows the state, as Mail's "Hide Preview" does.
+    @AppStorage(MacInspector.key) private var inspectorShown = true
 
     /// The page in front: a separate window's, else the main window's deepest.
     private var current: Route? { ready ? place ?? shell?.current : nil }
@@ -43,12 +45,17 @@ struct MacCommands: Commands {
         goMenu
         CommandMenu(recordMenu?.title ?? "Item") {
             if let recordMenu, ready {
-                MacActionItems(groups: Self.withoutReserved(recordMenu.groups))
+                MacActionItems(groups: Self.withoutReserved(recordMenu.groups), context: false)
             } else {
                 Button("Nothing Selected") {}.disabled(true)
             }
         }
         windowMenu
+        // Grouped: a CommandsBuilder holds ten at most.
+        Group {
+            SidebarCommands()
+            ToolbarCommands()
+        }
         CommandGroup(replacing: .help) {
             Button("Keyboard Shortcuts") { MacShortcutsWindow.show() }
                 .keyboardShortcut("/", modifiers: .command)
@@ -70,7 +77,6 @@ struct MacCommands: Commands {
         CommandGroup(after: .appSettings) {
             Divider()
             Button("Lock Now") { AppLock.shared.lockNow() }
-                .keyboardShortcut("l", modifiers: [.command, .control])
                 .disabled(!ready || !AppLock.shared.enabled)
             Button("Sign Out…") { MacSignOut.ask() }
                 .disabled(!signedIn)
@@ -100,7 +106,6 @@ struct MacCommands: Commands {
                 }
                 .disabled(!ready)
                 Button("New Window") { openWindow(id: MacWindows.main) }
-                    .keyboardShortcut("n", modifiers: [.command, .option, .shift])
                 Divider()
                 Button("Open in New Window") { if let r = current { openWindow(id: MacWindows.place, value: r) } }
                     .keyboardShortcut("o", modifiers: .command)
@@ -165,16 +170,11 @@ struct MacCommands: Commands {
 
     private var viewMenu: some Commands {
         CommandGroup(after: .sidebar) {
-            Button("Show or Hide Inspector") {
-                let d = UserDefaults.standard
-                d.set(!(d.object(forKey: MacInspector.key) as? Bool ?? true), forKey: MacInspector.key)
-            }
-            .keyboardShortcut("i", modifiers: [.command, .option])
+            Button(inspectorShown ? "Hide Inspector" : "Show Inspector") { inspectorShown.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
             Button(viewKey?.first == "list" ? "as List" : "as Table") { setView(table: true) }
-                .keyboardShortcut("1", modifiers: [.command, .control])
                 .disabled(viewKey == nil)
             Button(viewKey?.other == "gallery" ? "as Gallery" : "as Board") { setView(table: false) }
-                .keyboardShortcut("2", modifiers: [.command, .control])
                 .disabled(viewKey == nil)
             Divider()
             Button("Refresh") {
@@ -209,6 +209,13 @@ struct MacCommands: Commands {
 
     private var hasToday: Bool { places?.contains { $0.path == "/" } ?? true }
 
+    /// "Set Today's Rates…" while the day's rate is not set (an owner can set it), else "Today's Rates…".
+    private var ratesTitle: String {
+        let s = Book.shared.settings.value
+        let unset = s != nil && !RateKeys.setToday(s)
+        return unset && isOwner ? "Set Today\u{2019}s Rates\u{2026}" : "Today\u{2019}s Rates\u{2026}"
+    }
+
     private var goMenu: some Commands {
         CommandMenu("Go") {
             // Today, or the first place of a role without it (marketing).
@@ -228,6 +235,11 @@ struct MacCommands: Commands {
             Button("Forward") { shell?.goForward() }
                 .keyboardShortcut("]", modifiers: .command)
                 .disabled(!ready || shell?.canGoForward != true)
+            Divider()
+            // The day's rates are in the sidebar's foot too; here they have a menu item and a key, whatever is in front.
+            Button(ratesTitle) { shell?.rates = true }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(shell == nil || !ready || Sessions.shared.current.role == "marketing")
         }
     }
 
@@ -250,6 +262,7 @@ struct MacCommands: Commands {
             ("p", .command), ("n", .command), ("n", [.command, .shift]), ("n", [.command, .option]), ("o", .command),
             ("w", .command), ("k", .command), ("f", .command), ("r", .command), ("i", [.command, .option]), (",", .command),
             ("h", [.command, .shift]), ("[", .command), ("]", .command), ("t", [.command, .shift]), ("b", [.command, .shift]),
+            ("r", [.command, .shift]), ("w", [.command, .shift]), ("a", [.command, .shift]), ("e", .command), ("p", [.command, .option]),
         ]
         return groups.map { group in
             group.map { a in
@@ -281,12 +294,12 @@ enum MacSignOut {
 enum MacShortcutsWindow {
     @MainActor static func show() {
         let lines: [(String, String)] = [
-            ("New Sale", "⌘N"), ("New Order", "⇧⌘N"), ("New Repair", "⌥⌘N"), ("The place's own New", "⌃⌘N"),
+            ("New Sale", "⌘N"), ("New Order", "⇧⌘N"), ("New Repair", "⌥⌘N"),
             ("Quick Open", "⌘K"), ("Find in the list", "⌘F"), ("Open in a window", "⌘O or Return"),
-            ("The record's next step", "⌘↩"), ("Edit", "⌘E"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
-            ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"),
+            ("The record's next step", "⌘↩"), ("Print", "⌘P"), ("Delete", "⌘⌫"),
+            ("Show or hide the inspector", "⌥⌘I"), ("Show or hide the sidebar", "⌃⌘S"), ("Refresh", "⌘R"), ("Today\u{2019}s Rates", "⇧⌘R"),
             ("Today", "⇧⌘H"), ("The sidebar's places", "⌘1 – ⌘9"), ("Back", "⌘["), ("Forward", "⌘]"), ("Businesses", "⇧⌘B"),
-            ("Lock now", "⌃⌘L"), ("Settings", "⌘,"),
+            ("Settings", "⌘,"),
         ]
         let alert = NSAlert()
         alert.messageText = "Keyboard Shortcuts"

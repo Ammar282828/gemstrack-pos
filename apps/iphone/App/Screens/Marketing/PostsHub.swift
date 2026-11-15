@@ -120,7 +120,7 @@ struct PostsHub: View {
                 DisclosureGroup(isExpanded: $checksOpen) {
                     ForEach(failing) { (c: PostCheck) in
                         HStack(alignment: .top, spacing: pt(10)) {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink)
                             VStack(alignment: .leading, spacing: pt(2)) {
                                 Text("\(c.group): \(c.label)").font(.house(.body).weight(.medium))
                                 Text(c.fix ?? c.detail).font(.house(.subheadline)).foregroundStyle(.secondary)
@@ -129,7 +129,7 @@ struct PostsHub: View {
                     }
                 } label: {
                     Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
                 .motion(checksOpen)
             }
@@ -603,7 +603,7 @@ extension PostsHub {
     }
 
     private var macNewPost: MacAction {
-        MacAction("New Post…", symbol: "square.and.pencil", shortcut: KeyboardShortcut("n", modifiers: [.command, .control])) {
+        MacAction("New Post…", symbol: "square.and.pencil") {
             macOpenWindow(MarketingKit.trayPath())
         }
     }
@@ -771,7 +771,7 @@ extension PostsHub {
                     Button { checksOpen.toggle() } label: {
                         HStack(spacing: 6) {
                             Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(Tone.owed.color)
+                                .foregroundStyle(Tone.owed.ink)
                             Image(systemName: checksOpen ? "chevron.down" : "chevron.right")
                                 .font(.house(.caption).weight(.semibold))
                                 .foregroundStyle(.tertiary)
@@ -987,11 +987,11 @@ extension PostsHub {
                     Image(systemName: p.symbol).frame(width: 18).foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(p.title)
-                        Text(problem ?? p.detail).font(.house(.caption)).foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
+                        Text(problem ?? p.detail).font(.house(.caption)).foregroundStyle(problem == nil ? Color.secondary : Tone.problem.ink)
                     }
                     Spacer(minLength: 4)
                     if gone == p.units.count { Text("Gone").font(.house(.caption)).foregroundStyle(.secondary) }
-                    else if problem != nil { Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.color) }
+                    else if problem != nil { Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.ink) }
                     else if gone > 0 { Text("\(gone)/\(p.units.count)").font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit() }
                 }
             }
@@ -1013,7 +1013,7 @@ extension PostsHub {
         case .failed(let message):
             VStack(spacing: 10) {
                 Text(message).foregroundStyle(.secondary)
-                Button("Try Again") { Task { await store.load(gold: hasInvestments) } }
+                Button("Try again") { Task { await store.load(gold: hasInvestments) } }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .loaded:

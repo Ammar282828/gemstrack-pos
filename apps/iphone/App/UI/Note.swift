@@ -41,7 +41,7 @@ struct NoteBanner: View {
     var body: some View {
         HStack(spacing: pt(10)) {
             Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(note.failed ? Tone.problem.color : Tone.settled.color)
+                .foregroundStyle(note.failed ? Tone.problem.ink : Tone.settled.ink)
             VStack(alignment: .leading, spacing: 1) {
                 Text(note.title).font(.house(.subheadline).weight(.semibold))
                 if !note.detail.isEmpty {
@@ -129,6 +129,10 @@ private struct NotePresenter: ViewModifier {
             }
             .task(id: Key(note: note, holding: holding)) {
                 guard let shown = note, !holding else { return }
+                // A VoiceOver user needs time to find Undo: its note stays until acted on or replaced.
+                #if os(iOS)
+                if shown.undo != nil && UIAccessibility.isVoiceOverRunning { return }
+                #endif
                 try? await Task.sleep(for: .seconds(shown.undo == nil ? 4 : 6))
                 if !Task.isCancelled { Motion.run(Motion.exit, reduce: reduce) { note = nil } }
             }

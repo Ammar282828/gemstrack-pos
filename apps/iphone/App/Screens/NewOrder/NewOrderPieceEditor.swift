@@ -285,7 +285,7 @@ struct NewOrderPieceEditor: View {
             VStack(alignment: .leading, spacing: pt(6)) {
                 Label("Instructions for the karigar", systemImage: "lock.fill")
                     .font(.house(.subheadline))
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(Tone.owed.ink)
                 TextField("Instructions", text: $piece.adminNote, prompt: Text("Stones, plating, sizing, or other specifications"), axis: .vertical)
                     .lineLimit(2...6)
             }

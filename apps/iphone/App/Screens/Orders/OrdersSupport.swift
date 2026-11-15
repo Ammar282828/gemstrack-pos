@@ -75,7 +75,7 @@ struct OrdersOnlineBadge: View {
     var body: some View {
         Label("Online", systemImage: "globe")
             .font(.house(.caption2).weight(.semibold))
-            .foregroundStyle(Tone.working.color)
+            .foregroundStyle(Tone.working.ink)
             .lineLimit(1)
     }
 }
@@ -88,7 +88,7 @@ struct OrdersWhatsAppBadge: View {
     var body: some View {
         Text(label)
             .font(.house(.caption2).weight(.semibold))
-            .foregroundStyle(tone.color)
+            .foregroundStyle(tone.ink)
             .lineLimit(1)
     }
 }
@@ -146,7 +146,7 @@ struct OrdersMarginRow: View {
 
     private func tone(_ m: Margin) -> Color {
         if m.assumed { return .secondary }
-        return m.percent < 0 ? Tone.late.color : Tone.settled.color
+        return m.percent < 0 ? Tone.late.ink : Tone.settled.ink
     }
 }
 

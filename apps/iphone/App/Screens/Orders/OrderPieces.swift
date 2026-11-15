@@ -131,13 +131,13 @@ struct OrderPieceRow: View {
     private var karigarWords: some View {
         HStack(spacing: pt(6)) {
             Image(systemName: "hammer")
-                .foregroundStyle(karigar == nil && !done ? Tone.owed.color : Color.secondary)
+                .foregroundStyle(karigar == nil && !done ? Tone.owed.ink : Color.secondary)
             if let karigar {
                 Text(karigar).fontWeight(.medium)
                 Text("· " + givenWords)
-                    .foregroundStyle(item.givenAt == nil && !done ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(item.givenAt == nil && !done ? Tone.owed.ink : Color.secondary)
             } else {
-                Text("Not given out").foregroundStyle(done ? Color.secondary : Tone.owed.color)
+                Text("Not given out").foregroundStyle(done ? Color.secondary : Tone.owed.ink)
             }
             if assign != nil {
                 Image(systemName: "chevron.up.chevron.down")
@@ -253,7 +253,7 @@ struct OrderPieceRow: View {
             } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .font(.house(.title2))
-                    .foregroundStyle(done ? Tone.settled.color : Color.secondary)
+                    .foregroundStyle(done ? Tone.settled.ink : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
                     .motion(done)
                     .frame(width: 44, height: 44)
@@ -264,7 +264,7 @@ struct OrderPieceRow: View {
         } else if done {
             Image(systemName: "checkmark.circle.fill")
                 .font(.house(.title2))
-                .foregroundStyle(Tone.settled.color)
+                .foregroundStyle(Tone.settled.ink)
                 .frame(width: 44, height: 44)
                 .accessibilityLabel("Done")
         }

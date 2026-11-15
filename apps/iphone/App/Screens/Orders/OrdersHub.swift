@@ -111,8 +111,8 @@ struct OrdersHub: View {
             }
             .presentationSizing(.form)
         }
-        .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
-                            message: OrdersLogic.cancelWords, action: "Cancel order",
+        .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Void order \($0.id)?" } ?? "Void order?",
+                            message: OrdersLogic.cancelWords, action: "Void order",
                             perform: cancelAction(cancelling))
         .ordersFailureAlert($failure)
         .noteToast($note)

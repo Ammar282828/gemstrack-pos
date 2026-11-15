@@ -65,9 +65,9 @@ struct HeroSheen: ViewModifier {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            // Liquid Glass: the hero is true glass with a little more of the accent in it, and the wash and edge below are
+            // Liquid Glass: the hero is true glass with no accent tint (only controls carry it), and the wash and edge below are
             // the glass's own job; Standard is the card it was.
-            .glassCard(hairline: false, tint: 0.10)
+            .glassCard(hairline: false, tint: 0)
             .overlay {
                 if !flat && !glassLive {
                     shape.fill(LinearGradient(colors: [Theme.accent.opacity(0.10), .clear],
@@ -134,7 +134,7 @@ struct MoneyRow: View {
             .font(emphasis ? Font.headline : Font.subheadline.weight(.medium))
             .monospacedDigit()
             .contentTransition(.numericText(value: amount))
-            .foregroundStyle(tone == .quiet ? Color.primary : tone.color)
+            .foregroundStyle(tone == .quiet ? Color.primary : tone.ink)
         let name = Text(label)
             .font(emphasis ? Font.headline : Font.subheadline)
             .foregroundStyle(emphasis ? Color.primary : Color.secondary)

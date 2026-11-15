@@ -277,7 +277,7 @@ struct AlertConnectionSections: View {
                         if let last {
                             Text(last.text)
                                 .font(.house(.caption))
-                                .foregroundStyle(last.bad ? Tone.problem.color : Color.secondary)
+                                .foregroundStyle(last.bad ? Tone.problem.ink : Color.secondary)
                         }
                     }
                     Spacer(minLength: 8)

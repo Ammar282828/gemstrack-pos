@@ -80,8 +80,7 @@ struct CustomerScreen: View {
                         Text("Edit")
                     }
                     #if os(macOS)
-                    .keyboardShortcut("e", modifiers: .command)
-                    .help("Edit this customer (\u{2318}E)")
+                    .help("Edit this customer")
                     #endif
                 }
             }
@@ -382,7 +381,7 @@ private struct CustInvoiceRow: View {
 
     var body: some View {
         TwoLine(title: invoice.id, subtitle: subtitle, trailing: session.seesMoney ? Money.pkr(invoiceSaleValue(invoice)) : nil,
-                trailingTint: (!refunded && line.state == .due) ? Tone.owed.color : .primary)
+                trailingTint: (!refunded && line.state == .due) ? Tone.owed.ink : .primary)
     }
 }
 
@@ -428,7 +427,7 @@ private struct CustRepairRow: View {
         let status = CustomerKit.repairStatus(repair.status)
         HStack(spacing: pt(8)) {
             TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
-                    trailing: (open && balance >= 1) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
+                    trailing: (open && balance >= 1) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.ink)
             // Collected is the expected end: no pill for it (rule 15).
             if repair.status != .collected { Pill(status.text, tone: status.tone) }
         }
@@ -457,7 +456,7 @@ private struct CustHisaabRow: View {
 
     var body: some View {
         TwoLine(title: CustomerKit.filled(entry.description) ?? "Entry", subtitle: subtitle,
-                trailing: amount, trailingTint: net > 0 ? Tone.owed.color : Tone.settled.color)
+                trailing: amount, trailingTint: net > 0 ? Tone.owed.ink : Tone.settled.ink)
     }
 }
 
@@ -524,7 +523,7 @@ extension CustomerScreen {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(headline.label).font(.house(.callout)).foregroundStyle(.secondary)
                     Text(headline.value).font(.house(.title).weight(.semibold)).monospacedDigit()
-                        .foregroundStyle(headline.tone.color)
+                        .foregroundStyle(headline.tone.ink)
                 }
             }
         }
@@ -559,7 +558,7 @@ extension CustomerScreen {
     }
 
     private var macEditAction: MacAction {
-        MacAction("Edit\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command), id: "edit") { macEditing = true }
+        MacAction("Edit\u{2026}", symbol: "pencil", id: "edit") { macEditing = true }
     }
 
     private func macHisaabAction(_ c: Customer) -> MacAction {

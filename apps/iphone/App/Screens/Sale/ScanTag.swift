@@ -179,7 +179,7 @@ struct ScanTag: View {
         if session.isOwner && added {
             Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
                 .font(.house(.subheadline).weight(.semibold))
-                .foregroundStyle(Tone.settled.color)
+                .foregroundStyle(Tone.settled.ink)
         }
         NavigationLink(value: SaleLinks.piece(p.sku)) {
             Label("Open the piece", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity)
@@ -364,7 +364,7 @@ extension ScanTag {
             }
             if session.isOwner && addedSku == p.sku {
                 Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(Tone.settled.ink)
             }
         } header: {
             Text("Piece")

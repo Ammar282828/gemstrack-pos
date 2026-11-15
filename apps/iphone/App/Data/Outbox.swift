@@ -175,7 +175,7 @@ final class Outbox {
         items.append(Item(id: e.id, label: s.label, status: Connection.shared.isOffline ? .waiting : .saving,
                           summary: s, business: business.id, createdAt: e.createdAt, durable: true))
         persist(business.id)
-        notice = Note(title: "Saved on this phone", detail: "\(s.label) will send when you're back online.")
+        notice = Note(title: "Saved on \(DeviceWords.thisDevice)", detail: "\(s.label) will send when you're back online.")
         run(e.id)
         return answer
     }
@@ -196,7 +196,7 @@ final class Outbox {
         items.append(Item(id: e.id, label: label, status: Connection.shared.isOffline ? .waiting : .saving,
                           summary: s, business: biz.id, createdAt: e.createdAt, durable: true))
         persist(biz.id)
-        notice = Note(title: "Saved on this phone", detail: "\(label) will go when you're back online.")
+        notice = Note(title: "Saved on \(DeviceWords.thisDevice)", detail: "\(label) will go when you're back online.")
         run(e.id)
     }
 
@@ -381,7 +381,7 @@ final class Outbox {
         let fields = (try? JSONSerialization.jsonObject(with: e.fields)) as? [String: Any] ?? [:]
         // Never the open business's by default: a change goes only to the business it was made in.
         guard let biz = Businesses.shared.business(e.business) else {
-            throw ERPAPI.Failure(status: 0, message: "That business isn't on this phone any more.", offline: true)
+            throw ERPAPI.Failure(status: 0, message: "That business isn't on \(DeviceWords.thisDevice) any more.", offline: true)
         }
         if let route = e.route {
             // A long send answers `partial` and is asked again until it has all gone (the ERP carries on, never repeats).
@@ -520,7 +520,7 @@ private struct OutboxPresenter: ViewModifier {
             .overlay(alignment: .bottom) {
                 if let f = outbox.failure {
                     HStack(spacing: pt(10)) {
-                        NoteBanner(note: Note(title: f.isPost ? "\(f.label) failed" : "Not saved: \(f.label)", detail: f.message.isEmpty ? "Tap to retry." : f.message + " Tap to retry.", failed: true))
+                        NoteBanner(note: Note(title: f.isPost ? "\(f.label) failed" : "Not saved: \(f.label)", detail: f.message.isEmpty ? "\(DeviceWords.Tap) to retry." : f.message + " \(DeviceWords.Tap) to retry.", failed: true))
                         Button("Retry") { Motion.run(Motion.exit, reduce: reduce) { outbox.retry(f.id) } }
                             .buttonStyle(.borderedProminent)
                     }

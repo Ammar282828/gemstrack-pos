@@ -89,7 +89,7 @@ struct OrderTrackingSheet: View {
             failure = f.message
         } catch {
             // The line dropped: the page's words.
-            failure = "Could not reach TCS API."
+            failure = "TCS isn't answering right now."
         }
         asking = false
     }

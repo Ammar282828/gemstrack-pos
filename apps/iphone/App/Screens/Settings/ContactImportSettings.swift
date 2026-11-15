@@ -385,7 +385,7 @@ private struct ContactImportPage: View {
                     .buttonStyle(.plain)
                     .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
                     .contentShape(Rectangle())
-                    .foregroundStyle(off ? Tone.settled.color : Color.secondary)
+                    .foregroundStyle(off ? Tone.settled.ink : Color.secondary)
                     .accessibilityLabel(off ? "Put back" : "Drop")
                     .disabled(importing)
                 }

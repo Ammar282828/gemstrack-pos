@@ -343,7 +343,7 @@ struct AdsCampaignsScreen: View {
                     Text(s.name).font(.house(.body).weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: pt(6)) {
                         AdsStatusBadge(status: s.effectiveStatus)
-                        if let learning = s.learning { Text(learning).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                        if let learning = s.learning { Text(learning).font(.house(.caption)).foregroundStyle(Tone.owed.ink) }
                     }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
                     if !b.isEmpty {
@@ -517,7 +517,7 @@ struct AdsCampaignsScreen: View {
         ForEach(list, id: \.self) { issue in
             Label(issue, systemImage: "exclamationmark.triangle.fill")
                 .font(.house(.caption))
-                .foregroundStyle(Tone.owed.color)
+                .foregroundStyle(Tone.owed.ink)
         }
     }
 }
@@ -556,7 +556,7 @@ extension AdsCampaignsScreen {
     // MARK: The actions, declared once
 
     var macNewAd: MacAction {
-        MacAction("New Ad…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), enabled: mayRead) {
+        MacAction("New Ad…", symbol: "plus", enabled: mayRead) {
             let route = Route(path: "/ads/new")
             if let openPlace { openPlace(route) } else { go = route }
         }
@@ -775,7 +775,7 @@ extension AdsCampaignsScreen {
             }
             Spacer(minLength: 8)
             if !r.issues.isEmpty {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).help(r.issues.joined(separator: "\n"))
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink).help(r.issues.joined(separator: "\n"))
             }
             Pill(words.label, tone: AdsStatusWords.tone(words.tone))
             VStack(alignment: .trailing, spacing: 2) {

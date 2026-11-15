@@ -74,17 +74,17 @@
 		<true/>
 	</dict>
 	<key>NSContactsUsageDescription</key>
-	<string>Choose a customer's or karigar's number from your contacts.</string>
+	<string>ERP reads your contacts so you can choose a customer's or karigar's number.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>To photograph pieces, bills and slips for the ERP, with this Mac's camera or an iPhone's (Continuity Camera).</string>
+	<string>ERP uses the camera, this Mac's or an iPhone's through Continuity Camera, to photograph pieces, bills and slips.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>To hear you when you speak to the ERP.</string>
+	<string>ERP uses the microphone to hear you when you speak to it.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>To show your words while you speak to the ERP.</string>
+	<string>ERP uses speech recognition to show your words while you speak to it.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>To add photos of pieces from your library.</string>
+	<string>ERP reads your photo library so you can add photos of pieces.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>To send tags to the label printer: a Zebra on the shop's network, or Label LIVE on this Mac.</string>
+	<string>ERP uses the local network to send tags to the label printer, a Zebra on the shop's network or Label LIVE on this Mac.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>The shop's own ERP.</string>
 </dict>

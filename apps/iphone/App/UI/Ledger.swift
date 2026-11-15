@@ -5,8 +5,8 @@ import ERPCore
 // dashboard screen ui needs a major overhaul, aesthetically and functionally"). docs/features/iphone-app.md
 // "The ledger" has the why; in short:
 //
-// - Money is the subject. A screen's one big figure is set in the serif (New York, the system's own, so it
-//   scales with the reader's text size) and everything around it in SF; digits never jump (monospaced).
+// - Money is the subject. A screen's one big figure is set in Inter (the ERP's one face since 2026-11-06, scaling with
+//   the reader's text size), digits never jump (monospaced).
 // - Colour means something or it is not used. The house's accent marks what can be pressed and what is
 //   chosen; red is late (`.late`) or a refused write (`.problem`, same red, different meaning), amber is owed
 //   or due soon, green is paid or done. A sum is never red for being large.
@@ -37,6 +37,8 @@ enum Tone {
     /// a screen picks `.late` for a missed promise and `.problem` for an error, so the two can be told apart later.
     case problem
 
+    /// The tone as a fill: tints, dots, strokes, backgrounds. The system colours, which are right behind a surface
+    /// but too pale to read as words on the warm ground (2.2 to 3.5 to 1 in light mode).
     var color: Color {
         switch self {
         case .late: return .red
@@ -47,6 +49,20 @@ enum Tone {
         case .quiet: return Color.secondary
         case .house: return Theme.accent
         case .problem: return .red
+        }
+    }
+
+    /// The tone as text: a darker ink in light mode (colorsets Tone*, 4.5 to 1 and up, with Increase Contrast
+    /// variants), the system colour in dark. Anything that draws a tone as words uses this, never `color`.
+    var ink: Color {
+        switch self {
+        case .late, .problem: return Color("ToneLate")
+        case .owed: return Color("ToneOwed")
+        case .settled: return Color("ToneSettled")
+        case .credit: return Color("ToneCredit")
+        case .working: return Color("ToneWorking")
+        case .quiet: return Color.secondary
+        case .house: return Theme.accent
         }
     }
 
@@ -166,7 +182,7 @@ struct Pill: View {
         .lineLimit(1)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .foregroundStyle(tint ?? tone.color)
+        .foregroundStyle(tint ?? tone.ink)
         .background((tint ?? tone.color).opacity(0.13), in: .capsule)
         .accessibilityLabel(Spoken.text(text))
         .accessibilityValue(tone.spokenWord.flatMap { word in text.lowercased().contains(word) ? nil : word } ?? "")
@@ -317,13 +333,13 @@ struct MoneySplit: View {
         VStack(spacing: 12) {
             AdaptiveStack(spacing: ax ? 10 : 0, alignment: .top) {
                 cell(totalLabel, total, Money.pkr(total), .primary, .leading)
-                cell(paidLabel, paid, Money.pkr(paid), .secondary, ax ? .leading : .center)
+                cell(paidLabel, paid, Money.pkr(paid), Color("Ink2"), ax ? .leading : .center)
                 if due <= -1 {
-                    cell("In credit", -due, Money.pkr(-due), Tone.credit.color, ax ? .leading : .trailing)
+                    cell("In credit", -due, Money.pkr(-due), Tone.credit.ink, ax ? .leading : .trailing)
                 } else if due >= 1 {
-                    cell("Due", due, Money.pkr(due), Tone.owed.color, ax ? .leading : .trailing)
+                    cell("Due", due, Money.pkr(due), Tone.owed.ink, ax ? .leading : .trailing)
                 } else {
-                    cell("Due", 0, "Nil", Tone.settled.color, ax ? .leading : .trailing)
+                    cell("Due", 0, "Nil", Tone.settled.ink, ax ? .leading : .trailing)
                 }
             }
             PaidBar(paid: paid, total: total)
@@ -379,11 +395,11 @@ struct DateLeaf: View {
             if let date {
                 Text(Self.weekday.string(from: date).uppercased())
                     .font(.house(.caption2).weight(.bold))
-                    .foregroundStyle(tone == .quiet ? Color.secondary : tone.color)
+                    .foregroundStyle(tone == .quiet ? Color.secondary : tone.ink)
                 Text(Self.day.string(from: date))
                     .font(.house(.headline))
                     .monospacedDigit()
-                    .foregroundStyle(tone == .late ? tone.color : Color.primary)
+                    .foregroundStyle(tone == .late ? tone.ink : Color.primary)
                 Text(Self.month.string(from: date).uppercased())
                     .font(.house(.caption2).weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -526,11 +542,11 @@ struct LedgerHeading: View {
                 #else
                 .font(.house(.title3).weight(.semibold))
                 #endif
-                .foregroundStyle(tone == .late ? tone.color : Color.primary)
+                .foregroundStyle(tone == .late ? tone.ink : Color.primary)
             if let count, count > 0 {
                 Text("\(count)")
                     .font(.house(.subheadline))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color("Ink2"))
                     .monospacedDigit()
             }
         }
@@ -541,7 +557,7 @@ struct LedgerHeading: View {
         if let trailing {
             Text(trailing)
                 .font(.house(.subheadline).weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color("Ink2"))
                 .monospacedDigit()
         }
     }
@@ -665,15 +681,14 @@ struct QuickAction: View {
         Button(action: action) {
             VStack(spacing: 5) {
                 Image(systemName: symbol)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.house(.body).weight(.semibold))
                     .foregroundStyle(prominent ? Theme.onAccent : Theme.accent)
                     .frame(maxWidth: .infinity, minHeight: Metrics.tap)
                     .background(prominent ? Theme.accent : Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
                 Text(title)
                     .font(.house(.caption2).weight(.medium))
                     .foregroundStyle(prominent ? Theme.accent : Color.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center)
             }
             .contentShape(Rectangle())
         }
@@ -733,7 +748,7 @@ struct FilterChip: View {
                 if let count {
                     Text("\(count)")
                         .monospacedDigit()
-                        .foregroundStyle(chosen ? Theme.onAccent.opacity(0.8) : Color.secondary)
+                        .foregroundStyle(chosen ? Theme.onAccent : Color.secondary)
                 }
             }
             .font(.house(.subheadline).weight(chosen ? .semibold : .medium))
@@ -778,5 +793,19 @@ extension View {
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
+    }
+}
+
+extension View {
+    /// A small bordered button on the money path (Paid in full, round-off chips, Change): Apple's 44 pt on a phone, the Mac's
+    /// small control with a pointer. Keep `.buttonStyle(.bordered)` before it.
+    func moneyTapSize() -> some View {
+        #if os(macOS)
+        controlSize(.small)
+        #else
+        controlSize(.regular)
+            .frame(minHeight: Metrics.tap)
+            .contentShape(Rectangle())
+        #endif
     }
 }

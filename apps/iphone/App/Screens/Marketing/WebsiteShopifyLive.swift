@@ -108,7 +108,7 @@ struct ShopifyLiveView: View {
         return HStack(spacing: pt(14)) {
             Image(systemName: "circle.fill")
                 .font(.house(.caption))
-                .foregroundStyle(on ? Tone.settled.color : Color.secondary.opacity(0.4))
+                .foregroundStyle(on ? Tone.settled.ink : Color.secondary.opacity(0.4))
                 .symbolEffect(.pulse, isActive: on && !reduceMotion)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(4)) {

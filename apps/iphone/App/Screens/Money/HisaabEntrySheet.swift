@@ -97,7 +97,7 @@ struct HisaabEntrySheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
-        .interactiveDismissDisabled(saving)
+        .keepWhileTyping(busy: saving, dirty: !(what + cashText + gramsText).trimmingCharacters(in: .whitespaces).isEmpty)
         .failureAlert($error, title: "Could not save")
     }
 

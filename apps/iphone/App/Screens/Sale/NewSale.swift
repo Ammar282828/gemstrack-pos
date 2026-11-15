@@ -266,10 +266,10 @@ struct SaleForm: View {
         }
         .sheet(isPresented: $rateSheet) { RateSheet() }
         .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
-                            message: "This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.",
+                            message: "This empties the sale on \(DeviceWords.thisDevice) and takes it out of Drafts: the pieces, the customer and everything typed.",
                             action: "Start over") { startOver() }
         .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
-                            message: "An order is half typed on this phone. Making one from these pieces replaces it.",
+                            message: "An order is half typed on \(DeviceWords.thisDevice). Making one from these pieces replaces it.",
                             action: "Replace it") { createOrder() }
         // This phone's own unfinished sale, written at every change. The scan screen can add a piece to it while this
         // one waits underneath, so it is read again whenever the screen appears (`appeared`).
@@ -398,11 +398,7 @@ struct SaleForm: View {
         SaleDraftStore.clear(business: biz.id)
         WorkDraftSync.sale.forget(biz.id)
         startOver()
-        #if os(macOS)
-        failure = "The sale kept on this Mac was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
-        #else
-        failure = "The sale kept on this phone was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
-        #endif
+        failure = "The sale kept on \(DeviceWords.thisDevice) was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
     }
 
     // MARK: Actions
@@ -603,7 +599,7 @@ extension SaleForm {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This sale was already saved. Look for it in Invoices before saving it again.")
                     .font(.house(.callout).weight(.semibold))
-                NavigationLink(value: Route(path: "/invoices")) { Text("Open Invoices") }
+                NavigationLink(value: Route(path: "/invoices")) { Text("Open invoices") }
             }
         } else if !goneSkus.isEmpty {
             Button("Take Them Off the Sale") {
@@ -614,7 +610,7 @@ extension SaleForm {
         } else if let reason = f.blockedReason {
             Text(reason)
                 .font(.house(.callout))
-                .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
+                .foregroundStyle(f.hasPieces ? Tone.problem.ink : Tone.quiet.ink)
                 .lineLimit(2)
         } else if f.hasEstimate {
             let line = balanceLine(f.balance)

@@ -216,20 +216,20 @@ private struct HisaabImportPage: View {
                 HStack(alignment: .top, spacing: pt(10)) {
                     // A good row carries no tick (rule 15); only a date that did not read is marked.
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Tone.problem.color)
+                        .foregroundStyle(Tone.problem.ink)
                         .opacity(row.isValidDate ? 0 : 1)
                         .accessibilityHidden(row.isValidDate)
                     VStack(alignment: .leading, spacing: pt(2)) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid date")
                             .font(.house(.caption))
-                            .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
+                            .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.ink)
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: pt(2)) {
                         if row.cashIn != 0 { Text("IN \(PaymentText.pkr(row.cashIn))").font(.house(.subheadline)).monospacedDigit() }
                         if row.cashOut != 0 { Text("OUT \(PaymentText.pkr(row.cashOut))").font(.house(.subheadline)).monospacedDigit() }
-                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.house(.caption)).foregroundStyle(Tone.problem.color) }
+                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.house(.caption)).foregroundStyle(Tone.problem.ink) }
                     }
                 }
             }
@@ -246,7 +246,7 @@ private struct HisaabImportPage: View {
             Label {
                 Text(text)
             } icon: {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink)
             }
         }
     }

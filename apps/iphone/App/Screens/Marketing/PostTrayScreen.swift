@@ -47,7 +47,7 @@ struct PostTrayScreen: View {
                 if store.piecesPhase == .loaded && !model.audience.canSend && !model.toInstagram {
                     Section {
                         Text("No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.")
-                            .foregroundStyle(Tone.owed.color)
+                            .foregroundStyle(Tone.owed.ink)
                     }
                 }
                 if model.cards.isEmpty {
@@ -189,7 +189,7 @@ struct PostTrayScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if c.failed != nil {
-                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.color).padding(pt(3))
+                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Tone.problem.ink).padding(pt(3))
                         .accessibilityLabel("Didn't go")
                 }
             }
@@ -244,7 +244,7 @@ struct PostTrayScreen: View {
         if !model.blockers.isEmpty {
             Section {
                 Text(model.blockers.map { (c: PostCheck) in "\(c.label): \(c.fix ?? c.detail)" }.joined(separator: " · "))
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
             }
         }
     }
@@ -516,7 +516,7 @@ struct PostTrayCardSections: View {
     @ViewBuilder
     private var pieceRows: some View {
             if let failed = card.failed {
-                Label("Didn't go: \(failed)", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                Label("Didn't go: \(failed)", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
             }
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(p.name).font(.house(.headline))
@@ -524,7 +524,7 @@ struct PostTrayCardSections: View {
                     .font(.house(.subheadline)).foregroundStyle(.secondary)
             }
             if let ago = MarketingTime.postedAgo(posted) {
-                Text("Already went out: \(ago).").foregroundStyle(Tone.owed.color)
+                Text("Already went out: \(ago).").foregroundStyle(Tone.owed.ink)
             }
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Link(destination: url) { Label("Open on \(siteName)", systemImage: "safari") }
@@ -711,7 +711,7 @@ extension PostTrayScreen {
                     if store.piecesPhase == .loaded && !model.audience.canSend && !model.toInstagram {
                         Section {
                             Text("No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.")
-                                .foregroundStyle(Tone.owed.color)
+                                .foregroundStyle(Tone.owed.ink)
                         }
                     }
                     stripSection

@@ -64,7 +64,7 @@ struct SaleScanScreen: View {
             }
             if let problem {
                 Section {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                     if photo != nil {
                         Button("Try again") { Task { await read() } }
                             .buttonStyle(.borderless)
@@ -108,7 +108,7 @@ struct SaleScanScreen: View {
         let a = r.answer
         if let unread = a.unreadable, !unread.isEmpty {
             Section {
-                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.ink)
             } header: {
                 LedgerHeading(title: "Could not make this out")
             }
@@ -197,7 +197,7 @@ struct SaleScanScreen: View {
             }
             if let check = filledCheck(r, written: written) {
                 Label(check.text, systemImage: check.matches ? "checkmark.circle" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(check.matches ? Color.secondary : Tone.owed.color)
+                    .foregroundStyle(check.matches ? Color.secondary : Tone.owed.ink)
             }
         } header: {
             LedgerHeading(title: "Foot of the bill")
@@ -326,7 +326,7 @@ extension SaleScanScreen {
                     }
                     if let problem {
                         Section {
-                            Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                            Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                             if photo != nil {
                                 Button("Try again") { Task { await read() } }
                                     .buttonStyle(.borderless)
@@ -370,7 +370,7 @@ extension SaleScanScreen {
         let a = r.answer
         if let unread = a.unreadable, !unread.isEmpty {
             Section {
-                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.ink)
             } header: {
                 Text("Could not make this out")
             }

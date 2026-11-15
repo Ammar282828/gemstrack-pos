@@ -214,7 +214,7 @@ struct AdsVideoSection: View {
                         case .ready:
                             Text("Ready, with Meta's cover frame").font(.house(.caption)).foregroundStyle(.secondary)
                         case .failed:
-                            Text(v.error ?? "It didn't reach Meta.").font(.house(.caption)).foregroundStyle(Tone.problem.color)
+                            Text(v.error ?? "It didn't reach Meta.").font(.house(.caption)).foregroundStyle(Tone.problem.ink)
                         }
                     }
                 }
@@ -322,7 +322,7 @@ struct AdsPartnerSection: View {
                         if c.ok {
                             Text(c.creator.map { (who: String) in "Ready: @\(who)'s post" } ?? "Ready")
                         } else {
-                            Text(c.why ?? "Meta couldn't check the code. It can still be tried.").foregroundStyle(Tone.owed.color)
+                            Text(c.why ?? "Meta couldn't check the code. It can still be tried.").foregroundStyle(Tone.owed.ink)
                         }
                         if let link = c.permalink, let url = URL(string: link) {
                             Link("See the post", destination: url).font(.house(.caption))
@@ -416,7 +416,7 @@ struct AdsCatalogSection: View {
     var body: some View {
         Section {
             if let problem = choice.problem {
-                Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
             }
             if let catalogs = choice.catalogs {
                 if catalogs.isEmpty {

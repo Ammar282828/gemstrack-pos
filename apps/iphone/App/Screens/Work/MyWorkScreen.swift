@@ -226,8 +226,8 @@ struct MyWorkScreen: View {
     private func figures(_ s: KarigarPortalSummary) -> some View {
         FigureRow(alignment: .top, spacing: pt(10)) {
             FigureTile(label: "To do", value: "\(s.active)")
-            FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? Tone.owed.color : .primary)
-            FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? Tone.late.color : .primary)
+            FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? Tone.owed.ink : .primary)
+            FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? Tone.late.ink : .primary)
         }
         .padding(.vertical, pt(4))
     }
@@ -351,7 +351,7 @@ struct MyWorkScreen: View {
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                 .font(.house(.title2))
-                .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary.opacity(0.5))
+                .foregroundStyle(j.isDone ? Tone.settled.ink : Color.secondary.opacity(0.5))
                 .frame(width: 44, height: 44)
                 .accessibilityLabel(j.isDone ? "Done" : "Not done")
         } else {
@@ -359,7 +359,7 @@ struct MyWorkScreen: View {
             Button { toggle(j) } label: {
                 Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.house(.title2))
-                    .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
+                    .foregroundStyle(j.isDone ? Tone.settled.ink : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: j.isDone)
                     .frame(width: 44, height: 44)
@@ -401,7 +401,7 @@ struct MyWorkScreen: View {
             FigureRow(alignment: .top, spacing: pt(10)) {
                 FigureTile(label: "Received", value: KarigarPortalRules.grams(a.goldGiven))
                 FigureTile(label: "Returned", value: KarigarPortalRules.grams(a.goldReceived))
-                FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? Tone.owed.color : .primary)
+                FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? Tone.owed.ink : .primary)
             }
             .padding(.vertical, pt(4))
             .listRowInsets(EdgeInsets())
@@ -438,7 +438,7 @@ struct MyWorkScreen: View {
             Text(l.goldOut != 0 ? "↑ " + KarigarPortalRules.grams(l.goldOut) : "↓ " + KarigarPortalRules.grams(l.goldIn))
                 .font(.house(.subheadline).weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
+                .foregroundStyle(l.goldOut != 0 ? Tone.owed.ink : Tone.settled.ink)
                 .accessibilityLabel((l.goldOut != 0 ? "Given " : "Returned ") + KarigarPortalRules.grams(l.goldOut != 0 ? l.goldOut : l.goldIn))
         }
     }
@@ -623,7 +623,7 @@ extension MyWorkScreen {
                 Button { toggle(j) } label: {
                     Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                         .font(.house(.title3))
-                        .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
+                        .foregroundStyle(j.isDone ? Tone.settled.ink : Color.secondary)
                 }
                 .buttonStyle(.borderless)
                 .disabled(readOnly)
@@ -703,7 +703,7 @@ extension MyWorkScreen {
                         let l = r.item
                         Text(l.goldOut != 0 ? "\u{2191} " + KarigarPortalRules.grams(l.goldOut) : "\u{2193} " + KarigarPortalRules.grams(l.goldIn))
                             .monospacedDigit()
-                            .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
+                            .foregroundStyle(l.goldOut != 0 ? Tone.owed.ink : Tone.settled.ink)
                     }
                     .width(min: 80, ideal: 100)
                 }

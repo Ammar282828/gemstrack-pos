@@ -442,7 +442,7 @@ extension StudioPlan {
         return Table(rows, selection: $macPicked, sortOrder: $macOrder) {
             TableColumn("Play", value: \.title) { (p: StudioMacPlay) in
                 HStack(spacing: 6) {
-                    Image(systemName: p.core ? "star.fill" : "megaphone").foregroundStyle(p.core ? Tone.owed.color : Color.secondary).frame(width: 16)
+                    Image(systemName: p.core ? "star.fill" : "megaphone").foregroundStyle(p.core ? Tone.owed.ink : Color.secondary).frame(width: 16)
                     Text(p.title).lineLimit(1)
                 }
             }

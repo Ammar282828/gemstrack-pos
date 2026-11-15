@@ -210,7 +210,7 @@ struct OrderCardHead: View {
         let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
         let words = PromiseWords.say(timing)
         let when = Text(verbatim: urgent ? words.text : "Due " + OrdersLogic.dueDay(due))
-            .foregroundStyle(urgent ? words.tone.color : Color.secondary)
+            .foregroundStyle(urgent ? words.tone.ink : Color.secondary)
         let after = tail.isEmpty ? "" : " \u{00B7} " + tail
         return Text("\(Text(verbatim: lead + " \u{00B7} "))\(when)\(Text(verbatim: after))")
     }

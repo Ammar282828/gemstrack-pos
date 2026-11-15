@@ -220,7 +220,7 @@ Section {
             if d.words["toWhatsApp"].bool {
                 ForEach(model.audience["groups"].array, id: \.text) { g in Toggle(g.s("label", g.s("name")), isOn: waTarget(g.s("key"))) }
                 if model.audience["channel"] != .null { Toggle(model.audience["channel"].s("name", "Channel"), isOn: waTarget("channel")) }
-                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.house(.footnote)).foregroundStyle(Tone.owed.color) }
+                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.house(.footnote)).foregroundStyle(Tone.owed.ink) }
             }
         }
         if model.makeStory {

@@ -346,7 +346,7 @@ struct MacCustomersPlace: View {
 
     private var newAction: MacAction {
         MacAction("New Customer…", symbol: "person.badge.plus",
-                  shortcut: KeyboardShortcut("n", modifiers: [.control, .command]), id: "new") { adding = true }
+                  id: "new") { adding = true }
     }
 
     private func actionGroups(for ids: Set<String>) -> [[MacAction]] {
@@ -363,7 +363,7 @@ struct MacCustomersPlace: View {
     }
 
     private func editAction(_ one: Customer?) -> MacAction {
-        MacAction("Edit…", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        MacAction("Edit…", symbol: "pencil",
                   enabled: one != nil, id: "edit") {
             if let one { editing = MacCustomersEdit(id: one.id) }
         }

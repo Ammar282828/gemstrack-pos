@@ -115,7 +115,7 @@ struct AnaSalesPage: View {
             if showCosts {
                 AdaptiveStack(spacing: pt(6)) {
                     Text("Net profit \(Money.lacCrore(y.netProfit))")
-                        .foregroundStyle(y.netProfit >= 0 ? Color.secondary : Tone.late.color)
+                        .foregroundStyle(y.netProfit >= 0 ? Color.secondary : Tone.late.ink)
                     Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
                         .foregroundStyle(.secondary)
                 }

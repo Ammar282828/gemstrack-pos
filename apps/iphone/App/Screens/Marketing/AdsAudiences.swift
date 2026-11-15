@@ -173,7 +173,7 @@ struct AdsAudiencesScreen: View {
                 AdsAlertsSection(status: s)
                 if let loadProblem {
                     Section {
-                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                         Button("Try again") { Task { await loadAudiences() } }
                     }
                 }
@@ -329,7 +329,7 @@ struct AdsAudiencesScreen: View {
             VStack(alignment: .leading, spacing: pt(2)) {
                 Text(a.name)
                 Text(line).font(.house(.caption)).foregroundStyle(.secondary)
-                if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.ink) }
             }
             Spacer(minLength: 8)
             if busy == a.id {
@@ -361,7 +361,7 @@ extension AdsAudiencesScreen {
     private var macPickedRows: [AdsAudienceRow] { macRows.filter { (a: AdsAudienceRow) in macPicked.contains(a.id) } }
 
     private var macNewAudience: MacAction {
-        MacAction("New Audience…", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        MacAction("New Audience…", symbol: "plus",
                   enabled: busy == nil && data != nil) {
             macMaking = true
         }
@@ -390,7 +390,7 @@ extension AdsAudiencesScreen {
             AdsMacAlertBar(status: s)
             if let loadProblem {
                 Label(loadProblem, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
                     .padding(8)
             }
             macTable(rows)
@@ -424,7 +424,7 @@ extension AdsAudiencesScreen {
             TableColumn("Audience", value: \.name) { (a: AdsAudienceRow) in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(a.name).lineLimit(1)
-                    if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.color) }
+                    if let st = a.status { Text(st).font(.house(.caption)).foregroundStyle(Tone.owed.ink) }
                 }
             }
             .width(min: 160, ideal: 280)

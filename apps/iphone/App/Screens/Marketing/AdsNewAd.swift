@@ -685,7 +685,7 @@ struct AdsNewAdScreen: View {
     private var postSection: some View {
         Section {
             if let mediaError {
-                Label(mediaError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                Label(mediaError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
                 Button("Try again") { Task { await loadMedia(after: nil) } }.buttonStyle(.bordered)
             }
             if let post, !(media ?? []).contains(where: { (m: AdsMedia) in m.id == post.id }) {
@@ -738,7 +738,7 @@ struct AdsNewAdScreen: View {
                 HStack(spacing: pt(10)) {
                     Button { picking = true } label: {
                         #if os(macOS)
-                        Label(photos.isEmpty ? "From Photos" : "Add more", systemImage: "photo.badge.plus")
+                        Label(photos.isEmpty ? "From photos" : "Add more", systemImage: "photo.badge.plus")
                         #else
                         Label(photos.isEmpty ? "From this phone" : "Add more", systemImage: "photo.badge.plus")
                         #endif
@@ -800,7 +800,7 @@ struct AdsNewAdScreen: View {
             TextField("Search the website: ruby, kara, jhumka…", text: $pieceQ)
                 .autocorrectionDisabled()
             if let piecesError {
-                Label(piecesError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                Label(piecesError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.ink)
             } else if let pieces {
                 AdsPieceGrid(pieces: shownPieces(pieces), full: photos.count >= 10) { (p: PostPiece) in
                     Task { await addPiece(p) }
@@ -867,7 +867,7 @@ struct AdsNewAdScreen: View {
                 line = "Meta didn't say what the pixel recorded this week."
             }
         }
-        return Text(line).foregroundStyle(warn ? Tone.owed.color : Color.secondary)
+        return Text(line).foregroundStyle(warn ? Tone.owed.ink : Color.secondary)
     }
 
     // MARK: The words
@@ -914,7 +914,7 @@ struct AdsNewAdScreen: View {
         } header: {
             LedgerHeading(title: "\(step(4)) · Who sees it")
         } footer: {
-            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.color) }
+            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.ink) }
         }
     }
 
@@ -1093,7 +1093,7 @@ struct AdsNewAdScreen: View {
             Group {
                 Section {
                     VStack(spacing: pt(10)) {
-                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.color)
+                        Image(systemName: "checkmark.circle.fill").font(.house(.largeTitle)).foregroundStyle(Tone.settled.ink)
                         Text(m.live ? "The ad is on its way" : "The ad is made, paused").font(.house(.headline))
                         Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
                              : "Nothing is spent until it is switched on in Campaigns.")
@@ -1101,7 +1101,7 @@ struct AdsNewAdScreen: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                            Text(w).font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -1319,7 +1319,7 @@ extension AdsNewAdScreen {
     private var macAudience: some View {
         Section("Who Sees It") {
             Text(audience.words).font(.house(.callout))
-            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.color) }
+            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.ink) }
             Button("Choose…") {
                 macPane = .audience
                 UserDefaults.standard.set(true, forKey: MacInspector.key)
@@ -1427,7 +1427,7 @@ extension AdsNewAdScreen {
                 Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
                      : "Nothing is spent until it is switched on in Campaigns.")
                 ForEach(m.warnings, id: \.self) { (w: String) in
-                    Text(w).foregroundStyle(Tone.owed.color)
+                    Text(w).foregroundStyle(Tone.owed.ink)
                 }
             }
         } actions: {

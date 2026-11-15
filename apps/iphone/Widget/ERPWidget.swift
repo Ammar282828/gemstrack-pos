@@ -257,7 +257,7 @@ struct ERPWidget: Widget {
             ERPWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Today at the shop")
-        .description("Revenue today and this month, with the shop’s pinned message. Shows both businesses by default when two are linked; touch and hold, then Edit Widget, to choose which, or to show just one.")
+        .description("See today’s and this month’s revenue and the shop’s pinned note.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }

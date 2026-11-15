@@ -81,7 +81,7 @@ struct NewChooser: View {
         }
         return NavigationLink(value: SaleLinks.continueSale) {
             HStack(spacing: pt(12)) {
-                Image(systemName: "cart").font(.house(.title3)).foregroundStyle(Tone.owed.color)
+                Image(systemName: "cart").font(.house(.title3)).foregroundStyle(Tone.owed.ink)
                 VStack(alignment: .leading, spacing: pt(2)) {
                     Text("A sale in progress").font(.house(.headline))
                     Text("\(n) piece\(n == 1 ? "" : "s")" + (subtotal > 0 ? " · \(Money.pkr(subtotal))" : ""))
@@ -97,7 +97,7 @@ struct NewChooser: View {
     private var orderProgressRow: some View {
         NavigationLink(value: Route(path: "/orders/add?resume=1")) {
             HStack(spacing: pt(12)) {
-                Image(systemName: "list.clipboard").font(.house(.title3)).foregroundStyle(Tone.owed.color)
+                Image(systemName: "list.clipboard").font(.house(.title3)).foregroundStyle(Tone.owed.ink)
                 Text("An order in progress").font(.house(.headline))
             }
         }

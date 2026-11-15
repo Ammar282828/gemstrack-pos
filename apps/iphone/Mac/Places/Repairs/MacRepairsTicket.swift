@@ -407,7 +407,7 @@ struct MacRepairsTicketWindow: View {
                 MacToolbarAction(action: a)
             }
             Menu {
-                MacActionItems(groups: moreGroups(more))
+                MacActionItems(groups: moreGroups(more), context: false)
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }

@@ -12,7 +12,7 @@ import ERPCore
 final class MacRepairsModel {
     /// The steps and the money, as the phone takes them.
     let desk = RepairsDesk()
-    /// Edit (⌘E): the ticket in the form, in a sheet.
+    /// Edit: the ticket in the form, in a sheet.
     var editing: Repair?
     /// Collected on a ticket that still owes: the one question.
     var collecting: Repair?
@@ -121,7 +121,7 @@ final class MacRepairsModel {
                               enabled: one != nil, id: "print") {
             if let one { MacPrint.print(Route(path: repairsTicketPath(one.id))) }
         }
-        let edit = MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        let edit = MacAction("Edit\u{2026}", symbol: "pencil",
                              enabled: owner && one != nil, id: "edit") { [self] in
             if let one { editing = one }
         }

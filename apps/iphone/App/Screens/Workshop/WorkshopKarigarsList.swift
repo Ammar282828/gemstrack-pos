@@ -184,7 +184,7 @@ struct WorkshopKarigarsList: View {
         return Section {
             FigureGrid {
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
-                FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
+                FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.ink : Color.primary)
                 if session.isOwner {
                     FigureTile(label: "Open hisaabs", value: "\(batches.count)")
                 }
@@ -497,7 +497,7 @@ extension WorkshopKarigarsList {
             }
             if session.isOwner && r.cash.rounded() != 0 {
                 VStack(alignment: .trailing, spacing: 1) {
-                    RowAmount(amount: abs(r.cash.rounded()), tone: r.cash.rounded() < 0 ? Tone.owed.color : Color.primary)
+                    RowAmount(amount: abs(r.cash.rounded()), tone: r.cash.rounded() < 0 ? Tone.owed.ink : Color.primary)
                     Text(r.cash.rounded() < 0 ? "we owe" : "holds").font(.house(.caption2)).foregroundStyle(.secondary)
                 }
             }
@@ -578,7 +578,7 @@ extension WorkshopKarigarsList {
     }
 
     private var macNewAction: MacAction {
-        MacAction("New Karigar\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        MacAction("New Karigar\u{2026}", symbol: "plus",
                   enabled: session.isOwner) { macOpenRoute("/karigars/add") }
     }
 
@@ -604,7 +604,7 @@ extension WorkshopKarigarsList {
         let opening = MacAction("Open Karigar", symbol: "hammer", enabled: some) {
             for id in ids.sorted().prefix(5) { macOpenRoute(WorkshopLogic.karigarPath(id)) }
         }
-        let editing = MacAction("Edit\u{2026}", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        let editing = MacAction("Edit\u{2026}", symbol: "pencil",
                                 enabled: session.isOwner && one) {
             if let row { macOpenRoute(WorkshopLogic.karigarPath(row.karigar.id) + "/edit") }
         }

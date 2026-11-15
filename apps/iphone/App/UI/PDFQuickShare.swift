@@ -34,7 +34,7 @@ private struct PDFQuickShare: ViewModifier {
                         Text("Preparing \(preparing.title)…").font(.house(.subheadline)).lineLimit(1)
                     }
                     .padding(.horizontal, 18).padding(.vertical, 12)
-                    .glassEffect(.regular, in: .capsule)
+                    .background(.regularMaterial, in: .capsule)
                     .padding(.bottom, 72)
                     .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     .accessibilityElement(children: .combine)

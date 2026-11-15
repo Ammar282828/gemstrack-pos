@@ -10,6 +10,8 @@ import FirebaseCore
 @main
 struct ERPMacApp: App {
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
+    /// Settings › This Mac › Menu bar: the figures' menu-bar item is on unless turned off.
+    @AppStorage("mac.menuBarExtra") private var showMenuBar = true
 
     init() {
         LaunchClock.armTimeout()
@@ -23,6 +25,7 @@ struct ERPMacApp: App {
     var body: some Scene {
         WindowGroup("ERP", id: MacWindows.main) {
             MacBusinessHost()
+                .frame(minWidth: 960, minHeight: 600)
                 .font(.house(.body))
                 .onOpenURL { MacWindows.openLink($0) }
         }
@@ -43,7 +46,7 @@ struct ERPMacApp: App {
         }
 
         // Today's figures for every business signed in on this Mac, a click away in the menu bar.
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showMenuBar) {
             MacTodayMenu()
         } label: {
             Label("ERP", systemImage: "diamond")

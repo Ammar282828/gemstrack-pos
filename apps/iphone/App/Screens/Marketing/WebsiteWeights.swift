@@ -220,7 +220,7 @@ struct WebsiteWeightsScreen: View {
         .savedFeedback(trigger: savedTick)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if current != nil {
-                ActionBar(primary: .init("Save & next", systemImage: "checkmark") { ask(advance: true) })
+                ActionBar(primary: .init("Save and next", systemImage: "checkmark") { ask(advance: true) })
             }
         }
     }
@@ -231,7 +231,7 @@ struct WebsiteWeightsScreen: View {
         let items = weightItems
         if let bad = items.first(where: { (i: Outbox.Item) in i.status == .failed }) {
             Label("Not saved: \(bad.label.dropFirst(Self.labelPrefix.count))", systemImage: "exclamationmark.triangle.fill")
-                .font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                .font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
         } else if !items.isEmpty {
             Label("Saving \(items.count)…", systemImage: "arrow.triangle.2.circlepath").font(.house(.footnote)).foregroundStyle(.secondary)
         } else if done.count > 0 {
@@ -370,7 +370,7 @@ struct WebsiteWeightsScreen: View {
                                 .overlay(alignment: .topTrailing) {
                                     if let st = outbox.status(of: Self.labelPrefix + u.piece.file) {
                                         Image(systemName: st == .failed ? "exclamationmark.circle.fill" : "ellipsis.circle.fill")
-                                            .font(.house(.caption)).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(pt(2))
+                                            .font(.house(.caption)).foregroundStyle(st == .failed ? Tone.problem.ink : Color.secondary).padding(pt(2))
                                     }
                                 }
                                 .overlay(alignment: .bottom) {

@@ -111,7 +111,6 @@ enum MacOrdersMenu {
                              shortcut: KeyboardShortcut(.return, modifiers: .command),
                              enabled: step != nil, isDefault: true, id: "next", perform: r.nextStep))
         out.append(MacAction("Take Advance\u{2026}", symbol: "banknote",
-                             shortcut: KeyboardShortcut("a", modifiers: [.command, .shift]),
                              enabled: canAdvance, id: "advance", perform: r.advance))
         out.append(MacAction("Give Out\u{2026}", symbol: "person.badge.plus",
                              enabled: o != nil && !invoiced && !closed && i.unassigned > 0, id: "giveOut", perform: r.giveOut))
@@ -130,7 +129,7 @@ enum MacOrdersMenu {
         let cn = o.flatMap(OrderActions.tcsConsignment)
         let canBook = o.map { OrderActions.canBookCourier($0, isOwner: i.isOwner) } ?? false
         var out: [MacAction] = []
-        out.append(MacAction("Print Slip", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command),
+        out.append(MacAction("Print Slip\u{2026}", symbol: "printer", shortcut: KeyboardShortcut("p", modifiers: .command),
                              enabled: o != nil, id: "slip", perform: r.printSlip))
         out.append(MacAction("Message the Customer\u{2026}", symbol: "message", enabled: o != nil, id: "message", perform: r.message))
         out.append(MacAction("Send to Karigar\u{2026}", symbol: "paperplane", enabled: o != nil, id: "sendToKarigar", perform: r.sendToKarigar))
@@ -192,7 +191,7 @@ enum MacOrdersMenu {
         let closed = o.map(OrderActions.isClosed) ?? false
         let canUndo = o.map { OrderActions.canUndoInvoice($0, isOwner: i.isOwner) } ?? false
         var out: [MacAction] = []
-        out.append(MacAction("Edit", symbol: "pencil", shortcut: KeyboardShortcut("e", modifiers: .command),
+        out.append(MacAction("Edit\u{2026}", symbol: "pencil",
                              enabled: o != nil && i.isOwner && !invoiced, id: "edit", perform: r.edit))
         out.append(MacAction("Change Rate\u{2026}", symbol: "percent", enabled: o != nil && i.isOwner && !closed,
                              id: "rate", perform: r.changeRate))

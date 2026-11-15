@@ -7,19 +7,42 @@ import SwiftUI
 // text styles. `relativeTo:` keeps Dynamic Type: a reader's larger text scales Inter as it scaled San Francisco.
 extension Font {
     /// Inter at a text style's size, scaled with Dynamic Type. A headline is semibold, as the system's is.
+    /// With Bold Text on, one step heavier (Inter's real faces: Regular, Medium, SemiBold, Bold), since SwiftUI's
+    /// legibility weight does not reach a custom face. iOS restarts the phone to apply that setting, so reading it when the
+    /// font is made is enough. A call site that sets its own `.weight(...)` after this one keeps that weight.
     static func house(_ style: Font.TextStyle) -> Font {
         let face = Font.custom("Inter", size: HouseFont.size(style), relativeTo: style)
-        return style == .headline ? face.weight(.semibold) : face
+        return face.weight(HouseFont.legible(style == .headline ? .semibold : .regular))
     }
 
     /// Inter at a fixed size (a monogram, a figure drawn to a frame).
     static func house(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.custom("Inter", fixedSize: size).weight(weight)
+        Font.custom("Inter", fixedSize: size).weight(HouseFont.legible(weight))
     }
 }
 
 /// The point sizes the system gives each text style at the default reading size (iOS, and the Mac's smaller ones).
 enum HouseFont {
+    /// Whether the reader has Bold Text on (never on the Mac, whose text is its own).
+    static var boldText: Bool {
+        #if os(iOS)
+        return UIAccessibility.isBoldTextEnabled
+        #else
+        return false
+        #endif
+    }
+
+    /// A weight, one step heavier under Bold Text.
+    static func legible(_ weight: Font.Weight) -> Font.Weight {
+        guard boldText else { return weight }
+        switch weight {
+        case .regular: return .medium
+        case .medium: return .semibold
+        case .semibold, .bold: return .bold
+        default: return weight
+        }
+    }
+
     static func size(_ style: Font.TextStyle) -> CGFloat {
         #if os(macOS)
         switch style {
@@ -57,12 +80,22 @@ enum HouseFont {
 
 #if os(iOS)
 extension HouseFont {
-    /// UIKit draws the navigation bar's titles itself: Inter there too, scaled with the reader's text size.
+    /// UIKit draws the navigation bar's titles itself: Inter there too, scaled with the reader's text size. Under Bold Text
+    /// the bar takes the heavier faces (SemiBold to Bold, Bold to Bold) and is dressed again if the setting changes.
     @MainActor static func dressBars() {
-        guard let semi = UIFont(name: "Inter-SemiBold", size: 17), let bold = UIFont(name: "Inter-Bold", size: 34) else { return }
+        let bold = UIAccessibility.isBoldTextEnabled
+        guard let semi = UIFont(name: bold ? "Inter-Bold" : "Inter-SemiBold", size: 17), let big = UIFont(name: "Inter-Bold", size: 34) else { return }
         let bar = UINavigationBar.appearance()
         bar.titleTextAttributes = [.font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: semi)]
-        bar.largeTitleTextAttributes = [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: bold)]
+        bar.largeTitleTextAttributes = [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: big)]
+        if !watching {
+            watching = true
+            NotificationCenter.default.addObserver(forName: UIAccessibility.boldTextStatusDidChangeNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { HouseFont.dressBars() }
+            }
+        }
     }
+
+    @MainActor private static var watching = false
 }
 #endif

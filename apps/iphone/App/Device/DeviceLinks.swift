@@ -6,7 +6,9 @@ import WidgetKit
 /// send notifications (lib/push on the server), and the home-screen widget's own key.
 enum DeviceLinks {
     @MainActor static func afterSignIn() async {
-        await Push.shared.register()
+        // Quietly: a provisional permission delivers to the Notification Center without a question at sign-in; the
+        // person turns them up from there or from This phone, after seeing what comes (HIG: ask when it matters).
+        await Push.shared.register(provisional: true)
         await WidgetLinker.link()
     }
 
@@ -83,13 +85,13 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// iOS permission and the ERP's device record are separate; neither implies delivery.
-    func register() async {
+    func register(provisional: Bool = false) async {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         registrationError = nil
         do {
-            guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else {
-                reportFailure("not allowed on this phone")
+            guard try await center.requestAuthorization(options: provisional ? [.alert, .sound, .badge, .provisional] : [.alert, .sound, .badge]) else {
+                reportFailure("not allowed on \(DeviceWords.thisDevice)")
                 return
             }
             registering = true

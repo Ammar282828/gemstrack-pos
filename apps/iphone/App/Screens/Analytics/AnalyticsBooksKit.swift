@@ -266,7 +266,7 @@ struct AbTile: View {
                 Text(label).font(.house(.subheadline)).foregroundStyle(.secondary)
                 Text(value)
                     .font(.house(.title2).weight(.semibold))
-                    .foregroundStyle(tone?.color ?? Color.primary)
+                    .foregroundStyle(tone?.ink ?? Color.primary)
                     .monospacedDigit()
                     .minimumScaleFactor(0.8)
                     .contentTransition(.numericText())
@@ -310,7 +310,7 @@ struct AbDeltaPill: View {
                 .monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .foregroundStyle(tone.color)
+        .foregroundStyle(tone.ink)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(tone.color.opacity(0.12), in: .capsule)
@@ -405,7 +405,7 @@ struct AbFigures: View {
     var body: some View {
         FigureGrid {
             ForEach(items) { (f: AbFigure) in
-                FigureTile(label: f.label, value: f.value, detail: f.detail, tint: f.tone?.color ?? Color.primary)
+                FigureTile(label: f.label, value: f.value, detail: f.detail, tint: f.tone?.ink ?? Color.primary)
             }
         }
     }

@@ -113,7 +113,7 @@ struct StudioLibrary: View {
             }
             MarketingDetails(fields: details.object.filter { !["roots", "account"].contains($0.key) }.mapValues(\.any))
             if let url = URL(string: details.s("enableUrl")), url.scheme == "https" { Link("Enable Drive API", destination: url) }
-            if !answer.s("siteError").isEmpty { Text(answer.s("siteError")).foregroundStyle(Tone.problem.color) }
+            if !answer.s("siteError").isEmpty { Text(answer.s("siteError")).foregroundStyle(Tone.problem.ink) }
             Button("Check again") { Task { await load(fresh: true) } }
         }
     }

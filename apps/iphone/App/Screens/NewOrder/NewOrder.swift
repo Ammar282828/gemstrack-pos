@@ -462,7 +462,7 @@ struct NewOrder: View {
             if draft.photosLeftOut {
                 Label("The sample photos were too many to keep: add them again.", systemImage: "exclamationmark.triangle")
                     .font(.house(.subheadline))
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(Tone.owed.ink)
             }
         }
         .motion(draft.photosLeftOut)

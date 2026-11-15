@@ -574,7 +574,7 @@ extension ExpensesScreen {
     private func macGroups(for ids: Set<String>) -> [[MacAction]] {
         let e = macExpense(ids)
         let drawing = e.map { (x: Expense) in ExpenseEditing.isDrawing(x, partnership: session.shop.partnership) } ?? false
-        let add = MacAction("New Expense\u{2026}", symbol: "plus", shortcut: KeyboardShortcut("n", modifiers: [.control, .command]),
+        let add = MacAction("New Expense\u{2026}", symbol: "plus",
                             id: "new") { adding = true }
         let edit = MacAction(drawing ? "Change on Shareholders" : "Edit\u{2026}", symbol: drawing ? "person.2" : "pencil",
                              shortcut: KeyboardShortcut(.return, modifiers: []), enabled: e != nil, id: "edit") {

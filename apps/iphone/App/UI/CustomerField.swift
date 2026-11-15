@@ -174,7 +174,7 @@ struct CustomerField: View {
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
-            .controlSize(.small)
+            .moneyTapSize()
         }
         .padding(.vertical, pt(2))
     }

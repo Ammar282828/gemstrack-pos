@@ -702,7 +702,7 @@ struct StudioBoardEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: pt(14)) {
-                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).font(.house(.subheadline)) }
+                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink).font(.house(.subheadline)) }
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .top, spacing: pt(12)) { versions(c) }
                         VStack(spacing: pt(12)) { versions(c) }
@@ -1295,7 +1295,7 @@ struct StudioBoardQueueSheet: View {
                     } else if problem == nil {
                         BusySpinner("Finding the WhatsApp places", inline: true)
                     }
-                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
                 } header: { LedgerHeading(title: "Where") }.houseRows()
                 Section {
                     TextField("Caption", text: $caption, axis: .vertical).lineLimit(4...12)
@@ -1408,7 +1408,7 @@ struct StudioBoardPhotoPicker: View {
                         .pickerStyle(.menu)
                         outsideSection
                     }
-                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.color) }
+                    if let problem { Text(problem).font(.house(.footnote)).foregroundStyle(Tone.problem.ink) }
                     if let items {
                         if items.isEmpty && problem == nil {
                             Text(q.isEmpty ? "The library has no photos yet." : "Nothing matches “\(q)”.").foregroundStyle(.secondary)

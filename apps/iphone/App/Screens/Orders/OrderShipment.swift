@@ -131,7 +131,7 @@ struct OrderShipmentRows: View {
         if let failure = model.failure, model.loaded {
             Text(model.tracking == nil ? "Tracking could not be read. \(failure)" : "Could not refresh: \(failure)")
                 .font(.house(.caption))
-                .foregroundStyle(Tone.owed.color)
+                .foregroundStyle(Tone.owed.ink)
         }
         if model.loaded {
             Button {

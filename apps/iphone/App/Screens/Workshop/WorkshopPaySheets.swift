@@ -253,7 +253,7 @@ struct WorkshopSilverSheet: View {
                     }
                 } footer: {
                     if !gramsText.isEmpty, let problem {
-                        Text(problem).foregroundStyle(Tone.problem.color)
+                        Text(problem).foregroundStyle(Tone.problem.ink)
                     } else {
                         #if os(macOS)
                         // The button says what is recorded; what is written is said here, before it is pressed.

@@ -449,7 +449,7 @@ private struct StockPieceEditor: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.house(.largeTitle))
                         .imageScale(.large)
-                        .foregroundStyle(Tone.settled.color)
+                        .foregroundStyle(Tone.settled.ink)
                     Text("Saved").font(.house(.title2).weight(.semibold))
                     Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
@@ -1021,7 +1021,7 @@ extension StockPieceEditor {
         Form {
             Section {
                 Label("\(s.name) is in stock as \(s.sku).", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(Tone.settled.ink)
             }
             Section {
                 StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)

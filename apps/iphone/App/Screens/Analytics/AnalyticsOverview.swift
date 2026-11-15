@@ -68,7 +68,7 @@ struct AnaOverviewPage: View {
         return GlassGroup {
             layout {
                 FigureRow(alignment: .top, spacing: pt(10)) {
-                    FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: AbSplit(f)?.tileLines ?? "Sales in this period", tint: Tone.settled.color)
+                    FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: AbSplit(f)?.tileLines ?? "Sales in this period", tint: Tone.settled.ink)
                     if showCosts {
                         FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: expensesDetail)
                     }
@@ -139,7 +139,7 @@ struct AnaOverviewPage: View {
         return LedgerSection("Orders and pieces", collapsible: true) {
             if f.totalUnpaid > 0 {
                 LabeledContent("Outstanding") {
-                    RowAmount(amount: f.totalUnpaid, lac: true, tone: Tone.owed.color)
+                    RowAmount(amount: f.totalUnpaid, lac: true, tone: Tone.owed.ink)
                 }
             }
             LabeledContent("Orders", value: String(f.totalOrders))
@@ -215,7 +215,7 @@ struct AnaOverviewPage: View {
                         TwoLine(title: "Outstanding",
                                 subtitle: "Still owed on coin bills",
                                 trailing: Money.pkrLac(c.outstanding),
-                                trailingTint: Tone.owed.color)
+                                trailingTint: Tone.owed.ink)
                     }
                     Text("Coin figures are separate from jewellery revenue and profit.").font(.house(.footnote)).foregroundStyle(.secondary)
                     }
@@ -241,7 +241,7 @@ struct AnaOverviewPage: View {
         let netSign = net >= 0 ? "+" : "−"
         let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         return Section {
-            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Tone.settled.color)
+            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Tone.settled.ink)
             if showCosts {
                 TwoLine(title: "Cash out", subtitle: "Every expense paid in this period",
                         trailing: Money.pkrLac(f.cashOut))

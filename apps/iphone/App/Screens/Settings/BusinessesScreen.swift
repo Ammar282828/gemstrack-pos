@@ -135,7 +135,7 @@ struct BusinessesScreen: View {
         if House.isDemo {
             Label("Demo: made-up books", systemImage: "play.circle").font(.house(.caption)).foregroundStyle(.secondary)
         } else if b.firebaseOptions == nil {
-            Label("iPhone sign-in not set up", systemImage: "exclamationmark.triangle.fill").font(.house(.caption)).foregroundStyle(Tone.owed.color)
+            Label("iPhone sign-in not set up", systemImage: "exclamationmark.triangle.fill").font(.house(.caption)).foregroundStyle(Tone.owed.ink)
         } else if let email = who[b.id] {
             // Signed in is the normal state: the email in quiet words, no tick (rule 15).
             Text(email).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
@@ -352,6 +352,12 @@ extension BusinessesScreen {
                     .help("Remove the selected business from this Mac")
             }
         }
+        // The toolbar's commands are in the menu bar too.
+        .macRecordMenu(MacRecordMenu(title: "Business", groups: [[
+            MacAction("Add Business\u{2026}", symbol: "plus", enabled: !House.isDemo, id: "add") { macAdding = true },
+            MacAction("Remove\u{2026}", symbol: "trash", role: .destructive, enabled: selected != nil && store.list.count > 1,
+                      id: "remove") { removing = selected },
+        ]]))
         .noteToast($note)
         .selectionFeedback(trigger: chosenTick)
         .savedFeedback(trigger: addedTick)
@@ -392,7 +398,7 @@ extension BusinessesScreen {
         if House.isDemo {
             Text("Demo: made-up books").foregroundStyle(.secondary)
         } else if b.firebaseOptions == nil {
-            Label("Sign-in not set up", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+            Label("Sign-in not set up", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.ink)
         } else if let email = who[b.id] {
             Text(email).foregroundStyle(.secondary).lineLimit(1)
         } else {

@@ -87,11 +87,25 @@ private struct ShareholdersBoard: View {
         books.mina.error ?? books.ammar.error ?? book.expenses.error ?? book.invoices.error ?? book.orders.error ?? book.revenue.error
     }
 
+    #if os(macOS)
+    /// The toolbar's Add menu, as the Shareholder menu in the menu bar has it (every toolbar command is also a menu item).
+    private var macEntryActions: [MacAction] {
+        [
+            MacAction("Add Contribution\u{2026}", symbol: "plus", id: "contribution") { asking = ShareholderAsk(move: .contribution, who: "mina") },
+            MacAction("Pay Salary\u{2026}", symbol: "banknote", id: "salary") { asking = ShareholderAsk(move: .salary, who: "mina") },
+            MacAction("Withdraw Capital\u{2026}", symbol: "arrow.up.right", id: "withdrawal") { asking = ShareholderAsk(move: .withdrawal, who: "mina") },
+        ]
+    }
+    #endif
+
     var body: some View {
         ShelfState(loaded: ready, error: readError, offline: book.expenses.offline, shape: .figures) {
             content
         }
         .navigationTitle("Shareholders")
+        #if os(macOS)
+        .macRecordMenu(MacRecordMenu(title: "Shareholder", groups: [macEntryActions]))
+        #endif
         .toolbar {
             ToolbarItem(placement: .trailingAction) {
                 Menu {
@@ -193,7 +207,7 @@ private struct ShareholdersBoard: View {
                                detail: Self.goldLine(t))
                     FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
                 }
-                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.color)
+                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.ink)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
@@ -209,7 +223,7 @@ private struct ShareholdersBoard: View {
         let claim = p.balance.totalClaim
         let owed = claim > 0
         let words = owed ? "The business owes \(p.name)" : (claim < 0 ? "\(p.name) owes the business" : "All settled")
-        let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
+        let tone: Color = owed ? Tone.credit.ink : (claim < 0 ? Tone.owed.ink : Color.primary)
         return Section {
             Group {
                 AdaptiveStack(spacing: pt(8)) {
@@ -222,7 +236,7 @@ private struct ShareholdersBoard: View {
                 LabeledContent("Half of profit & loss") {
                     Text(ShareholderMoney.signed(p.balance.netPnL))
                         .monospacedDigit()
-                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.color)
+                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.ink)
                 }
                 FigureRow(alignment: .top, spacing: pt(8)) {
                     smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
@@ -248,7 +262,7 @@ private struct ShareholdersBoard: View {
             LedgerHeading(title: p.name)
         } footer: {
             if !(p.rows.isEmpty && p.salaries.isEmpty) {
-                Text("Withdrawing capital reduces their stake; it is not a salary. Swipe an entry to delete it.")
+                Text("Withdrawing capital reduces their stake; it is not a salary. \(DeviceWords.Swipe) an entry to delete it.")
             }
         }
     }
@@ -300,7 +314,7 @@ private struct ShareholdersBoard: View {
             title: r.description,
             subtitle: sub,
             trailing: "\(isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))",
-            trailingTint: isIn ? Tone.settled.color : Tone.owed.color
+            trailingTint: isIn ? Tone.settled.ink : Tone.owed.ink
         )
         .swipeActions {
             Button(role: .destructive) {
@@ -372,7 +386,7 @@ private struct ShareholdersBoard: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                 }
                 .font(.house(.footnote))
-                .foregroundStyle(Tone.owed.color)
+                .foregroundStyle(Tone.owed.ink)
             }
             LabeledContent("Cash available") {
                 TextField("0", text: $cashText.wholeRupees)
@@ -412,7 +426,7 @@ private struct ShareholdersBoard: View {
                 if !d.feasible {
                     Text("Not enough to clear the floor and the loans \u{2014} \(ShareholderMoney.fmt(d.shortfallToFirstDistribution)) short.")
                         .font(.house(.footnote))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
             }
         } header: {
@@ -574,7 +588,7 @@ extension ShareholdersBoard {
         let claim = p.balance.totalClaim
         let owed = claim > 0
         let words = owed ? "The business owes \(p.name)" : (claim < 0 ? "\(p.name) owes the business" : "All settled")
-        let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
+        let tone: Color = owed ? Tone.credit.ink : (claim < 0 ? Tone.owed.ink : Color.primary)
         return VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
@@ -602,7 +616,7 @@ extension ShareholdersBoard {
                 LabeledContent("Half of profit & loss") {
                     Text(ShareholderMoney.signed(p.balance.netPnL))
                         .monospacedDigit()
-                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.color)
+                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.ink)
                 }
                 HStack(alignment: .top, spacing: 8) {
                     smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")

@@ -351,7 +351,7 @@ struct DesignAITools: View {
             if let check = model.photoCheck {
                 let ok = DesignAIRules.checkOK(check)
                 Label(ok ? "Same piece" : (check["differences"].array.first?.string ?? "Look closely"), systemImage: ok ? "checkmark.shield" : "exclamationmark.shield")
-                    .font(.house(.footnote)).foregroundStyle(ok ? Tone.settled.color : Tone.owed.color)
+                    .font(.house(.footnote)).foregroundStyle(ok ? Tone.settled.ink : Tone.owed.ink)
             }
             let off = model.aiBusy != nil || model.photos["photo"] == nil
             if model.photos["photo"] == nil { Text("Add a photograph first.").font(.house(.footnote)).foregroundStyle(.secondary) }
@@ -403,13 +403,13 @@ struct DesignCandidateBanner: View {
                     Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 280).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 }
                 if same == true {
-                    Label("The same piece as the photograph.", systemImage: "checkmark.shield").font(.house(.footnote)).foregroundStyle(Tone.settled.color)
+                    Label("The same piece as the photograph.", systemImage: "checkmark.shield").font(.house(.footnote)).foregroundStyle(Tone.settled.ink)
                 } else if let check = c.check {
                     let diffs = check["differences"].array.prefix(3).map(\.string).joined(separator: "; ")
                     Label("The piece may have changed: " + (diffs.isEmpty ? "compare it with your photograph" : diffs) + ".", systemImage: "exclamationmark.shield")
-                        .font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+                        .font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
                 } else {
-                    Label("Not checked: compare the piece with your photograph.", systemImage: "exclamationmark.shield").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                    Label("Not checked: compare the piece with your photograph.", systemImage: "exclamationmark.shield").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
                 }
                 HStack(spacing: pt(10)) {
                     if same == false || same == nil {

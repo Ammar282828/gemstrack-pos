@@ -241,7 +241,7 @@ struct DesignWorkspaceView: View {
                     .buttonStyle(.bordered).largeOnPhone()
             }
             if w.stale.contains(page.id) {
-                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
             }
         }
         .ledgerCard()
@@ -364,7 +364,7 @@ private struct PageCell: View {
                 if page.id == work.master { Image(systemName: "star.fill").imageScale(.small) }
                 Text(work.stripNote(page)).font(.house(.caption2))
             }
-            .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.color : Color.secondary)
+            .foregroundStyle(work.stale.contains(page.id) ? Tone.owed.ink : Color.secondary)
             if on { menu }
         }
         .padding(pt(8))

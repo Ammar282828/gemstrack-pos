@@ -255,7 +255,7 @@ struct VoiceOverlay: View {
                 Text(card.summary).font(.house(.subheadline)).fixedSize(horizontal: false, vertical: true)
             }
             if let problem = card.problem {
-                Label(problem, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.owed.color)
+                Label(problem, systemImage: "exclamationmark.circle").font(.house(.footnote)).foregroundStyle(Tone.owed.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if card.operations.isEmpty, let path = card.href, card.problem == nil || card.handoff != nil || path.hasPrefix("/") {
@@ -273,7 +273,7 @@ struct VoiceOverlay: View {
 
     private func failureLine(_ message: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: pt(8)) {
-            Label(message, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.problem.color)
+            Label(message, systemImage: "exclamationmark.triangle").font(.house(.footnote)).foregroundStyle(Tone.problem.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if voice.canRetry { Button("Try again") { voice.retry() }.buttonStyle(.bordered).controlSize(.small) }

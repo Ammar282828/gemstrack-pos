@@ -137,7 +137,7 @@ struct SaleMacStock: View {
             if let notice {
                 Label(notice, systemImage: "exclamationmark.circle")
                     .font(.house(.callout))
-                    .foregroundStyle(Tone.problem.color)
+                    .foregroundStyle(Tone.problem.ink)
             }
             HStack(spacing: 8) {
                 Button { scan() } label: { Label("Scan a Tag…", systemImage: "qrcode.viewfinder") }

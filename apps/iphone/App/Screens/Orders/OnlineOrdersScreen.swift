@@ -124,7 +124,7 @@ struct OnlineOrdersScreen: View {
                 let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
                 Label(moved, systemImage: "chart.line.uptrend.xyaxis")
                     .font(.house(.footnote))
-                    .foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(dearer ? Tone.owed.ink : Color.secondary)
             }
             actionsRow(r)
         }
@@ -168,7 +168,7 @@ struct OnlineOrdersScreen: View {
                 if let size = l.size {
                     Text("Size \(size)")
                         .font(.house(.caption).weight(.medium))
-                        .foregroundStyle(Tone.owed.color)
+                        .foregroundStyle(Tone.owed.ink)
                 }
             }
             Spacer(minLength: 8)
@@ -524,7 +524,7 @@ extension OnlineOrdersScreen {
             VStack(alignment: .leading, spacing: 2) {
                 Text(OnlineOrdersLogic.pieceName(l.description)).lineLimit(2)
                 if let size = l.size {
-                    Text("Size \(size)").font(.house(.callout).weight(.medium)).foregroundStyle(Tone.owed.color)
+                    Text("Size \(size)").font(.house(.callout).weight(.medium)).foregroundStyle(Tone.owed.ink)
                 }
             }
             Spacer(minLength: 8)
@@ -550,7 +550,7 @@ extension OnlineOrdersScreen {
             if !notes.isEmpty { MacOrdersFact(label: "Note") { Text("\u{201C}\(notes)\u{201D}").textSelection(.enabled) } }
             if let moved = OnlineOrdersLogic.movedLine(r) {
                 let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
-                Text(moved).foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
+                Text(moved).foregroundStyle(dearer ? Tone.owed.ink : Color.secondary)
             }
         }
     }
