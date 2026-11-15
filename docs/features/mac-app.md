@@ -98,6 +98,28 @@ main thread. One over a frame (16 ms) is logged to Console (subsystem `shop.tahe
 crashes from real Macs already reach Firestore `app_diagnostics` (MetricKit, `App/Support/Diagnostics.swift`, call
 stacks included); the daily speed summary is iOS-only there.
 
+## Cards, List and Liquid Glass (2026-11-15)
+
+Owner, 2026-11-15: "add cards for every available view / the list view looks very dated, i want a list view also but a better
+more modern one that matches ui elements / also ffs use glassmorphism/liquid glass", then a review against
+github.com/dickwu/apple-design-skill: [Design review](mac-design-audit.md).
+
+- **One collection, two layouts** (`MacRecordCollection` in `Mac/Kit/MacRecordCollection.swift`): List is a column of tiles
+  (each record on its own rounded card surface, in place of an inset List with hairlines); Cards is a grid of 280-point-or-wider
+  cards. Both keep what a Mac list does: click, ⌘-click, ⇧-click, double-click and Return open, ↑ ↓ (← → among cards), Esc,
+  ⌘A, the record's right-click menu, ⌘C, drag out, groups that fold (Done, Cancelled) and open while searching.
+- **Every place**: Orders (List, Cards, Board), Invoices, Repairs, Customers (List, Cards), Stock (its list as tiles, Gallery
+  unchanged), Workshop (Table, Board). The toolbar's centre holds a segmented control; View › as List / as Cards / as Board,
+  ⌃⌘1–3, does the same for whichever place is open (`viewWays` in `Mac/MacCommands.swift`). Each place remembers its own
+  (`mac.<place>.view`).
+- **Liquid Glass where Apple puts it**: the window's functional layer. The inspector no longer paints a ground over its own
+  glass; the list's sums float as a capsule of regular glass at its foot (`MacSummaryBar`); the sidebar and toolbar were
+  always the system's. Tiles and cards are content, so opaque: glass on cards or rows is a defect by the HIG's own checklist.
+- **The house under the glass**: every page's ground is `MacGround` (`.macGround()`), the house ground with the accent's soft
+  wash (the iPhone's Liquid Glass ground, drawn on the Mac whatever the glass setting), extended under the sidebar
+  (`backgroundExtensionEffect()`), so the glass takes the house's colour. Increase Contrast gets the plain ground. The
+  iPhone's code is untouched.
+
 ## Building it
 
 - **Xcode Cloud's "Mac release" workflow** (made by `asc.mjs mac-setup`, copied from the iPhone's release workflow): archives

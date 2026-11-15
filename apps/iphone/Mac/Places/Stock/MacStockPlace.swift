@@ -189,32 +189,20 @@ struct MacStockPlace: View {
     }
 
     /// The iPhone's rows: the photo, the name over its SKU and what it is made of, today's price at the right.
+    /// The pieces as tiles in a column (the record collection's List), their photo leading.
     private func table(_ data: MacStockPlaceRows) -> some View {
-        List(selection: $selection) {
-            ForEach(data.rows) { (r: MacStockPlaceRow) in
-                listRow(r)
-            }
+        let line = { (r: MacStockPlaceRow) -> String in
+            [r.sku, r.name, r.weight > 0 ? String(format: "%.2f g", r.weight) : ""].filter { !$0.isEmpty }
+                .joined(separator: " \u{00B7} ")
         }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .background(Theme.ground)
-        .contextMenu(forSelectionType: String.self) { ids in
-            if ids.isEmpty {
-                // The empty part of the table: what is not about one piece.
-                MacActionItems(groups: [[newAction, bulkAction]])
-            } else {
-                MacActionItems(groups: actionGroups(Array(ids)))
-            }
-        } primaryAction: { ids in
-            open(Array(ids))
-        }
-        .macOpensOnReturn(selection) { (ids: Set<String>) in open(Array(ids)) }
-        // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
-        .macCopiesSelection(selection) { (ids: Set<String>) -> [String] in
-            ids.sorted().compactMap { data.byId[$0] }.map { (r: MacStockPlaceRow) -> String in
-                [r.sku, r.name, r.weight > 0 ? String(format: "%.2f g", r.weight) : ""].filter { !$0.isEmpty }
-                    .joined(separator: " \u{00B7} ")
-            }
+        return MacRecordCollection(layout: .list, sections: [MacRecordSection(id: "all", items: data.rows)],
+                                   selection: $selection, open: { (ids: Set<String>) in open(Array(ids)) },
+                                   // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
+                                   lines: { (ids: Set<String>) -> [String] in ids.sorted().compactMap { data.byId[$0] }.map(line) },
+                                   dragText: line) { (r: MacStockPlaceRow) in
+            listRow(r)
+        } menu: { (ids: Set<String>) in
+            MacActionItems(groups: actionGroups(Array(ids)))
         }
     }
 
@@ -288,7 +276,7 @@ struct MacStockPlace: View {
             .frame(maxWidth: .infinity)
             .background(Color.clear.contentShape(Rectangle()).onTapGesture { selection = [] })
         }
-        .background(Theme.ground)
+        .macGround()
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.return) {

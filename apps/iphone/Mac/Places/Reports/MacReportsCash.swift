@@ -85,7 +85,7 @@ struct MacReportsCashPage: View {
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.ground)
+        .macGround()
         .navigationSubtitle(DashDate.longDay(instant))
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {

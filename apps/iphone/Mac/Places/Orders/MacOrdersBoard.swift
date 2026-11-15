@@ -49,7 +49,7 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 }
             }
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The same board as the Workshop's: a card for each column on the ground, twelve points apart.
@@ -150,8 +150,11 @@ struct MacOrdersBoard<RowMenu: View>: View {
                 .strokeBorder(picked ? Theme.accent : Color.primary.opacity(0.07), lineWidth: picked ? 2 : 0.5)
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { open(r.id) }
-        .onTapGesture { pick(r.id) }
+        // One tap gesture with the event's click count, so a click picks at once (a `count: 2` gesture beside it would make
+        // every click wait out the double-click interval).
+        .onTapGesture {
+            if (NSApp.currentEvent?.clickCount ?? 1) >= 2 { open(r.id) } else { pick(r.id) }
+        }
         .draggable(r.id)
         .contextMenu {
             menu(r.id)

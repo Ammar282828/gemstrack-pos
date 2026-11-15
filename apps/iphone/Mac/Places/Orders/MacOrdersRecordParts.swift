@@ -110,9 +110,12 @@ struct MacOrdersPiecesGrid: View {
             Button { tick(r.id, !r.done) } label: {
                 Image(systemName: r.done ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(r.done ? Tone.settled.color : Color.secondary)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .help(r.done ? "Done: click to mark not done" : "Mark as complete")
+            .accessibilityLabel(r.done ? "Mark piece not done" : "Mark piece done")
         } else if r.done {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
         }

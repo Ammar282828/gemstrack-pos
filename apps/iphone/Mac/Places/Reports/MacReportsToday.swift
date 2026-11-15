@@ -72,7 +72,7 @@ struct MacReportsTodayPage: View {
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// A card or a row goes there in this window, as a link does (a separate window has no sidebar: there it opens one).
@@ -401,9 +401,10 @@ struct MacDashNote: View {
             Text(text).lineLimit(3).textSelection(.enabled)
             Spacer(minLength: 8)
             if isOwner {
-                Button(action: edit) { Image(systemName: "pencil") }
+                Button(action: edit) { Image(systemName: "pencil").frame(minWidth: 22, minHeight: 22).contentShape(Rectangle()) }
                     .buttonStyle(.borderless)
                     .help("Edit the team note")
+                    .accessibilityLabel("Edit the team note")
             }
         }
         .padding(14)
@@ -428,9 +429,10 @@ struct MacReportsNoteStrip: View {
                 Text(text).lineLimit(3).textSelection(.enabled)
                 Spacer(minLength: 8)
                 if isOwner {
-                    Button(action: edit) { Image(systemName: "pencil") }
+                    Button(action: edit) { Image(systemName: "pencil").frame(minWidth: 22, minHeight: 22).contentShape(Rectangle()) }
                         .buttonStyle(.borderless)
                         .help("Edit the team note")
+                    .accessibilityLabel("Edit the team note")
                 }
             }
             .padding(.horizontal, 14)

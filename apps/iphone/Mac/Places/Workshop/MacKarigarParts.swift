@@ -135,7 +135,7 @@ struct MacWorkPage<Content: View>: View {
             VStack(alignment: .leading, spacing: 12) { content() }
                 .padding(12)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 }
 #endif

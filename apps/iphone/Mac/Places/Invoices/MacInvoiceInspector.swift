@@ -152,7 +152,7 @@ private struct MacInvoiceInspectorBody: View {
             }
             .padding(12)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     // MARK: Pieces

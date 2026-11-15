@@ -92,6 +92,8 @@ struct MacCustomersPlace: View {
     @State private var query = ""
     @State private var sort: MacCustomersSort
     @State private var selection = Set<String>()
+    /// List or Cards (the toolbar's control, the View menu's ⌃⌘1 ⌃⌘2).
+    @AppStorage("mac.customers.view") private var layoutRaw = "table"
     @State private var reckoned = Memo<MacCustomersBooks>()
     @State private var made = Memo<[MacCustomersRow]>()
     @State private var ordered = Memo<[MacCustomersGroup]>()
@@ -250,35 +252,33 @@ struct MacCustomersPlace: View {
     // MARK: The table
 
     private func table(_ groups: [MacCustomersGroup], _ rows: [MacCustomersRow], _ b: MacCustomersBooks) -> some View {
-        List(selection: $selection) {
-            ForEach(groups) { (g: MacCustomersGroup) in
-                Section {
-                    ForEach(g.rows) { (r: MacCustomersRow) in
-                        MacCustomersListRow(row: r, seesMoney: seesMoney).tag(r.id)
-                            .macOpensOnDoubleClick { go(CustomerKit.route(r.id)) }
-                    }
-                } header: {
-                    if shownSort == .group {
-                        LedgerHeading(title: g.title, count: g.rows.count, trailing: g.hint)
-                    }
-                }
-                .houseRows()
-            }
+        let grouped = shownSort == .group
+        let sections = groups.map { (g: MacCustomersGroup) -> MacRecordSection<MacCustomersRow> in
+            MacRecordSection(id: g.id, title: grouped ? g.title : "", count: g.rows.count, trailing: grouped ? g.hint : nil,
+                             items: g.rows)
         }
-        .listStyle(.inset)
-        .modifier(HouseGround())
-        .contextMenu(forSelectionType: String.self) { (ids: Set<String>) in
+        let books = book
+        let money = seesMoney
+        return MacRecordCollection(layout: layoutRaw == "cards" ? .cards : .list, sections: sections, selection: $selection,
+                                   open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { go(CustomerKit.route(id)) } },
+                                   // ⌘C: the picked customers as lines, name and number ("Ayesha Khan · 0300 1234567"); never
+                                   // what they spent.
+                                   lines: { (ids: Set<String>) -> [String] in
+                                       ids.sorted().compactMap { books.customers.item($0) }.map { (c: Customer) -> String in
+                                           [CustomerKit.shown(c), CustomerKit.filled(c.phone) ?? c.altPhone ?? ""]
+                                               .filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
+                                       }
+                                   },
+                                   dragText: { (r: MacCustomersRow) -> String in
+                                       [r.name, r.phone].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
+                                   }) { (r: MacCustomersRow) in
+            if layoutRaw == "cards" {
+                MacCustomerCard(row: r, seesMoney: money)
+            } else {
+                MacCustomersListRow(row: r, seesMoney: money)
+            }
+        } menu: { (ids: Set<String>) in
             contextItems(ids)
-        } primaryAction: { (ids: Set<String>) in
-            for id in ids.prefix(5) { go(CustomerKit.route(id)) }
-        }
-        .macOpensOnReturn(selection) { (ids: Set<String>) in for id in ids.prefix(5) { go(CustomerKit.route(id)) } }
-        // ⌘C: the picked customers as lines, name and number ("Ayesha Khan · 0300 1234567"); never what they spent.
-        .macCopiesSelection(selection) { [book] (ids: Set<String>) -> [String] in
-            ids.sorted().compactMap { book.customers.item($0) }.map { (c: Customer) -> String in
-                [CustomerKit.shown(c), CustomerKit.filled(c.phone) ?? c.altPhone ?? ""].filter { !$0.isEmpty }
-                    .joined(separator: " \u{00B7} ")
-            }
         }
         .overlay { if rows.isEmpty { emptyState } }
         .macSummaryBar(summary(rows, b))
@@ -441,6 +441,9 @@ struct MacCustomersPlace: View {
     /// one customer) are the bottom of that menu.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            MacLayoutPicker(selection: $layoutRaw, choices: [.list, .cards])
+        }
         ToolbarItemGroup(placement: .automatic) {
             Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
                 .help("New customer (\u{2303}\u{2318}N)")
@@ -526,7 +529,7 @@ private struct MacCustomersInspector: View {
             }
             .padding(12)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     private var head: some View {
@@ -744,6 +747,57 @@ private struct MacCustomersNewSheet: View {
                 }
         }
         .frame(minWidth: 460, idealWidth: 480, minHeight: 460)
+    }
+}
+
+/// A customer as a card (the place's Cards): who, how to reach them, how often they buy, and (an owner's) what they owe or
+/// have spent.
+struct MacCustomerCard: View {
+    let row: MacCustomersRow
+    /// Staff see who the customer is, never what they owe or have spent.
+    var seesMoney = true
+
+    var body: some View {
+        let r = row
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Monogram(name: r.name, size: Monogram.Size.row)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.name).font(.house(.headline)).lineLimit(1)
+                    if !r.phone.isEmpty {
+                        Text(r.phone).font(.house(.caption)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 6)
+                if seesMoney, r.owed >= 1 { Pill("Owes", tone: .owed) }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(sales).font(.house(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 6)
+                if seesMoney, r.owed >= 1 {
+                    RowAmount(amount: r.owed, tone: Tone.owed.color)
+                } else if seesMoney, r.spent > 0 {
+                    Text("Lifetime").font(.house(.caption)).foregroundStyle(.secondary)
+                    RowAmount(amount: r.spent, lac: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "12 sales · last Oct 2026", "No sales yet", and the city where it is known.
+    private var sales: String {
+        var parts: [String] = []
+        if row.sales > 0 {
+            var said = "\(row.sales) sale\(row.sales == 1 ? "" : "s")"
+            let last = CustomerKit.monthYear(row.lastAt)
+            if !last.isEmpty { said += " \u{00B7} last \(last)" }
+            parts.append(said)
+        } else {
+            parts.append("No sales yet")
+        }
+        if !row.city.isEmpty { parts.append(row.city) }
+        return parts.joined(separator: " \u{00B7} ")
     }
 }
 #endif

@@ -53,7 +53,7 @@ struct MacReportsSales: View {
             .frame(maxWidth: 1400, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.ground)
+        .macGround()
         .sheet(item: $day) { (d: AnaDay) in
             AnaDaySheet(day: d, invoices: f.invoicesByDay[d.date] ?? [])
         }

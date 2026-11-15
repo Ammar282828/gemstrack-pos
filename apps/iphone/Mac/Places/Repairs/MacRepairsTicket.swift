@@ -117,7 +117,7 @@ struct MacRepairsTicket: View {
             }
             .padding(wide ? 20 : 14)
         }
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The iPhone's record head as a card: the monogram, the piece, who and which, the status pill, what is owed as the one

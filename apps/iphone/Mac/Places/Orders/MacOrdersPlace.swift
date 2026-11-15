@@ -13,10 +13,8 @@ import ERPCore
 
 /// The place's two views.
 enum MacOrdersView: String, CaseIterable, Identifiable {
-    case table, board
+    case table, cards, board
     var id: String { rawValue }
-    var title: String { self == .table ? "List" : "Board" }
-    var symbol: String { self == .table ? "list.bullet" : "rectangle.split.3x1" }
 }
 
 struct MacOrdersPlace: View {
@@ -118,9 +116,10 @@ struct MacOrdersPlace: View {
     @ViewBuilder
     private func content(_ base: MacOrdersBase, key: [Int]) -> some View {
         Group {
-            if view == .table {
+            if view != .board {
                 MacOrdersListView(rows: base.rows, version: key, sort: sort, searching: !query.trimmingCharacters(in: .whitespaces).isEmpty,
-                                  listTitle: list == nil ? nil : title, selection: $selection, open: openPicked) { ids in
+                                  listTitle: list == nil ? nil : title, layout: view == .cards ? .cards : .list,
+                                  selection: $selection, open: openPicked) { ids in
                     rowMenu(ids)
                 }
             } else {
@@ -181,13 +180,7 @@ struct MacOrdersPlace: View {
     @ToolbarContentBuilder
     private func placeToolbar(_ base: MacOrdersBase) -> some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("View", selection: $viewRaw) {
-                ForEach(MacOrdersView.allCases) { (v: MacOrdersView) in
-                    Label(v.title, systemImage: v.symbol).tag(v.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
-            .help("The orders as a list or by stage (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            MacLayoutPicker(selection: $viewRaw, choices: [.list, .cards, .board])
         }
         // New and the one filter; the picked order's actions are the inspector's, the Order menu's and the right-click
         // menu's, never the toolbar's (a Tahoe toolbar of nine capsules overflowed a 13-inch screen).

@@ -30,7 +30,7 @@ struct AdsMacInspector: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(Theme.ground)
+        .macGround()
     }
 
     /// The iPhone's record head: the picture or symbol, the name in the serif over its line, a status pill, what it spent, then its actions.

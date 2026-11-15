@@ -68,6 +68,8 @@ struct MacRepairsPlace: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
+    /// List or Cards (the toolbar's control, the View menu's ⌃⌘1 ⌃⌘2).
+    @AppStorage("mac.repairs.view") private var layoutRaw = "table"
     @State private var query = ""
     @State private var selection = Set<String>()
     @AppStorage("mac.repairs.sort") private var sortRaw = MacRepairsSort.status.rawValue
@@ -158,7 +160,8 @@ struct MacRepairsPlace: View {
     private func listView(_ rows: [MacRepairsRow], list: String?) -> some View {
         let searching = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return MacRepairsListView(rows: rows, version: rowsKey(list), sort: sort, searching: searching,
-                                  listTitle: list == nil ? nil : title(list), selection: $selection,
+                                  listTitle: list == nil ? nil : title(list), layout: layoutRaw == "cards" ? .cards : .list,
+                                  selection: $selection,
                                   open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { openTicket(id) } }) { (ids: Set<String>) in
             menu(ids)
         }
@@ -224,6 +227,9 @@ struct MacRepairsPlace: View {
     /// right-click menu's (a Tahoe toolbar of capsules overflowed a 13-inch screen).
     @ToolbarContentBuilder
     private func placeToolbar() -> some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            MacLayoutPicker(selection: $layoutRaw, choices: [.list, .cards])
+        }
         ToolbarItemGroup(placement: .automatic) {
             if session.isOwner {
                 Button { newRepair() } label: { Label("New Repair", systemImage: "plus") }
