@@ -92,7 +92,7 @@ struct MacCustomersPlace: View {
     @State private var query = ""
     @State private var sort: MacCustomersSort
     @State private var selection = Set<String>()
-    /// List or Cards (the toolbar's control, the View menu's ⌃⌘1 ⌃⌘2).
+    /// List or Cards (the toolbar's control, View › as List / as Cards).
     @AppStorage("mac.customers.view") private var layoutRaw = "table"
     @State private var reckoned = Memo<MacCustomersBooks>()
     @State private var made = Memo<[MacCustomersRow]>()
@@ -297,7 +297,7 @@ struct MacCustomersPlace: View {
         } else if listId == "recent" {
             ContentUnavailableView("No recent buyers", systemImage: "clock", description: Text("Nobody has bought in the last 90 days."))
         } else {
-            ContentUnavailableView("No Customers Yet", systemImage: "person.2", description: Text("Add one with \u{2303}\u{2318}N."))
+            ContentUnavailableView("No Customers Yet", systemImage: "person.2", description: Text("Add one with New Customer in the toolbar or the Customer menu."))
         }
     }
 
@@ -450,7 +450,7 @@ struct MacCustomersPlace: View {
         }
         ToolbarItemGroup(placement: .automatic) {
             Button { adding = true } label: { Label("New Customer", systemImage: "plus") }
-                .help("New customer (\u{2303}\u{2318}N)")
+                .help("New customer (also in the Customer menu)")
             sortMenu
         }
     }

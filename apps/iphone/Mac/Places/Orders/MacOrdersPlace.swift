@@ -386,7 +386,7 @@ struct MacOrdersPlace: View {
         // ⌘Z: back to the status it had, where the Order machine allows that move from here (an invoiced order's status
         // is fixed); undone, the same call registers the redo.
         if from != status, OrdersLogic.canSetStatus(order, to: from, shown: status) {
-            let name = status == "Completed" ? "Mark Ready" : status == "Cancelled" ? "Cancel Order" : "Status Change"
+            let name = status == "Completed" ? "Mark Ready" : status == "Cancelled" ? "Void Order" : "Status Change"
             MacUndo.register(undoManager, name) { setStatus(order, from) }
         }
     }

@@ -185,7 +185,7 @@ struct MacStockPlace: View {
             ContentUnavailableView("No Pieces Here", systemImage: "tag", description: Text("Nothing is in this category."))
         } else {
             ContentUnavailableView("No Pieces Yet", systemImage: "tag",
-                                   description: Text(session.isOwner ? "Make a piece with \u{2303}\u{2318}N." : "The owner adds pieces to the stock."))
+                                   description: Text(session.isOwner ? "Make a piece with New Piece in the toolbar or the Piece menu." : "The owner adds pieces to the stock."))
         }
     }
 
@@ -342,14 +342,14 @@ struct MacStockPlace: View {
                 }
             }
             .pickerStyle(.segmented)
-            .help("The pieces as a list or as photographs (\u{2303}\u{2318}1, \u{2303}\u{2318}2)")
+            .help("The pieces as a list or as photographs (also View › as List, as Gallery)")
         }
         // New and the one filter, as every list has them. The picked pieces' Sell and Print are the inspector's, the Piece
         // menu's and the right-click menu's, never the toolbar's; Add in Bulk is the Piece menu's and the empty table's.
         ToolbarItemGroup(placement: .automatic) {
             Button { openRoute(StockKit.addPath) } label: { Label("New Piece", systemImage: "plus") }
                 .disabled(!session.isOwner)
-                .help("New piece (\u{2303}\u{2318}N)")
+                .help("New piece (also in the Piece menu)")
             filterMenu
         }
     }

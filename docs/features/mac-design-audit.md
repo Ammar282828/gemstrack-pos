@@ -6,6 +6,10 @@ review process (context, references, five lenses, report), its `code-audit.md` f
 before citing: `liquid-glass.md`, `materials.md`, `designing-for-macos.md`, `lists-and-tables.md`, `collections.md`,
 `sidebars.md`, `toolbars.md`, `windows.md`, `accessibility.md`, `typography.md`, `undo-and-redo.md`.
 
+The same day another session audited all four surfaces with the same skill ([Design audit](../design-audit.md), shipped
+in ERP 2.7.9: status ink colours, Increase Contrast, no repurposed or Control-key shortcuts, menus, no app appearance
+switch). This is the Mac's own deeper pass (glass, layout, lists, interaction); where the two meet it says so.
+
 **Context.** Desktop, SwiftUI on macOS 26 (Tahoe), the `ERPMac` target. A jeweller's ERP for two shops (owners and counter
 staff) used for hours at a desk: orders, invoices, repairs, customers, stock, reports. The artifact is the source code; nothing
 was run (no Mac in the cloud, and GitHub refused every Actions job on 2026-11-15, "account is locked due to a billing issue",
@@ -56,6 +60,11 @@ failure class (tiny unlabelled icon buttons) and one contrast miss (Taheri's lig
   can modify the menu item labels to identify the result". **Fixed earlier today** (`MacUndo`, PR #182): status changes, piece
   ticks and repair steps, named ("Undo Mark Ready"), never money. Still open: `undo-and-redo.md › Show the results of an undo`
   (scroll to the record undone when it is off screen), Low.
+- **Medium: every click waited.** Rows and board cards had a double-click gesture beside the single one, so SwiftUI held
+  each click for the double-click interval (about a third of a second) before it picked anything: the "not snappy" a
+  Mac user feels without naming it. **Fixed:** the click picks at once and the second click of a double-click opens
+  (`onTapGesture` plus a simultaneous `TapGesture(count: 2)`, as Stock's gallery already did), in the record collection
+  and on the Orders board.
 - **Medium: the list was the dated part, and there were no cards.** An inset `List` with hairline separators on a flat ground.
   `lists-and-tables.md › Style`: "Choose a table or list style that coordinates with your data and platform". **Fixed:**
   `MacRecordCollection` (`Mac/Kit/MacRecordCollection.swift`) draws every place's records as tiles (List) or cards (Cards), one
@@ -65,23 +74,27 @@ failure class (tiny unlabelled icon buttons) and one contrast miss (Taheri's lig
   cards, list rows, or content containers is a defect").
 - **Medium: cards where there is only text.** `collections.md › Best practices`: "Consider using a table instead of a collection
   for text"; "collections are ideal for showing image-based content". List stays the default everywhere; Cards earn their place
-  where a record has a picture. Open: an order card leading with its piece's reference photo, an invoice card with a sold piece's
-  stock photo (Stock's Gallery already does this).
+  where a record has a picture. **Fixed** where there is one: an order card leads with its first piece's reference photo
+  (else the catalogue pick's), an invoice card with its order's photo or the sold piece's stock photo (`MacCardPhoto`,
+  read only for the cards on screen), as Stock's Gallery does. Customers and Repairs keep word cards: they have no
+  pictures, so their List is the better view, and it stays the default.
 - **Medium: toolbar items not all in the menu bar.** The layout control was in the toolbar only for most places, and the Filter
   menu's Taken by, Payment and Sort still are. `designing-for-macos.md › Best practices`: "Use the menu bar to give people easy
-  access to all the commands they need". **Fixed** for layouts (View › as List / as Cards / as Board, ⌃⌘1–3 for every place,
-  `Mac/MacCommands.swift`). Open: the filters as View menu submenus.
+  access to all the commands they need". **Fixed:** View › as List / as Cards / as Board for every place
+  (`Mac/MacCommands.swift`; no key, as 2.7.9 dropped Control-key shortcuts), and each place's Filter menu as View
+  submenus: Taken By, Payment, Source, Sort By (`MacViewFilter`, `Mac/Kit/MacActions.swift`).
 - **Medium: Taheri's light accent on the page ground is 4.03:1** (`#8A6B42` on `#ECE8E1`), under `accessibility.md`'s "Up to 17
   pts … 4.5:1" for text. It passes on cards (4.93:1, white) and in dark mode (10.27:1); Mina passes everywhere (15.02:1 light).
   Most accent text sits inside cards, so few places fail, but any accent link or caption drawn straight on the ground does.
-  Open (the house's palette is the owner's call, decision "Web matches the app"): `#80633D` reaches 4.56:1 on the ground with
-  almost no visible change; or keep accent text on cards only.
+  ERP 2.7.9 answers Increase Contrast with a darker gold (`#765832`); the everyday light gold is unchanged. Open (the house's
+  palette is the owner's call, decision "Web matches the app"): `#80633D` reaches 4.56:1 on the ground with almost no
+  visible change; or keep accent text on cards only.
 - **Low: brand type in controls.** The ERP reads in Inter everywhere, the sidebar and controls included (decision "Fonts",
   2026-11-06). `typography.md`: system fonts are "designed for optimized legibility"; the skill's craft lens keeps system type
   for navigation and controls and brand type in content. Recorded, not reopened.
-- **Low: an app-level interface style.** Settings › Appearance › Liquid Glass is an app switch for something the system already
-  governs (Reduce Transparency, Increase Contrast, the system's Liquid Glass look). The Mac now ignores it for its window glass,
-  which is the system's; content stays opaque in either.
+- **Low: an app-level interface style.** An app switch for what the system already governs (Reduce Transparency, Increase
+  Contrast, the system's Liquid Glass look). Resolved: ERP 2.7.9 took the app appearance switch off the Mac, and the window's
+  glass here is the system's whatever the iPhone's setting; content stays opaque.
 
 ### Craft notes
 

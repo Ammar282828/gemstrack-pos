@@ -285,7 +285,7 @@ struct MacLayoutPicker: View {
             }
         }
         .pickerStyle(.segmented)
-        .help("Show these as " + choices.map(\.title).joined(separator: ", ") + " (View menu, \u{2303}\u{2318}1 to \u{2303}\u{2318}\(choices.count))")
+        .help("Show these as " + choices.map(\.title).joined(separator: ", ") + " (also in the View menu)")
     }
 }
 #endif

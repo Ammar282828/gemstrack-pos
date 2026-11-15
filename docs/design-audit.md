@@ -45,6 +45,7 @@ figure). Not a template; keep it.
   display and wide iPhone windows. Do it with a build and Xcode's Device Hub.
 - New sale / New order as a sheet with its own stack and child sheets (`RootView.swift:271-285`): move to full-screen
   covers and pushed questions.
-- Undo in the Edit menu (`UndoManager`) on the Mac; Settings window reworked to ~5 panes for this Mac; Save out of the
-  bottom bar into the toolbar.
+- Settings window reworked to ~5 panes for this Mac; Save out of the bottom bar into the toolbar. (Undo in the Edit
+  menu on the Mac was done the same day: `MacUndo`, docs/features/mac-app.md, "Edit menu".) The Mac's own deeper pass
+  (glass, lists, cards, interaction): [Mac design review](features/mac-design-audit.md).
 - Check on a device: Bold Text with Inter, the contact row at AX5, text on glass cards, round-off chip height.

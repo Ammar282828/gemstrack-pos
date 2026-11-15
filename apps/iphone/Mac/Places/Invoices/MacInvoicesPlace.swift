@@ -80,7 +80,7 @@ struct MacInvoicesPlace: View {
     @Environment(\.openPlaceWindow) private var openPlace
 
     @State private var selection = Set<String>()
-    /// List or Cards (the toolbar's control, the View menu's ⌃⌘1 ⌃⌘2).
+    /// List or Cards (the toolbar's control, View › as List / as Cards).
     @AppStorage("mac.invoices.view") private var layoutRaw = "table"
     @State private var query = ""
     /// "" is anyone.

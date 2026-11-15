@@ -68,7 +68,7 @@ struct MacRepairsPlace: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
-    /// List or Cards (the toolbar's control, the View menu's ⌃⌘1 ⌃⌘2).
+    /// List or Cards (the toolbar's control, View › as List / as Cards).
     @AppStorage("mac.repairs.view") private var layoutRaw = "table"
     @State private var query = ""
     @State private var selection = Set<String>()
