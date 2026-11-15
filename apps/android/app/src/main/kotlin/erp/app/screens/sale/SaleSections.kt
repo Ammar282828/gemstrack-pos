@@ -747,7 +747,7 @@ internal fun SaveBar(s: SaleFormState, f: SaleFigures, openPath: (String) -> Uni
                     // A new item is refused only once it is on an invoice: this sale was saved before (a save sent again
                     // after the answer was lost), so there is nothing to take off.
                     Text("This sale was already saved. Look for it in Invoices before saving it again.", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center)
-                    FilledTonalButton(onClick = { openPath("/invoices") }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text("Open Invoices") }
+                    FilledTonalButton(onClick = { openPath("/invoices") }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text("Open invoices") }
                 }
                 if (s.goneSkus.isNotEmpty()) {
                     FilledTonalButton(onClick = { s.dropGone() }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text("Take them off the sale") }

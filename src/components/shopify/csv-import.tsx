@@ -86,7 +86,7 @@ export function ShopifyCsvImport() {
           ) : (
             <div className="flex flex-col items-center gap-2 py-6 text-center">
               <CheckCircle2 className="h-12 w-12 text-success" />
-              <p className="text-lg font-semibold">Import Complete</p>
+              <p className="text-lg font-semibold">Import complete</p>
               <p className="text-sm text-muted-foreground">All invoices have been saved.</p>
             </div>
           )}

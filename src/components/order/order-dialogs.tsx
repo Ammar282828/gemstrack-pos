@@ -166,7 +166,7 @@ export const FinalizeOrderDialog: React.FC<{
              router.push(`/invoices/${newInvoice.id}`);
         } else {
             toast({
-                title: "Error",
+                title: "Invoice not created",
                 description: "Failed to generate an invoice from this order. Please check the details and try again.",
                 variant: "destructive",
             });
@@ -414,7 +414,7 @@ export const RecordAdvanceDialog: React.FC<{
             setExchangeRows([blankExchangeRow()]);
         } catch (error) {
              toast({
-                title: "Error",
+                title: "Payment not recorded",
                 description: error instanceof Error && error.message.includes('invoiced') ? error.message : "Failed to record advance payment.",
                 variant: "destructive",
             });

@@ -149,7 +149,7 @@ function useStatusChange(order: Order) {
       await updateOrderStatus(order.id, newStatus);
       toast({ title, description });
     } catch (e) {
-      toast({ title: 'Error', description: e instanceof MoveRefused ? e.message : 'Failed to update order status.', variant: 'destructive' });
+      toast({ title: 'Status not changed', description: e instanceof MoveRefused ? e.message : 'Failed to update order status.', variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -164,7 +164,7 @@ function useStatusChange(order: Order) {
     <AlertDialog open={!!pendingStatus} onOpenChange={(open) => !open && setPendingStatus(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+          <AlertDialogTitle>Confirm status change</AlertDialogTitle>
           <AlertDialogDescription>
             Are you sure you want to mark order <strong>{order.id}</strong> as <strong>{pendingShown}</strong>? This action is difficult to reverse.
           </AlertDialogDescription>
@@ -222,7 +222,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
     <SwipeRow leading={leading} trailing={trailing} className="rounded-card">
       <div className={cn('space-y-3 p-4', mine && 'ring-1 ring-inset ring-primary/25 rounded-card')} data-mine={mine ? 'true' : undefined}>
         {/* The head opens the order; the step row below has its own controls. */}
-        <Link href={`/orders/${order.id}`} className="press block space-y-3 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        <Link href={`/orders/${order.id}`} className="press block space-y-3 rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="flex items-start gap-3">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <Monogram name={customerOf(order)} size={36} />
@@ -443,7 +443,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
 
 /** A Shopify invoice from before orders, as a row: it opens its invoice page. */
 const ShopifyInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice: i }) => (
-  <Link href={`/invoices/${i.id}`} className="press-row flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+  <Link href={`/invoices/${i.id}`} className="press-row flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
     <Monogram name={i.customerName} size={36} />
     <div className="min-w-0 flex-1">
       <p className="truncate text-ios-headline font-semibold">{i.customerName || 'Walk-in Customer'}</p>
@@ -767,7 +767,7 @@ export function OrdersHub({ mode = 'orders' }: { mode?: 'orders' | 'shopify' }) 
             aria-label={sheetCount ? `Filters, ${sheetCount} on` : 'Filters'}
             className={cn(
               'inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-[13px] text-ios-sub font-medium',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               sheetCount ? 'bg-primary/[.12] text-primary' : 'border border-muted-foreground/[.18] bg-card text-foreground',
             )}
           >

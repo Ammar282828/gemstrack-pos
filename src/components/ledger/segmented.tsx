@@ -45,7 +45,7 @@ export function Segmented<T extends string = string>({ value, options, onChange,
             }}
             className={cn(
               'min-w-0 flex-1 whitespace-nowrap rounded-full px-3 text-ios-sub transition-colors duration-150 ease-exit motion-reduce:transition-none',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               on ? 'bg-card font-medium text-foreground shadow-sm' : 'text-muted-foreground',
             )}
           >

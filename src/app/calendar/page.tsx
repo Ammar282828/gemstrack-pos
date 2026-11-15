@@ -11,7 +11,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, startOfDay, isSameDay, isSameMonth, isValid } from 'date-fns';
-import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, CalendarClock } from 'lucide-react';
+import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, CalendarClock, Receipt, Hammer } from 'lucide-react';
+import { toneText } from '@/lib/tones';
 import { isActiveOrder } from '@/lib/order-timing';
 import { cn } from '@/lib/utils';
 import { axisLac, pkrLac } from '@/lib/money';
@@ -194,24 +195,24 @@ export default function CalendarPage() {
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
         {seesMoney && dayData && dayData.total > 0 && (
-          <span className="w-full text-[10px] font-semibold leading-tight tracking-tight tabular-nums truncate sm:text-2xs sm:tracking-normal">
+          <span className="w-full text-2xs font-semibold leading-tight tracking-tight tabular-nums truncate sm:tracking-normal">
             {dayLac(dayData.total)}
           </span>
         )}
         <span className="flex flex-wrap items-center gap-x-1 gap-y-0.5 leading-none">
           {dayData && dayData.invoices > 0 && (
-            <span className="flex items-center gap-0.5 text-2xs text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" />{dayData.invoices}
+            <span className={cn('flex items-center gap-0.5 text-2xs', toneText('settled'))} title={`${dayData.invoices} invoice${dayData.invoices === 1 ? '' : 's'}`}>
+              <Receipt className="h-3 w-3" aria-hidden />{dayData.invoices}<span className="sr-only"> invoices</span>
             </span>
           )}
           {dayData && dayData.orders > 0 && (
-            <span className="flex items-center gap-0.5 text-2xs text-blue-600 dark:text-blue-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{dayData.orders}
+            <span className={cn('flex items-center gap-0.5 text-2xs', toneText('working'))} title={`${dayData.orders} order${dayData.orders === 1 ? '' : 's'}`}>
+              <Hammer className="h-3 w-3" aria-hidden />{dayData.orders}<span className="sr-only"> orders</span>
             </span>
           )}
           {due > 0 && (
-            <span className="flex items-center gap-0.5 text-2xs text-warning" title={`${due} promised for this day`}>
-              <CalendarClock className="h-2.5 w-2.5" />{due}
+            <span className={cn('flex items-center gap-0.5 text-2xs', toneText('owed'))} title={`${due} promised for this day`}>
+              <CalendarClock className="h-3 w-3" aria-hidden />{due}<span className="sr-only"> promised</span>
             </span>
           )}
         </span>

@@ -316,11 +316,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             } else { router.push('/products'); }
           }
         } else {
-          toast({ title: "Error", description: "Failed to add product. Check logs for details.", variant: "destructive" });
+          toast({ title: "Product not saved", description: "Failed to add product. Check logs for details.", variant: "destructive" });
         }
       }
     } catch (error) {
-        toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
+        toast({ title: "Product not saved", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -562,7 +562,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       <div className="grid grid-cols-2 gap-3 md:gap-4">
                           {selectedMetalType !== 'silver' && (
                             <FormField control={form.control} name="makingCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g. 5000" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="e.g. 5000" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           )}
                           <FormField control={form.control} name="miscCharges" render={({ field }) => (

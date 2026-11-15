@@ -80,7 +80,7 @@ function Bar({ navRole, tabs, onSearch, mapOpen, onlineWaiting }: {
         <Item key={t.id} href={t.href} label={t.label} icon={t.icon} on={lit === t.id} onTap={() => setPending(t.id)}>
           {t.count === 'online' && onlineWaiting > 0 && (
             <span
-              className="absolute -right-2.5 -top-1 min-w-[16px] rounded-full bg-destructive px-1 text-center text-[10px] font-semibold leading-4 text-destructive-foreground"
+              className="absolute -right-2.5 -top-1 min-w-[16px] rounded-full bg-destructive px-1 text-center text-2xs font-semibold leading-4 text-destructive-foreground"
               title={`${onlineWaiting} online order${onlineWaiting === 1 ? '' : 's'} to confirm`}
             >{onlineWaiting}</span>
           )}

@@ -172,7 +172,7 @@ const JobRow: React.FC<{
                   <SelectTrigger className="h-7 w-[130px] text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="in-progress">In progress</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -258,7 +258,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
       toast({ title: 'Job assigned', description: `${description.trim()} → ${karigar?.name}` });
       reset(); onOpenChange(false);
     } else {
-      toast({ title: 'Error', description: 'Could not save the job.', variant: 'destructive' });
+      toast({ title: 'Job not saved', description: 'Could not save the job.', variant: 'destructive' });
     }
   };
 
@@ -266,7 +266,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
     <Dialog open={open} onOpenChange={v => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Stock Work</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign stock work</DialogTitle>
           <DialogDescription>Pieces for your own inventory — not tied to a customer order. Also use this for repairs and samples.</DialogDescription>
         </DialogHeader>
 
@@ -994,7 +994,7 @@ export default function WorkshopPage() {
       await deleteKarigarJob(job.id.replace(/^job:/, ''));
       toast({ title: 'Job deleted' });
     } catch (e) {
-      toast({ title: 'Error', description: deleteErrorText(e, 'Could not delete.'), variant: 'destructive' });
+      toast({ title: 'Not deleted', description: deleteErrorText(e, 'Could not delete.'), variant: 'destructive' });
     }
   };
   const openAssign = (karigarId: string) => { setPresetKarigar(karigarId); setAddOpen(true); };
@@ -1081,7 +1081,7 @@ export default function WorkshopPage() {
             <SelectItem value="active">Active only</SelectItem>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="in-progress">In progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
@@ -1302,7 +1302,7 @@ export default function WorkshopPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
-                    <TableHead>Job Details</TableHead>
+                    <TableHead>Job details</TableHead>
                     <TableHead className="hidden md:table-cell">Given</TableHead>
                     <TableHead>Order / Customer / Taken by</TableHead>
                     <TableHead>Karigar</TableHead>

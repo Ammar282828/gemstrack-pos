@@ -93,7 +93,7 @@ const PaymentMethodForm: React.FC<{
                     name="bankName"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Bank Name</FormLabel>
+                        <FormLabel>Bank name</FormLabel>
                         <SearchablePicker
                             value={field.value || ''}
                             onChange={field.onChange}
@@ -106,8 +106,8 @@ const PaymentMethodForm: React.FC<{
                         </FormItem>
                     )}
                     />
-                <FormField name="accountName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField name="accountNumber" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField name="accountName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField name="accountNumber" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField name="iban" control={form.control} render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input placeholder="e.g., PK12..." {...field} /></FormControl><FormMessage /></FormItem>)} />
 
                 <DialogFooter>
@@ -209,7 +209,7 @@ export default function PaymentMethodsPage() {
         setIsFormOpen(false);
         setEditingMethod(undefined);
     } catch (e) {
-        toast({ title: "Error", description: "The bank account was not saved.", variant: "destructive" });
+        toast({ title: "Bank account not saved", description: "The bank account was not saved.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
@@ -222,7 +222,7 @@ export default function PaymentMethodsPage() {
         await updateSettings({ paymentMethods: updatedMethods });
         toast({ title: "Deleted", description: "Payment method removed." });
     } catch (e) {
-         toast({ title: "Error", description: "The bank account was not deleted.", variant: "destructive" });
+         toast({ title: "Bank account not deleted", description: "The bank account was not deleted.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
@@ -257,7 +257,7 @@ export default function PaymentMethodsPage() {
         <Dialog open={isWhatsAppDialogOpen} onOpenChange={setIsWhatsAppDialogOpen}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Send Payment Details</DialogTitle>
+                    <DialogTitle>Send payment details</DialogTitle>
                     <DialogDescription>
                         Enter the customer's WhatsApp number to send the details for {selectedMethodForWhatsApp?.bankName}.
                     </DialogDescription>
@@ -319,7 +319,7 @@ export default function PaymentMethodsPage() {
             <CardContent>
                 <Alert>
                     <Info className="h-4 w-4" />
-                    <AlertTitle>Get Started</AlertTitle>
+                    <AlertTitle>Get started</AlertTitle>
                     <AlertDescription>
                         {searchTerm ? "No methods match your search." : "Select 'Add New Method' to add a bank account."}
                     </AlertDescription>
@@ -337,8 +337,8 @@ export default function PaymentMethodsPage() {
                       {method.bankName}
                     </CardTitle>
                     <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingMethod(method); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteMethod(method.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Edit ${method.bankName}`} onClick={() => { setEditingMethod(method); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Delete ${method.bankName}`} onClick={() => handleDeleteMethod(method.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                 </div>
                 <CardDescription>Account Holder: {method.accountName}</CardDescription>
@@ -357,7 +357,7 @@ export default function PaymentMethodsPage() {
                     <span className="text-sm text-muted-foreground">Account #:</span>
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm">{method.accountNumber}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(method.accountNumber, "Account Number")}><Copy className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Copy account number" onClick={() => handleCopyToClipboard(method.accountNumber, "Account Number")}><Copy className="h-3.5 w-3.5" /></Button>
                     </div>
                 </div>
                 {method.iban && (
@@ -365,7 +365,7 @@ export default function PaymentMethodsPage() {
                         <span className="text-sm text-muted-foreground">IBAN:</span>
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">{method.iban}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => method.iban && handleCopyToClipboard(method.iban, "IBAN")}><Copy className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Copy IBAN" onClick={() => method.iban && handleCopyToClipboard(method.iban, "IBAN")}><Copy className="h-3.5 w-3.5" /></Button>
                         </div>
                     </div>
                 )}

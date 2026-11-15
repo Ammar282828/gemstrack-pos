@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Paper for the ERP's readers (a bill, a parchi, an order slip): Google's scanner finds the page's edges,
- * squares it up and evens the light, which a photo of paper on a counter never is. The ERP's "From Photos"
+ * squares it up and evens the light, which a photo of paper on a counter never is. The ERP's "From photos"
  * stays beside it for a bill that arrived on WhatsApp.
  */
 object DocumentScanner {

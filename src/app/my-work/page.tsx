@@ -348,7 +348,7 @@ export default function MyWorkPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-10"></TableHead>
-                        <TableHead>Job Details</TableHead>
+                        <TableHead>Job details</TableHead>
                         <TableHead>Order</TableHead>
                         <TableHead>Given</TableHead>
                         <TableHead className="text-right">Age</TableHead>

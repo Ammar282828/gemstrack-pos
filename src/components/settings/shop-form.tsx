@@ -111,7 +111,7 @@ export function ShopSettingsForm() {
         form.reset(data);
         toast({ title: "Settings saved", description: "Your shop settings have been updated." });
     } catch (error) {
-        toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
+        toast({ title: "Settings not saved", description: "Failed to update settings.", variant: "destructive" });
     }
   };
 

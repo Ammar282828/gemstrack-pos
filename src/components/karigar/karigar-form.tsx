@@ -84,7 +84,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
         saveInBackground({
           run: async () => { await updateKarigar(karigar.id, data); return true; },
           saved: { title: "Success", description: "Karigar details updated successfully." },
-          failed: { title: "Error", description: "Failed to save karigar details." },
+          failed: { title: "Karigar not saved", description: "Failed to save karigar details." },
         });
         router.push(`/karigars/${karigar.id}`);
       } else if (!isEditMode && !onSubmitSuccess && !redirectToHisaab) {
@@ -93,7 +93,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
         saveInBackground({
           run: () => addKarigar(data),
           saved: { title: "Success", description: `Karigar "${data.name}" added successfully.` },
-          failed: { title: "Error", description: "Failed to create new karigar." },
+          failed: { title: "Karigar not saved", description: "Failed to create new karigar." },
         });
         router.push('/karigars');
       } else if (isEditMode && karigar) {
@@ -111,11 +111,11 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
             router.push('/karigars');
           }
         } else {
-           toast({ title: "Error", description: "Failed to create new karigar.", variant: "destructive" });
+           toast({ title: "Karigar not saved", description: "Failed to create new karigar.", variant: "destructive" });
         }
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save karigar details.", variant: "destructive" });
+      toast({ title: "Karigar not saved", description: "Failed to save karigar details.", variant: "destructive" });
       console.error("Failed to save karigar", error);
     }
   };
@@ -140,7 +140,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-base">Full Name</FormLabel>
+                  <FormLabel className="text-base">Full name</FormLabel>
                    <div className="flex items-center">
                         <User className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>

@@ -58,7 +58,7 @@ export const KarigarAssign: React.FC<{
         description: `${invoiceId || orderId} · item ${itemIndex + 1}`,
       });
     } catch {
-      toast({ title: 'Error', description: 'Could not assign karigar.', variant: 'destructive' });
+      toast({ title: 'Karigar not assigned', description: 'Could not assign karigar.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -243,7 +243,7 @@ export const KarigarBulkAssign: React.FC<{
       const name = karigars.find(k => k.id === value)?.name || 'karigar';
       toast({ title: `${unassignedCount} items assigned`, description: `All unassigned items → ${name}` });
     } catch {
-      toast({ title: 'Error', description: 'Could not assign.', variant: 'destructive' });
+      toast({ title: 'Karigar not assigned', description: 'Could not assign.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }

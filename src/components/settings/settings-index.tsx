@@ -67,7 +67,7 @@ export function SettingsIndex({ className }: { className?: string }) {
             return (
               <li key={t.href}>
                 <Link href={t.href === '/settings' ? SETTINGS_SHOP_HREF : t.href}
-                  className="flex min-h-[56px] items-center gap-3 px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+                  className="flex min-h-[56px] items-center gap-3 px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
                   <span aria-hidden className={cn('flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] [&>svg]:h-[18px] [&>svg]:w-[18px]', tone.solid)}>
                     <Icon />
                   </span>
@@ -83,7 +83,7 @@ export function SettingsIndex({ className }: { className?: string }) {
 
       <div>
         <button type="button" onClick={() => setConfirming(true)}
-          className="flex min-h-[56px] w-full items-center gap-3 rounded-card bg-card px-4 text-left text-[17px] text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          className="flex min-h-[56px] w-full items-center gap-3 rounded-card bg-card px-4 text-left text-[17px] text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <LogOut aria-hidden className="h-[18px] w-[18px]" />Sign out
         </button>
         <p className="px-4 pt-2 text-ios-foot text-muted-foreground">{shopName}</p>

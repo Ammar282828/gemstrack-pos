@@ -157,7 +157,7 @@ export function NotReady({ status, error, loading, onRetry }: { status: AdsStatu
       <PlugZap className="h-8 w-8 mx-auto text-muted-foreground" />
       <p className="font-semibold">{title}</p>
       <p className="text-sm text-muted-foreground">{detail}</p>
-      <Button asChild className="h-11"><Link href="/ads/setup">Open Setup</Link></Button>
+      <Button asChild className="h-11"><Link href="/ads/setup">Open setup</Link></Button>
     </div>
   );
 }

@@ -144,7 +144,7 @@ export default function BulkAddProductPage() {
     } catch (error: any) {
         console.error(error);
         toast({
-            title: "Error",
+            title: "Products not added",
             description: "Failed to add some products. Please try again.",
             variant: "destructive",
         });
@@ -192,7 +192,7 @@ export default function BulkAddProductPage() {
               
               {/* --- Configuration Section --- */}
               <div className="bg-muted/30 p-4 rounded-lg border space-y-4">
-                  <h3 className="font-semibold text-sm uppercase text-muted-foreground mb-2">Shared Configuration</h3>
+                  <h3 className="font-semibold text-sm uppercase text-muted-foreground mb-2">Shared configuration</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
@@ -232,7 +232,7 @@ export default function BulkAddProductPage() {
                         name="metalType"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Metal Type</FormLabel>
+                            <FormLabel>Metal type</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                               <SelectContent>
@@ -313,14 +313,14 @@ export default function BulkAddProductPage() {
                             control={form.control}
                             name="stoneCharges"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Stone Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Stone charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                            <FormField
                             control={form.control}
                             name="stoneWeightG"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Stone Weight</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Stone weight</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                           </>
@@ -343,7 +343,7 @@ export default function BulkAddProductPage() {
                             control={form.control}
                             name="diamondCharges"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Diamond charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                       )}
@@ -352,7 +352,7 @@ export default function BulkAddProductPage() {
                         control={form.control}
                         name="miscCharges"
                         render={({ field }) => (
-                          <FormItem><FormLabel>Misc Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
+                          <FormItem><FormLabel>Misc charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                         )}
                       />
                   </div>
@@ -396,7 +396,7 @@ export default function BulkAddProductPage() {
                                         </FormItem>
                                     )}
                                   />
-                                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:bg-destructive/10">
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} aria-label={`Remove row ${index + 1}`} className="text-destructive hover:bg-destructive/10">
                                       <Trash2 className="h-4 w-4" />
                                   </Button>
                               </div>
@@ -407,7 +407,7 @@ export default function BulkAddProductPage() {
 
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button type="button" variant="ghost" onClick={() => form.reset()}>Reset Form</Button>
+                <Button type="button" variant="ghost" onClick={() => form.reset()}>Reset form</Button>
                 <Button type="submit" size="lg" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isSubmitting ? 'Adding pieces…' : `Add ${fields.length} piece${fields.length === 1 ? '' : 's'}`}

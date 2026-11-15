@@ -51,6 +51,22 @@ const TIP = {
 type Rows = Record<string, any>[];
 type Money = (n: number) => string;
 
+/**
+ * A chart's alternative text: the wrapper is an image with the takeaway as its name (the marks inside are not read one
+ * by one; `accessibilityLayer` on each chart keeps them reachable by keyboard for sighted users).
+ */
+function withAlt<P extends object>(Chart: React.ComponentType<P>, alt: (p: P) => string, displayName: string) {
+  function Alt(props: P) {
+    return <div role="img" aria-label={alt(props)}><Chart {...props} /></div>;
+  }
+  Alt.displayName = displayName;
+  return Alt;
+}
+
+const first = <T,>(a: T[]) => a[0];
+const last = <T,>(a: T[]) => a[a.length - 1];
+const list = (a: string[]) => (a.length > 2 ? `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}` : a.join(' and '));
+
 export interface SeriesDef { key: string; label: string; color?: string }
 
 /** The key under a chart of two or more series: colour, name. Dashed for a reference line. */
@@ -98,7 +114,7 @@ export interface TrendRow { label: string; tip?: string; value: number; prev?: n
  * A measure over time as an area, the period before as a dashed line on the SAME axis (same measure, so one axis).
  * The last point is labelled; hover draws a crosshair. `data` from `compareSeries` (lib/analytics/books.ts).
  */
-export function TrendArea({ data, height = 180, name = 'Revenue', prevName = 'Previous period', showPrev = true, format = pkrLac, last = true }: {
+function TrendAreaChart({ data, height = 180, name = 'Revenue', prevName = 'Previous period', showPrev = true, format = pkrLac, last = true }: {
   data: TrendRow[]; height?: number; name?: string; prevName?: string; showPrev?: boolean; format?: Money; last?: boolean;
 }) {
   const id = useId().replace(/:/g, '');
@@ -108,7 +124,7 @@ export function TrendArea({ data, height = 180, name = 'Revenue', prevName = 'Pr
     <div>
       {withPrev && <ChartLegend items={[{ label: name, color: ana(1) }, { label: prevName, color: MUTED, dashed: true }]} />}
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart data={data} margin={{ top: 18, right: 14, left: 0, bottom: 0 }}>
+        <ComposedChart accessibilityLayer data={data} margin={{ top: 18, right: 14, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={`g${id}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={ana(1)} stopOpacity={0.28} />
@@ -144,7 +160,7 @@ export function Sparkline({ data, height = 32, color = ana(1) }: { data: number[
   return (
     <div aria-hidden>
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={rows} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
+        <LineChart accessibilityLayer data={rows} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
           <YAxis hide domain={['dataMin', 'dataMax']} />
           <Line {...chartMotion()} type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} activeDot={false} />
         </LineChart>
@@ -169,7 +185,7 @@ const signed = (n: number) => (n < 0 ? `−${lacCrore(-n)}` : lacCrore(n));
  * an invisible base; every step is labelled. Totals wear the house colour, costs the late tone, a net profit the
  * settled one (or late when it is a loss).
  */
-export function Waterfall({ steps, height = 260, format = pkrLac }: { steps: WaterfallStep[]; height?: number; format?: Money }) {
+function WaterfallChart({ steps, height = 260, format = pkrLac }: { steps: WaterfallStep[]; height?: number; format?: Money }) {
   let level = 0;
   const rows = steps.map((s, i) => {
     const from = s.kind === 'total' ? 0 : level;
@@ -191,7 +207,7 @@ export function Waterfall({ steps, height = 260, format = pkrLac }: { steps: Wat
   };
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={rows} margin={{ top: 24, right: 8, left: 0, bottom: 4 }} barCategoryGap={8}>
+      <BarChart accessibilityLayer data={rows} margin={{ top: 24, right: 8, left: 0, bottom: 4 }} barCategoryGap={8}>
         {GRID}
         <XAxis dataKey="label" {...AXIS} interval={0} tickMargin={6} />
         <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
@@ -234,7 +250,7 @@ export interface HBarRow {
 const ROW = 32;
 
 /** Horizontal bars, sorted as given, each with its value at the end (and a chip). Its height follows the row count. */
-export function HBars({ data, format = lacCrore, name = 'Amount', labelWidth = 108, tipFormat = pkrLac }: {
+function HBarsChart({ data, format = lacCrore, name = 'Amount', labelWidth = 108, tipFormat = pkrLac }: {
   data: HBarRow[]; format?: Money; name?: string; labelWidth?: number; tipFormat?: Money;
 }) {
   const hasChip = data.some(d => d.chip);
@@ -263,7 +279,7 @@ export function HBars({ data, format = lacCrore, name = 'Amount', labelWidth = 1
   };
   return (
     <ResponsiveContainer width="100%" height={Math.max(1, data.length) * ROW + 8}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: hasChip ? 112 : 72, left: 0, bottom: 4 }} barCategoryGap={8}>
+      <BarChart accessibilityLayer data={data} layout="vertical" margin={{ top: 4, right: hasChip ? 112 : 72, left: 0, bottom: 4 }} barCategoryGap={8}>
         <XAxis type="number" hide domain={[0, 'dataMax']} />
         <YAxis type="category" dataKey="label" {...AXIS} width={labelWidth} interval={0} tick={valueTick} />
         <Tooltip cursor={BAND} {...TIP} formatter={(v: number) => [tipFormat(v), name]} />
@@ -282,7 +298,7 @@ export function HBars({ data, format = lacCrore, name = 'Amount', labelWidth = 1
  * Bars side by side per x, on one axis; optionally a line on that SAME axis (the net beside money in and out). Two or
  * more series always get a legend.
  */
-export function GroupedBars({ data, series, line, xKey = 'label', height = 260, format = pkrLac }: {
+function GroupedBarsChart({ data, series, line, xKey = 'label', height = 260, format = pkrLac }: {
   data: Rows; series: SeriesDef[]; line?: SeriesDef; xKey?: string; height?: number; format?: Money;
 }) {
   const colorOf = (s: SeriesDef, i: number) => s.color ?? ana(i + 1);
@@ -292,7 +308,7 @@ export function GroupedBars({ data, series, line, xKey = 'label', height = 260, 
     <div>
       {items.length > 1 && <ChartLegend items={items} />}
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2} barCategoryGap="22%">
+        <ComposedChart accessibilityLayer data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2} barCategoryGap="22%">
           {GRID}
           <XAxis dataKey={xKey} {...AXIS} interval="preserveStartEnd" minTickGap={8} tickMargin={6} />
           <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
@@ -316,7 +332,7 @@ export function GroupedBars({ data, series, line, xKey = 'label', height = 260, 
  * Parts stacked into a whole per x (or per row with `layout="vertical"`: horizontal bars on one shared scale, the way
  * money in sits beside money out). A 2px gap between segments; a legend always.
  */
-export function StackedBars({ data, series, xKey = 'label', height = 260, format = pkrLac, layout = 'horizontal', valueFormat }: {
+function StackedBarsChart({ data, series, xKey = 'label', height = 260, format = pkrLac, layout = 'horizontal', valueFormat }: {
   data: Rows; series: SeriesDef[]; xKey?: string; height?: number; format?: Money; layout?: 'horizontal' | 'vertical';
   /** The unit on the axis and in the tooltip when it is not rupees (tola). */
   valueFormat?: { axis: (n: number) => string; tip: Money };
@@ -329,7 +345,7 @@ export function StackedBars({ data, series, xKey = 'label', height = 260, format
     <div>
       <ChartLegend items={series.map((s, i) => ({ label: s.label, color: s.color ?? ana(i + 1) }))} />
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} layout={vertical ? 'vertical' : 'horizontal'} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap={vertical ? 14 : '22%'}>
+        <BarChart accessibilityLayer data={data} layout={vertical ? 'vertical' : 'horizontal'} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap={vertical ? 14 : '22%'}>
           {vertical ? <CartesianGrid horizontal={false} stroke="hsl(var(--border))" /> : GRID}
           {/* Direct children, never a fragment: recharts finds its axes by walking its own children only. */}
           {vertical && <XAxis type="number" {...AXIS} tickFormatter={v => axis(Number(v))} />}
@@ -353,11 +369,11 @@ export function StackedBars({ data, series, xKey = 'label', height = 260, format
 export interface WeekdayDatum { label: string; avg: number; revenue: number; count: number; days: number }
 
 /** Seven bars, the average revenue of each weekday; the best one carries its value. */
-export function WeekdayBars({ data, height = 200, format = pkrLac }: { data: WeekdayDatum[]; height?: number; format?: Money }) {
+function WeekdayBarsChart({ data, height = 200, format = pkrLac }: { data: WeekdayDatum[]; height?: number; format?: Money }) {
   const best = data.reduce((m, d, i) => (d.avg > (data[m]?.avg ?? 0) ? i : m), 0);
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 22, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
+      <BarChart accessibilityLayer data={data} margin={{ top: 22, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
         {GRID}
         <XAxis dataKey="label" {...AXIS} tickMargin={6} interval={0} />
         <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
@@ -386,7 +402,7 @@ export function WeekdayBars({ data, height = 200, format = pkrLac }: { data: Wee
 // ── LineSmall ───────────────────────────────────────────────────────────────
 
 /** A small line on its own axis (net margin %), the last point labelled. Never share it with a money chart. */
-export function LineSmall({ data, yKey, name, xKey = 'label', height = 140, color = ana(1), format = (n: number) => `${n.toFixed(1)}%` }: {
+function LineSmallChart({ data, yKey, name, xKey = 'label', height = 140, color = ana(1), format = (n: number) => `${n.toFixed(1)}%` }: {
   data: Rows; yKey: string; name: string; xKey?: string; height?: number; color?: string; format?: (n: number) => string;
 }) {
   const tail = data[data.length - 1];
@@ -394,7 +410,7 @@ export function LineSmall({ data, yKey, name, xKey = 'label', height = 140, colo
   const crossesZero = Math.min(...values) < 0;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 18, right: 14, left: 0, bottom: 0 }}>
+      <LineChart accessibilityLayer data={data} margin={{ top: 18, right: 14, left: 0, bottom: 0 }}>
         {GRID}
         <XAxis dataKey={xKey} {...AXIS} interval="preserveStartEnd" minTickGap={16} tickMargin={6} />
         <YAxis {...AXIS} width={44} tickFormatter={v => `${Math.round(Number(v))}%`} />
@@ -416,10 +432,10 @@ export function LineSmall({ data, yKey, name, xKey = 'label', height = 140, colo
  * Revenue per calendar month, every month on record. One series in the house colour; the average is a dashed
  * reference line on the same axis and the best month carries its value.
  */
-export function MonthlyRevenueChart({ data, average, best, height = 280 }: { data: { key: string }[] & Rows; average: number; best: string | null | undefined; height?: number }) {
+function MonthlyRevenueChartInner({ data, average, best, height = 280 }: { data: { key: string }[] & Rows; average: number; best: string | null | undefined; height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 22, right: 12, left: 0, bottom: 0 }} barCategoryGap="22%">
+      <BarChart accessibilityLayer data={data} margin={{ top: 22, right: 12, left: 0, bottom: 0 }} barCategoryGap="22%">
         {GRID}
         <XAxis dataKey="month" {...AXIS} interval="preserveStartEnd" minTickGap={8} tickMargin={6} />
         <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
@@ -445,14 +461,14 @@ export function MonthlyRevenueChart({ data, average, best, height = 280 }: { dat
 }
 
 /** Revenue per day by acquisition source, a line each in the source's own colour (`SOURCE_COLORS`). */
-export function SourceTrendChart({ data, keys, labels = SOURCE_LABELS, colors = SOURCE_COLORS, height = 280 }: {
+function SourceTrendChartChart({ data, keys, labels = SOURCE_LABELS, colors = SOURCE_COLORS, height = 280 }: {
   data: Rows; keys: string[]; labels?: Record<string, string>; colors?: Record<string, string>; height?: number;
 }) {
   return (
     <div>
       {keys.length > 1 && <ChartLegend items={keys.map(k => ({ label: labels[k] ?? k, color: colors[k] ?? ana(6) }))} />}
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+        <LineChart accessibilityLayer data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           {GRID}
           <XAxis dataKey="date" {...AXIS} interval="preserveStartEnd" minTickGap={24} tickMargin={6} tickFormatter={v => formatDate(v, 'MMM d')} />
           <YAxis {...AXIS} width={44} tickFormatter={v => axisLac(Number(v))} />
@@ -471,3 +487,38 @@ export function SourceTrendChart({ data, keys, labels = SOURCE_LABELS, colors = 
     </div>
   );
 }
+
+// ── The exported charts, each with its alternative text ─────────────────────
+
+export const TrendArea = withAlt(TrendAreaChart, ({ data, name = 'Revenue', format = pkrLac }) => {
+  const a = first(data), z = last(data);
+  return a && z ? `${name}, ${data.length} points: ${format(a.value)} on ${a.tip ?? a.label}, ${format(z.value)} on ${z.tip ?? z.label}.` : `${name}: no data.`;
+}, 'TrendArea');
+
+export const Waterfall = withAlt(WaterfallChart, ({ steps, format = pkrLac }) =>
+  `From revenue to profit: ${steps.map(s => `${s.label} ${format(s.value)}`).join(', ')}.`, 'Waterfall');
+
+export const HBars = withAlt(HBarsChart, ({ data, name = 'Amount', format = lacCrore }) =>
+  data.length ? `${name}, ${data.length} rows, largest first as listed: ${data.slice(0, 5).map(d => `${d.label} ${format(d.value)}`).join(', ')}${data.length > 5 ? ' and more' : ''}.` : `${name}: no rows.`, 'HBars');
+
+export const GroupedBars = withAlt(GroupedBarsChart, ({ data, series, line, xKey = 'label' }) =>
+  `${list([...series, ...(line ? [line] : [])].map(s => s.label))} over ${data.length} periods, from ${data[0]?.[xKey] ?? 'the start'} to ${data[data.length - 1]?.[xKey] ?? 'now'}.`, 'GroupedBars');
+
+export const StackedBars = withAlt(StackedBarsChart, ({ data, series, xKey = 'label' }) =>
+  `${list(series.map(s => s.label))}, stacked, over ${data.length} ${data.length === 1 ? 'row' : 'rows'}, from ${data[0]?.[xKey] ?? 'the start'} to ${data[data.length - 1]?.[xKey] ?? 'now'}.`, 'StackedBars');
+
+export const WeekdayBars = withAlt(WeekdayBarsChart, ({ data, format = pkrLac }) => {
+  const best = data.reduce<WeekdayDatum | undefined>((m, d) => (!m || d.avg > m.avg ? d : m), undefined);
+  return best ? `Average revenue by weekday: ${best.label} is the best at ${format(best.avg)}.` : 'Average revenue by weekday: no data.';
+}, 'WeekdayBars');
+
+export const LineSmall = withAlt(LineSmallChart, ({ data, yKey, name, format = (n: number) => `${n.toFixed(1)}%` }) => {
+  const z = last(data);
+  return z ? `${name} over ${data.length} points, latest ${format(Number(z[yKey]) || 0)}.` : `${name}: no data.`;
+}, 'LineSmall');
+
+export const MonthlyRevenueChart = withAlt(MonthlyRevenueChartInner, ({ data, average, best }) =>
+  `Revenue by month over ${data.length} months, average ${pkrLac(average)}${best ? `, best month ${best}` : ''}.`, 'MonthlyRevenueChart');
+
+export const SourceTrendChart = withAlt(SourceTrendChartChart, ({ data, keys, labels = SOURCE_LABELS }) =>
+  `Revenue per day by source over ${data.length} days: ${list(keys.map(k => labels[k] ?? k))}.`, 'SourceTrendChart');

@@ -122,7 +122,7 @@ export default function ExpensesPage() {
 
   const handlePrintReport = async () => {
     if (!settings) {
-      toast({ title: "Error", description: "Settings not loaded, cannot generate report.", variant: "destructive" });
+      toast({ title: "Report not generated", description: "Settings not loaded, cannot generate report.", variant: "destructive" });
       return;
     }
     const iOSWin = openPDFWindowForIOS();

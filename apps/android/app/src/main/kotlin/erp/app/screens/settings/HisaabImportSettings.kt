@@ -175,7 +175,7 @@ internal fun HisaabImportPage(initialRead: HisaabRead? = null, initialPerson: Hi
         error?.let { msg ->
             SettingsSection {
                 Column(Modifier.fillMaxWidth().ledgerRow(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Error Reading File", style = MaterialTheme.typography.titleSmall, color = Tone.problem.color())
+                    Text("Error reading file", style = MaterialTheme.typography.titleSmall, color = Tone.problem.color())
                     Text(msg, style = MaterialTheme.typography.bodyMedium, color = Tone.problem.color())
                 }
             }

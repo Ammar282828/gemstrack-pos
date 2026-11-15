@@ -199,7 +199,7 @@ export function OrderScanner({
               className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 hover:bg-accent/50"
             >
               <Images className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm">From Photos</span>
+              <span className="text-sm">From photos</span>
               <span className="text-xs text-muted-foreground">Front and back, or a few pages, together</span>
             </button>
           </div>

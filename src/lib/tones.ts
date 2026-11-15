@@ -61,12 +61,12 @@ export interface ToneClasses {
 }
 
 export const TONE: Record<Tone, ToneClasses> = {
-  late: { ink: CLASSES.late.text, tint: 'bg-tone-late/[.13]', tint10: CLASSES.late.tint, solid: 'bg-tone-late text-white' },
-  owed: { ink: CLASSES.owed.text, tint: 'bg-tone-owed/[.13]', tint10: CLASSES.owed.tint, solid: 'bg-tone-owed text-white' },
-  settled: { ink: CLASSES.settled.text, tint: 'bg-tone-settled/[.13]', tint10: CLASSES.settled.tint, solid: 'bg-tone-settled text-white' },
-  credit: { ink: CLASSES.credit.text, tint: 'bg-tone-credit/[.13]', tint10: CLASSES.credit.tint, solid: 'bg-tone-credit text-white' },
-  working: { ink: CLASSES.working.text, tint: 'bg-tone-working/[.13]', tint10: CLASSES.working.tint, solid: 'bg-tone-working text-white' },
-  quiet: { ink: CLASSES.quiet.text, tint: 'bg-tone-quiet/[.13]', tint10: CLASSES.quiet.tint, solid: 'bg-tone-quiet text-white' },
+  late: { ink: CLASSES.late.text, tint: 'bg-tone-late/[.13]', tint10: CLASSES.late.tint, solid: 'bg-tone-late text-black' },
+  owed: { ink: CLASSES.owed.text, tint: 'bg-tone-owed/[.13]', tint10: CLASSES.owed.tint, solid: 'bg-tone-owed text-black' },
+  settled: { ink: CLASSES.settled.text, tint: 'bg-tone-settled/[.13]', tint10: CLASSES.settled.tint, solid: 'bg-tone-settled text-black' },
+  credit: { ink: CLASSES.credit.text, tint: 'bg-tone-credit/[.13]', tint10: CLASSES.credit.tint, solid: 'bg-tone-credit text-black' },
+  working: { ink: CLASSES.working.text, tint: 'bg-tone-working/[.13]', tint10: CLASSES.working.tint, solid: 'bg-tone-working text-black' },
+  quiet: { ink: CLASSES.quiet.text, tint: 'bg-tone-quiet/[.13]', tint10: CLASSES.quiet.tint, solid: 'bg-tone-quiet text-card' },
   house: { ink: CLASSES.house.text, tint: 'bg-tone-house/[.13]', tint10: CLASSES.house.tint, solid: 'bg-tone-house text-primary-foreground' },
 };
 

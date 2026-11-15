@@ -155,7 +155,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
           {...prefetchProps}
           onClick={open}
           onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } }}
-          className={cn('press-row cursor-pointer py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40', status === 'Completed' && settledRowClass)}
+          className={cn('press-row cursor-pointer py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', status === 'Completed' && settledRowClass)}
         >
             <div className="flex items-start gap-3">
                 <Monogram name={doc.customerName} size={38} />
@@ -372,7 +372,7 @@ export default function DocumentsPage() {
       await updateOrderStatus(orderId, newStatus);
       toast({ title: 'Status Updated', description: `Order ${orderId} changed to "${newStatus}".` });
     } catch (e) {
-      toast({ title: 'Error', description: e instanceof MoveRefused ? e.message : 'Failed to update status.', variant: 'destructive' });
+      toast({ title: 'Status not changed', description: e instanceof MoveRefused ? e.message : 'Failed to update status.', variant: 'destructive' });
     }
   };
 
@@ -398,7 +398,7 @@ export default function DocumentsPage() {
       });
       loadGeneratedInvoices();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: 'Link not sent', description: e.message, variant: 'destructive' });
     } finally {
       setSendingLinkId(null);
     }
@@ -781,7 +781,7 @@ export default function DocumentsPage() {
           ) : (
             <div className="py-6 flex flex-col items-center gap-2 text-center">
               <CheckCircle2 className="w-12 h-12 text-success" />
-              <p className="font-semibold text-lg">Import Complete</p>
+              <p className="font-semibold text-lg">Import complete</p>
               <p className="text-muted-foreground text-sm">All invoices have been saved to Firestore.</p>
             </div>
           )}

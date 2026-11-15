@@ -24,9 +24,23 @@ class ContrastTests {
         override fun toString() = "$house/${if (dark) "dark" else "light"}"
     }
 
-    private val cases = listOf("taheri" to taheri, "mina" to mina).flatMap { (name, p) ->
+    private val houseCases = listOf("taheri" to taheri, "mina" to mina).flatMap { (name, p) ->
         listOf(false, true).map { dark -> Case(name, dark, ErpScheme.colors(ErpScheme.seedOf(p), dark)) }
     }
+
+    // "Wallpaper colours" (Settings > This phone) swaps in the phone's own scheme, which Android builds from the wallpaper by the
+    // same TonalSpot recipe. The wallpaper is not known here, so a spread of seeds stands in for it: every hue family, the very
+    // light and very dark ends, and a near-grey (the cases where TonalSpot lands closest to the limits).
+    private val wallpaperSeeds = listOf(
+        0xFF1A73E8, 0xFF0B8043, 0xFFD93025, 0xFFFFEB3B, 0xFF9334E6, 0xFF00ACC1, 0xFFFF6D00, 0xFFE91E63,
+        0xFF795548, 0xFF8A8D91, 0xFFFFFFFF, 0xFF101010, 0xFFCDDC39, 0xFF3F51B5,
+    ).map { it.toInt() }
+
+    private val wallpaperCases = wallpaperSeeds.flatMap { seed ->
+        listOf(false, true).map { dark -> Case("wallpaper #%06X".format(seed and 0xFFFFFF), dark, ErpScheme.colors(seed, dark)) }
+    }
+
+    private val cases = houseCases + wallpaperCases
 
     private fun contrast(a: Color, b: Color): Double {
         val hi = maxOf(a.luminance(), b.luminance()).toDouble()

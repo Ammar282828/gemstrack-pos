@@ -100,7 +100,7 @@ body {
     --accent-foreground: 0 0% 0%;
     /* Red / green / amber in light are the tones' INKS, so white on the fill passes and a word in
        the colour reads on white. They keep their names (230 uses of success / warning). */
-    --destructive: 354 100% 42%;
+    --destructive: 354 100% 40%; /* 4.5 on the ground too (was 4.44 at 42%) */
     --destructive-foreground: 210 20% 98%;
     --success: 136 58% 34%;
     --success-foreground: 140 60% 99%;
@@ -125,13 +125,13 @@ body {
 
     /* The app's Tone (lib/tones.ts): a fill (tints, bars, icons) and an ink (text, small icons).
        Apple's system colours and their accessible variants. Both houses wear the same set. */
-    --tone-late: 3 100% 59%;      --tone-late-ink: 354 100% 42%;
-    --tone-owed: 35 100% 50%;     --tone-owed-ink: 19 100% 39%;
-    --tone-settled: 135 59% 49%;  --tone-settled-ink: 136 58% 34%;
-    --tone-credit: 189 63% 48%;   --tone-credit-ink: 190 100% 30%;
+    --tone-late: 3 100% 59%;      --tone-late-ink: 354 100% 37%;
+    --tone-owed: 35 100% 50%;     --tone-owed-ink: 19 100% 35%;
+    --tone-settled: 135 59% 49%;  --tone-settled-ink: 136 58% 28%;
+    --tone-credit: 189 63% 48%;   --tone-credit-ink: 190 100% 25%;
     --tone-working: 211 100% 50%; --tone-working-ink: 224 100% 43%;
-    --tone-quiet: var(--muted-foreground);  --tone-quiet-ink: var(--muted-foreground);
-    --tone-house: var(--primary);           --tone-house-ink: var(--primary);
+    --tone-quiet: var(--muted-foreground);  --tone-quiet-ink: 220 8.9% 35%; /* a step darker than the muted grey: 4.5 on its own 13% wash over the ground */
+    --tone-house: var(--primary);           --tone-house-ink: 34 35% 33%; /* the gold deepened for small text: 4.57 on its pill wash (#8A6B42 was 4.19) */
 
     /* The app's shapes. Capsules (buttons, chips, pills, tab bar, search) are rounded-full.
        --radius stays: it drives rounded-lg/md/sm of components that were not touched. */
@@ -211,7 +211,7 @@ body {
     --accent: 175 12.2% 19.2%;
     --accent-foreground: 40 14% 96%;
     /* Red, and unmistakably not the gold: Save and Refund must never look alike. */
-    --destructive: 4 62% 52%;
+    --destructive: 4 80% 60%; /* 4.61 on a dark card (was 3.60) */
     --destructive-foreground: 0 0% 100%;
     /* Paid / done / on-track, and late / at-risk. See the note on saturation above. */
     --success: 152 48% 46%;
@@ -232,11 +232,12 @@ body {
     --ana-1: #c98500; --ana-2: #3987e5; --ana-3: #d95926; --ana-4: #199e70; --ana-5: #9085e9; --ana-6: #d55181;
 
     /* In dark the ink is the fill: the system colours are already bright enough to read. */
-    --tone-late: 4 100% 61%;      --tone-late-ink: 4 100% 61%;
+    --tone-late: 4 100% 61%;      --tone-late-ink: 4 100% 66%;
     --tone-owed: 37 100% 52%;     --tone-owed-ink: 37 100% 52%;
     --tone-settled: 135 64% 51%;  --tone-settled-ink: 135 64% 51%;
     --tone-credit: 189 72% 56%;   --tone-credit-ink: 189 72% 56%;
-    --tone-working: 211 100% 52%; --tone-working-ink: 211 100% 52%;
+    --tone-working: 211 100% 52%; --tone-working-ink: 211 100% 64%;
+    --tone-house-ink: var(--primary); --tone-quiet-ink: var(--muted-foreground);
 
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
@@ -281,7 +282,7 @@ body {
     --muted-foreground: 15 10% 68%;
     --accent: 337.1 23.1% 17.84%;
     --accent-foreground: 20 22% 94%;
-    --destructive: 8 58% 46%;
+    --destructive: 6 78% 62%; /* readable on Mina's dark card (was 3.34) */
     --destructive-foreground: 0 0% 100%;
     --success: 142 45% 52%;
     --success-foreground: 145 60% 8%;
@@ -296,6 +297,8 @@ body {
     --chart-3: 190 30% 58%;
     --chart-4: 290 22% 66%;
     --chart-5: 150 25% 55%;
+    --tone-house: var(--primary); --tone-house-ink: var(--primary);
+    --tone-quiet: var(--muted-foreground); --tone-quiet-ink: var(--muted-foreground);
     /* Re-declared here, not inherited: `.dark` sets these as var(--background) etc.
        on <html>, where the var()s resolve to Taheri's ground before this block
        applies on <body> — so Mina's sidebar was Taheri's green-black. */
@@ -316,6 +319,8 @@ body {
      Re-declared whole because the body carries both `theme-default` and `brand-mina`, and this
      block (two classes) must beat `.theme-default` (one) for every token it names. */
   .brand-mina.theme-default {
+    --tone-house-ink: var(--primary);
+    --tone-quiet-ink: 30 8% 32%;
     --background: 21.4 35% 92.16%;
     --foreground: 0 0% 0%;
     --card: 0 0% 100%;

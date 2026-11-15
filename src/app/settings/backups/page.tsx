@@ -264,7 +264,7 @@ const ImportCard: React.FC = () => {
         {parseError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Invalid File</AlertTitle>
+            <AlertTitle>Invalid file</AlertTitle>
             <AlertDescription>{parseError}</AlertDescription>
           </Alert>
         )}
@@ -299,7 +299,7 @@ const ImportCard: React.FC = () => {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Restore</AlertDialogTitle>
+                <AlertDialogTitle>Confirm restore</AlertDialogTitle>
                 <AlertDialogDescription>
                   This will merge <strong>{preview.totalDocs.toLocaleString()}</strong> records from the backup into your live database across <strong>{preview.collections.length}</strong> collections. Existing records with matching IDs will be overwritten. This cannot be undone.
                 </AlertDialogDescription>
@@ -339,7 +339,7 @@ const SoldProductRecovery: React.FC = () => {
       await reAddSoldProductToInventory(product);
       toast({ title: 'Product Restored', description: `${product.name} has been re-added to inventory with a new SKU.` });
     } catch (error: any) {
-      toast({ title: 'Error', description: `Failed to restore product: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Product not restored', description: `Failed to restore product: ${error.message}`, variant: 'destructive' });
     } finally { setRecoveringSku(null); }
   };
 
@@ -381,7 +381,7 @@ const SoldProductRecovery: React.FC = () => {
   );
 };
 
-// --- Danger Zone ---
+// --- Danger zone ---
 const DangerZone: React.FC = () => {
   const { deleteLatestProducts } = useAppStore(useShallow(s => ({ deleteLatestProducts: s.deleteLatestProducts })));
   const { toast } = useToast();
@@ -398,14 +398,14 @@ const DangerZone: React.FC = () => {
       const deleted = await deleteLatestProducts(deleteCount);
       toast({ title: 'Success', description: `${deleted} latest products deleted.` });
     } catch (e: any) {
-      toast({ title: 'Error', description: `Failed: ${e.message}`, variant: 'destructive' });
+      toast({ title: 'Backup not deleted', description: `Failed: ${e.message}`, variant: 'destructive' });
     } finally { setIsDeleting(false); }
   };
 
   return (
     <Card className="border-destructive">
       <CardHeader>
-        <CardTitle className="text-xl flex items-center text-destructive"><AlertTriangle className="mr-2 h-5 w-5" /> Danger Zone</CardTitle>
+        <CardTitle className="text-xl flex items-center text-destructive"><AlertTriangle className="mr-2 h-5 w-5" /> Danger zone</CardTitle>
         <CardDescription>Destructive actions that cannot be undone.</CardDescription>
       </CardHeader>
       <CardContent>

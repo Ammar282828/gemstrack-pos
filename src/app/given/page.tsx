@@ -120,7 +120,7 @@ function GivenItemForm({
       }
       onSubmitSuccess();
     } catch {
-      toast({ title: 'Error', description: 'Failed to save. If the database is locked, unlock it in Settings.', variant: 'destructive' });
+      toast({ title: 'Entry not saved', description: 'Failed to save. If the database is locked, unlock it in Settings.', variant: 'destructive' });
     }
   };
 
@@ -140,7 +140,7 @@ function GivenItemForm({
           name="date"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date Given</FormLabel>
+              <FormLabel>Date given</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -202,7 +202,7 @@ function GivenItemForm({
           name="recipientName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Recipient Name</FormLabel>
+              <FormLabel>Recipient name</FormLabel>
               <FormControl>
                 <Input list="recipient-suggestions" placeholder="Name…" {...field} />
               </FormControl>
@@ -294,7 +294,7 @@ export default function GivenItemsPage() {
       await markGivenItemReturned(item.id, new Date().toISOString());
       toast({ title: 'Marked as Returned', description: item.description });
     } catch {
-      toast({ title: 'Error', description: 'Could not update item.', variant: 'destructive' });
+      toast({ title: 'Item not updated', description: 'Could not update item.', variant: 'destructive' });
     }
   };
 
@@ -303,7 +303,7 @@ export default function GivenItemsPage() {
       await deleteGivenItem(id);
       toast({ title: 'Deleted' });
     } catch (e) {
-      toast({ title: 'Error', description: deleteErrorText(e, 'Could not delete item.'), variant: 'destructive' });
+      toast({ title: 'Not deleted', description: deleteErrorText(e, 'Could not delete item.'), variant: 'destructive' });
     }
   };
 
@@ -419,8 +419,8 @@ export default function GivenItemsPage() {
                 <TableRow>
                   <TableHead className="hidden xl:table-cell">Date</TableHead>
                   <TableHead>Item / Description</TableHead>
-                  <TableHead>Given To</TableHead>
-                  <TableHead>Given By</TableHead>
+                  <TableHead>Given to</TableHead>
+                  <TableHead>Given by</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden xl:table-cell">Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>

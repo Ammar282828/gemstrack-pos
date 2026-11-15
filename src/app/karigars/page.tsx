@@ -42,7 +42,7 @@ const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({
 
 const KarigarCard: React.FC<{ karigar: Karigar; activeHisaab: string | null; load?: KarigarWorkload }> = ({ karigar, activeHisaab, load }) => (
   <Link href={`/karigars/${karigar.id}`}
-    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
     <Monogram name={karigar.name} size={40} />
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2">

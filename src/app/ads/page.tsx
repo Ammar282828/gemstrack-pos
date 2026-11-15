@@ -231,7 +231,7 @@ function AdsOverview() {
               {!hide && chart.length > 1 && (
                 <div className="rounded-xl border p-3">
                   <p className="text-sm font-semibold mb-2">Day by day <span className="font-normal text-muted-foreground text-xs">— spend{main ? ` and ${main.label.toLowerCase()}` : ''}</span></p>
-                  <div className="h-56">
+                  <div className="h-72">
                     <SpendChart data={chart} cur={cur} resultLabel={main?.label} />
                   </div>
                 </div>

@@ -205,7 +205,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       const after = balanceLine(updated.balanceDue);
       toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ''}.` });
     } catch {
-      toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
+      toast({ title: "Payment not recorded", description: "Failed to record payment.", variant: "destructive" });
     } finally {
       paymentLockRef.current = false;
       setIsSubmittingPayment(false);
@@ -228,7 +228,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       setIsEditingDiscount(false);
       toast({ title: "Discount updated", description: `Discount set to PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}.` });
     } catch {
-      toast({ title: "Error", description: "Failed to update discount.", variant: "destructive" });
+      toast({ title: "Discount not updated", description: "Failed to update discount.", variant: "destructive" });
     } finally {
       setIsSavingDiscount(false);
     }
@@ -353,7 +353,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       }
       const updated = await refundInvoicePartial(invoice.id, amt, partialRefundReason || undefined);
       if (!updated) {
-        toast({ title: 'Error', description: 'Failed to record partial refund.', variant: 'destructive' });
+        toast({ title: 'Refund not recorded', description: 'Failed to record partial refund.', variant: 'destructive' });
         return;
       }
       setLatest(updated);
@@ -636,7 +636,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                           </div>
                         )}
                         {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">{adjustmentsLabel(invoice)}:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
-                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         {invoice.amountPaid > 0 && (
                           <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         )}

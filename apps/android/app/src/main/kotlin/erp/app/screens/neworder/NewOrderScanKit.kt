@@ -191,7 +191,7 @@ internal fun PaperPicker(
             modifier = Modifier.heightIn(min = MinTouchTarget),
         ) {
             Icon(Symbols.PhotoLibrary, null, Modifier.size(18.dp))
-            Text("From Photos", Modifier.padding(start = 6.dp))
+            Text("From photos", Modifier.padding(start = 6.dp))
         }
         if (loading) SkeletonLoading(compact = true)
     }
