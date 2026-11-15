@@ -4,7 +4,7 @@ import SwiftUI
 /// stock and the lists of what the shop earns. The menu already leaves them out; this is for a link or a path that still points
 /// there (a notification, a search hit, a Siri shortcut). The server is the real boundary: staff read no books.
 enum StaffPages {
-    private static let blocked = ["/analytics", "/expenses", "/additional-revenue", "/overheads", "/hisaab", "/shareholders", "/settings",
+    private static let blocked = ["/analytics", "/expenses", "/additional-revenue", "/overheads", "/hisaab", "/collect", "/shareholders", "/settings",
                                   "/activity-log", "/today", "/products", "/ads/setup", "/ads/audiences", "/ads/rules", "/ads/tests"]
     /// Only for marketing: reachable by a staff member who is on the marketing list too.
     private static let marketingOnly = ["/ads", "/insights", "/website/interest"]
