@@ -86,10 +86,7 @@ internal fun ShopForm(settings: Settings) {
                 "Shop mode", writer.pick("theme", ShopLogic.mode(settings.theme)),
                 listOf("default" to "Light", "taheri" to "Dark"),
             ) { writer.choose("theme", it) }
-            PickerRow(
-                "Interface style", writer.pick("uiStyle", ShopLogic.style(settings.uiStyle)),
-                listOf("standard" to "Standard", "glass" to "Liquid Glass"),
-            ) { writer.choose("uiStyle", it) }
+            // No Interface style here: Liquid Glass is the web's and the iPhone's; Android is Material You only.
         }
 
         SettingsSection("Document numbering", "Changed only when moving from another system, in the ERP.") {

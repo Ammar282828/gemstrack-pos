@@ -1454,6 +1454,8 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 
 2026-10-26. The owner: "Update the design language to Material YOU. Do your research on how Material You looks and feels, the UI, and everything, and implement it on the app." `docs/features/android-app.md#material-you-2026-10-26`.
 
+No Liquid Glass on Android (2026-11-15, owner: "the android app does not need to have glassmorphism. its supposed to be material you design"): the shop's Interface style is the web's and the iPhone's; Android ignores it and offers no picker for it.
+
 - **Android wears Material You, not the iPhone's look.** Material 3 Expressive as Pixel's own apps draw it (Settings, Clock, Wallet): tonal surfaces with no shadow or
   hairline, the Expressive shape scale, Inter (no serif; since 2026-11-07, was the system sans), segmented groups of rows, large collapsing top bars, connected button groups, shape-morphing
   buttons and cards. Words, money, payloads, navigation and the iPhone's features are untouched; the iPhone and the web keep their own look.
