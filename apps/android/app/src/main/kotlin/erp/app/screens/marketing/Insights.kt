@@ -470,7 +470,7 @@ private fun PostsSortMenu(sort: String, onSort: (String) -> Unit) {
 fun InsightsPostsContent(d: InsightsPosts, rangeKey: String, filter: String, onFilter: (String) -> Unit, sort: String) {
     val shown = InsightsLogic.shown(d, filter, sort)
     AdsPage {
-        ChipRow(Modifier.padding(horizontal = 0.dp)) {
+        ChipRow(inset = 0.dp) {
             for ((k, label) in InsightsLogic.filters) FilterChip(label, filter == k, { onFilter(k) })
         }
         d.lastPostAt?.let { last ->

@@ -602,7 +602,7 @@ private fun ControlBar(
     var groupMenu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Filters scroll with the queue, and an empty queue keeps them reachable.
-        ChipRow(Modifier.padding(horizontal = 0.dp)) {
+        ChipRow(inset = 0.dp) {
             for (f in WorkshopFocus.values()) FilterChip(f.chip, chosen = focus == f, onClick = { setFocus(f) }, count = snap.count(f))
         }
         FigureRow(verticalAlignment = Alignment.CenterVertically) {

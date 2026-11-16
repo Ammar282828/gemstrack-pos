@@ -92,14 +92,14 @@ import kotlin.math.roundToInt
 
 // MARK: Small words
 
-/** A card's name in small capitals: "TAKEN TODAY", "OWED TO YOU". */
+/** A card's name, in sentence case as Material 3 sets labels: "Taken today", "Owed to you". */
 @Composable
 fun DashLabel(text: String, modifier: Modifier = Modifier, large: Boolean = false) {
     Text(
-        text.uppercase(),
+        text.replaceFirstChar { it.uppercase() },
         modifier,
-        style = (if (large) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall)
-            .copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp),
+        style = (if (large) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium)
+            .copy(fontWeight = FontWeight.SemiBold),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }

@@ -257,13 +257,13 @@ private fun DashboardPage(
     }
 }
 
-/** "TUESDAY 21 OCTOBER", a quiet line above the hero. */
+/** "Tuesday 21 October", a quiet line above the hero. */
 @Composable
 private fun DateLine(f: DashFigures) {
     Text(
-        DashDate.dayLabel(f.now).uppercase(),
+        DashDate.dayLabel(f.now),
         Modifier.padding(horizontal = 16.dp).clearAndSetSemantics { contentDescription = DashDate.longDay(f.now) },
-        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp),
+        style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }

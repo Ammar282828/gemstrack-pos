@@ -265,7 +265,7 @@ fun WorkshopKarigarScreen(id: String) {
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             if (owner) {
-                ChipRow(Modifier.padding(horizontal = 0.dp)) {
+                ChipRow(inset = 0.dp) {
                     FilterChip("Work", chosen = !showingAccounts, onClick = { showingAccounts = false })
                     FilterChip("Payments & khata", chosen = showingAccounts, onClick = { showingAccounts = true })
                 }
