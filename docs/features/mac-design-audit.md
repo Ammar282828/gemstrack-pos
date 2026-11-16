@@ -19,7 +19,7 @@ colour carried through a calm, dense, keyboard-first workspace.
 
 ### Summary
 
-**Needs work** before this change, **Good** after it, pending a Mac build. The app is native, Universal, keyboard-rich and
+**Needs work** before this change, **Good** after it, pending a look on a Mac (it compiles: the owner's Release build at 70de6348, 2026-11-16 check). The app is native, Universal, keyboard-rich and
 broadly HIG-shaped, but it fought Liquid Glass instead of using it: it painted opaque grounds under the window's own glass
 (the inspector, a hand-built bottom bar) and kept the brand colour out of the content layer, so Tahoe's material had nothing
 to show and the Mac looked flat. Its lists were an inset List with hairlines; there was no card view. One accessibility
@@ -124,5 +124,6 @@ failure class (tiny unlabelled icon buttons) and one contrast miss (Taheri's lig
 - The iPhone's code is untouched by this change (`mac-check.py`); the one shared hook from earlier today, `RepairsDesk.stepped`, is
   nil there. Its content-layer glass (owner, 2026-11-03) is a separate decision this audit did not reopen; by the same checklist it
   would be a finding.
-- Unverified until a Mac build runs: the tiles' and cards' selection and keyboard focus, the inspector's glass, the summary
+- Compiled (both schemes in Release on the owner's Mac at 70de6348, 2026-11-15, after an unrelated ERPCore one-line fix); not yet seen
+  on a screen: the tiles' and cards' selection and keyboard focus, the inspector's glass, the summary
   capsule's legibility over a scrolling list, and the wash's strength under the sidebar.
