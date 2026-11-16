@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import erp.app.ui.theme.TabularDigits
 
@@ -41,11 +42,13 @@ fun ChipFlow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 /**
  * A row of filter chips that scrolls with the list rather than floating over it (a bar pinned under the top bar
  * sat over the title and greyed it out). Put it first in the page's column or as the first item of a lazy list.
+ * [inset] is the gap before the first chip: 16 dp for a row that runs edge to edge, 0 inside a column that already has the page's gutter
+ * (two gutters put the chips 32 dp in, off the cards' edge: Customers, audit 2026-11-16).
  */
 @Composable
-fun ChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun ChipRow(modifier: Modifier = Modifier, inset: Dp = 16.dp, content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp),
+        modifier.horizontalScroll(rememberScrollState()).padding(horizontal = inset, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
