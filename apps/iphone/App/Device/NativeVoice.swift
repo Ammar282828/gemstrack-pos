@@ -588,7 +588,6 @@ enum NativeVoiceHandoff {
                 }
             }
             if let method = payload["advanceMethod"] as? String { draft.advanceMethod = method }
-            if draft.takenBy.isEmpty { draft.takenBy = person ?? "" }
             NewOrderDraftStore.save(draft, business: House.business.id)
         } else if kind == "sale" {
             var raw = payload
@@ -598,7 +597,6 @@ enum NativeVoiceHandoff {
             var draft = SaleDraftStore.load() ?? SaleDraft()
             _ = draft.fill(fromBill: reading, customer: (payload["customerId"] as? String).flatMap { book.customers.item($0) }, fallbackMetal: House.metal)
             if let method = payload["method"] as? String, !draft.payments.isEmpty { draft.payments[0].method = method }
-            if draft.takenBy.isEmpty { draft.takenBy = person ?? "" }
             SaleDraftStore.save(draft, business: House.business.id)
             for sku in payload["skus"] as? [String] ?? [] {
                 guard let product = book.products.items.first(where: { $0.sku == sku }) else { continue }

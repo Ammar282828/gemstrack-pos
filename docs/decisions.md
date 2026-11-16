@@ -1133,6 +1133,10 @@ things and allow the user to enter those specific diagrams or graphs to get a mo
   on them (`useMineFilter`: a choice, Anyone included, holds for the visit in sessionStorage). Only a default, always shown —
   on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
   invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
+- **No auto-assign on orders and sales** (owner, 2026-11-16: "remove auto assign orders/invoices"): a new order or sale
+  (web, iPhone, iPad, Mac, and one started by voice) starts with **Taken by empty**; someone picks who took it. Supersedes
+  "Taken by starts on them for a new order, sale" above; repairs and Given by still start on the signed-in person, and the
+  Shopify orders' karigar (Uzair) is a separate rule. Android not changed (owner's instruction).
 - **Orders and Invoices start on everyone, not the signed-in person** (2026-10-05, owner: "remove the default filter for every
   account when looking at orders and invoice page … default should be by day … if its my account my orders should be
   highlighted rather than sorted"; both houses). `useMineFilter(list, { startOnMe: false })`: they open on *Anyone*, and a

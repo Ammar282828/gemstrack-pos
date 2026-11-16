@@ -50,7 +50,6 @@ import { reconcile, billLineToProduct, type BillLine } from '@/lib/vision/bill-d
 import { takeHandoff } from '@/lib/voice/handoff';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { TakenBy } from '@/lib/store';
-import { useMe } from '@/hooks/use-me';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
 import { invoiceMargin } from '@/lib/margin';
 import { owesMoney, isCredit, rupees } from '@/lib/money';
@@ -158,8 +157,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
 
 
   // A new sale starts as the signed-in person's (lib/people.ts); the picker shows it and changes it.
-  const me = useMe();
-  const [takenBy, setTakenBy] = useState<TakenBy | undefined>(me);
+  const [takenBy, setTakenBy] = useState<TakenBy | undefined>(undefined); // starts empty: no auto-assign (2026-11-16)
   // Print the bill without the per-gram rates. Pricing is unaffected; see Invoice.hideRates.
   const [hideRates, setHideRates] = useState(false);
   // See Invoice.internalNote: for the shop, never for the customer.

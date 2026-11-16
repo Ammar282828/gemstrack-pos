@@ -68,7 +68,6 @@ import {
 import type { OrderDraft } from '@/lib/vision/order-draft';
 import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
-import { useMe } from '@/hooks/use-me';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -399,7 +398,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   );
 
   // A new order starts as the signed-in person's (lib/people.ts); an edited one keeps its own.
-  const me = useMe();
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
@@ -417,7 +415,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       customerName: '',
       customerContact: '',
       source: undefined,
-      takenBy: me,
+      // Taken by starts empty (owner, 2026-11-16: no auto-assign): someone picks who took it.
+      takenBy: undefined,
       // Fourteen days unless something else is agreed. Blank meant the order was only
       // chased once it was a week old, which is rarely what anyone said at the counter.
       promisedDate: promiseIn(DEFAULT_PROMISE_DAYS),

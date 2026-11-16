@@ -334,10 +334,8 @@ extension NewOrderDraft {
     mutating func settleTakenBy(person: String?, list: [String]) {
         if !list.isEmpty && !takenBy.isEmpty && !list.contains(takenBy) { takenBy = "" }
         guard takenByDefault == nil else { return }
-        var name = NewOrderFormat.trim(person ?? "")
-        if !list.isEmpty && !list.contains(name) { name = "" }
-        takenByDefault = name
-        if takenBy.isEmpty { takenBy = name }
+        // No auto-assign (owner, 2026-11-16): Taken by starts empty and someone picks it; `person` is no longer used.
+        takenByDefault = ""
     }
 
     mutating func duplicatePiece(_ id: UUID) {
