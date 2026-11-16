@@ -140,8 +140,8 @@ private struct Rig {
 
     func build(_ name: String) -> ContractCase {
         let f = figures()
-        // The screen only sends a sale it lets be saved.
-        guard f.canSave else { fatalError("\(name): the screen would not save this sale: \(f.blockedReason ?? "?")") }
+        // The screen only sends a sale it lets be saved (the bill; Taken by is checked in everyShopField).
+        if let reason = f.moneyBlockedReason { fatalError("\(name): the screen would not save this sale: \(reason)") }
         let send = draft.payload(f) { sku in self.stock[sku].flatMap { decode(Product.self, sku, $0).qrCodeDataUrl } }
         return ContractCase(
             name: name, house: House.id, send: send,
@@ -453,7 +453,10 @@ enum SaleCases {
         r.add(ring)
         r.add(hoops)
         r.pick(sana)
+        // A sale with no one under Taken by is not saved (src/lib/taken-by.ts); with a name, it is.
+        precondition(r.figures().takenByMissing && !r.figures().canSave, "a sale without Taken by was saveable")
         r.draft.takenBy = "Ammar"
+        precondition(!r.figures().takenByMissing, "a sale with Taken by was still missing it")
         r.draft.hideRates = true
         r.draft.internalNote = "  Resize the ring by Friday  "
         r.draft.costTola = "450000"

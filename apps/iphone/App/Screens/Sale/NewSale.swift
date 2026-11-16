@@ -312,7 +312,8 @@ struct SaleForm: View {
     }
 
     /// The counter name Taken by starts on: this account's, when it has one on the house's list.
-    var defaultTaker: String { session.shop.person ?? "" }
+    /// Taken by starts empty (owner, 2026-11-16: "remove auto assign orders/invoices"): someone picks who took it.
+    var defaultTaker: String { "" }
 
     /// Every time the screen shows. The first time decides what the form opens on (`begin`): blank, or the sale kept
     /// on this phone when it is continued on purpose. After that this phone's copy is read again (the scan screen can

@@ -20,6 +20,7 @@ import { roleForEmail } from '@/lib/roles';
 import { adminPort } from '@/lib/db-admin-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { createOrder } from '@/lib/writes/create-order';
+import { takenByBlank, TAKEN_BY_MISSING } from '@/lib/taken-by';
 import { setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 
 /** Firestore rejects undefined; the client has cleanObject, this is its twin. */
@@ -158,6 +159,10 @@ export async function POST(req: NextRequest) {
         const order = body.order as Record<string, unknown> | undefined;
         if (!order || !Array.isArray(order.items) || order.items.length === 0) {
           return NextResponse.json({ error: 'An order needs at least one item' }, { status: 400 });
+        }
+        // No order without a name, from any app or version (lib/taken-by.ts).
+        if (takenByBlank(order.takenBy)) {
+          return NextResponse.json({ error: TAKEN_BY_MISSING, field: 'takenBy' }, { status: 400 });
         }
 
         const created = await createOrder(

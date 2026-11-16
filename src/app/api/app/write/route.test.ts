@@ -92,7 +92,7 @@ beforeEach(() => {
   ids = 0;
   put('app_settings', 'global', { lastInvoiceNumber: 1, goldRatePerGram21k: 30_000 });
   put('invoices', 'INV-000001', { grandTotal: 100_000, amountPaid: 0, balanceDue: 100_000, customerId: 'c1', customerName: 'Demo One', paymentHistory: [] });
-  put('orders', 'ORD-000001', { status: 'In Progress', subtotal: 50_000, advancePayment: 0, items: [{ description: 'A', isCompleted: false }, { description: 'B', isCompleted: true }] });
+  put('orders', 'ORD-000001', { status: 'In Progress', takenBy: 'Demo Clerk', subtotal: 50_000, advancePayment: 0, items: [{ description: 'A', isCompleted: false }, { description: 'B', isCompleted: true }] });
   put('orders', 'ORD-000002', { status: 'Completed', invoiceId: 'INV-000001', subtotal: 1, items: [{ description: 'A' }] });
   put('products', 'RNG-T1', RING);
 });
@@ -269,6 +269,18 @@ describe('editing an order from the phone', () => {
     expect((await call(editOf({ items: pieces, grandTotal: -5 }))).status).toBe(400);
   });
 
+  it('an edit cannot leave an order without Taken by, unless the customer placed it online', async () => {
+    const cleared = await call(editOf({ items: pieces, takenBy: null }));
+    expect(cleared.status).toBe(400);
+    expect(cleared.body).toMatchObject({ field: 'takenBy' });
+    expect((await call(editOf({ items: pieces, takenBy: '' }))).status).toBe(400);
+    put('orders', 'ORD-000001', { takenBy: null }, true);
+    expect((await call(editOf({ items: pieces }))).status).toBe(400); // an old order with none: the edit names someone
+    expect((await call(editOf({ items: pieces, takenBy: 'Demo Clerk' }))).status).toBe(200);
+    put('orders', 'SHOPIFY-1042', { status: 'Pending', items: [{ description: 'A' }], shopifyOrderName: '#1042' });
+    expect((await call({ op: 'updateOrder', orderId: 'SHOPIFY-1042', order: { items: [{ editIndex: 0, description: 'A' }] } })).status).toBe(200);
+  });
+
   it("lays the form's fields over each stored piece, keeps what the form does not show, and ignores unknown fields", async () => {
     put('orders', 'ORD-000001', { items: [{ description: 'A', isCompleted: false, karigarId: 'KAR-1', samplePhotoId: 'photo-1' }, { description: 'B', isCompleted: true, givenAt: '2026-10-01' }] }, true);
     const r = await call(editOf({ items: pieces, customerName: 'Demo Two', grandTotal: 40_000, invoiceId: 'INV-X', status: 'Completed', promisedDate: null }));
@@ -403,7 +415,7 @@ describe('finalizing an order from the phone', () => {
 });
 
 describe('a new sale from the phone', () => {
-  const sale = (over: Record<string, unknown> = {}) => ({ op: 'createInvoice', cart: [RING], customer: { name: 'Walk-in Customer' }, rates: { goldRatePerGram21k: 30_000 }, discountAmount: 0, ...over });
+  const sale = (over: Record<string, unknown> = {}) => ({ op: 'createInvoice', cart: [RING], customer: { name: 'Walk-in Customer' }, rates: { goldRatePerGram21k: 30_000 }, discountAmount: 0, takenBy: 'Demo Clerk', ...over });
 
   it('is numbered, prices the piece itself, moves it to sold, and names the sale alert', async () => {
     const r = await call(sale({ payments: [{ amount: 137_000, method: 'Cash' }] }));
@@ -452,6 +464,15 @@ describe('a new sale from the phone', () => {
     expect((await call(sale({ payments: [{ amount: 999_999 }] }))).status).toBe(409);
     expect(data.products['RNG-T1']).toBeDefined();
   });
+
+  it('a sale with no one under Taken by is refused, from any app (lib/taken-by.ts)', async () => {
+    for (const takenBy of [undefined, '', '   ']) {
+      const r = await call(sale({ takenBy }));
+      expect(r.status).toBe(400);
+      expect(r.body).toMatchObject({ error: 'Choose who took it (Taken by).', field: 'takenBy' });
+    }
+    expect(data.products['RNG-T1']).toBeDefined();
+  });
 });
 
 describe('editing an invoice from the phone', () => {
@@ -466,7 +487,7 @@ describe('editing an invoice from the phone', () => {
     delete data.products['RNG-T1'];
     const edit = (extra: Record<string, unknown>) => ({
       op: 'createInvoice', existingInvoiceId: 'INV-000001', cart: [{ ...RING }],
-      customer: { id: 'c1', name: 'Demo One' }, rates: { goldRatePerGram21k: 30_000 }, ...extra,
+      customer: { id: 'c1', name: 'Demo One' }, rates: { goldRatePerGram21k: 30_000 }, takenBy: 'Demo Clerk', ...extra,
     });
     const r = await call(edit({ discountAmount: 2_000 }));
     expect(r.status).toBe(200);
@@ -551,7 +572,7 @@ describe('the same change sent twice', () => {
   });
 
   it('an order sent twice is one order', async () => {
-    const order = { op: 'createOrder', requestId: 'req-demo-0003', order: { items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', estimatedWeightG: 4 }], subtotal: 1, grandTotal: 1, customerName: 'Walk-in Customer' } };
+    const order = { op: 'createOrder', requestId: 'req-demo-0003', order: { items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', estimatedWeightG: 4 }], subtotal: 1, grandTotal: 1, customerName: 'Walk-in Customer', takenBy: 'Demo Clerk' } };
     put('app_settings', 'global', { lastOrderNumber: 2 }, true);
     const first = await call(order);
     expect(first.status).toBe(200);

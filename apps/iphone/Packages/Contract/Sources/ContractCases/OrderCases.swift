@@ -110,7 +110,10 @@ enum OrderCases {
         fill(&d, shop, book)
 
         // A case is something the screen can send, except the one that says it is not.
-        let refusal = NewOrderMath.problem(d)
+        // Every case is about the order itself; Taken by is required (src/lib/taken-by.ts) and checked in its own case.
+        var named = d
+        if named.takenBy.isEmpty { named.takenBy = "Test Clerk" }
+        let refusal = NewOrderMath.problem(named)
         if refusedByForm {
             expect(refusal != nil, name, "should be refused by the form")
         } else {
@@ -510,8 +513,9 @@ enum OrderCases {
         do {
             let c = make("everything the form can carry", settings: taheriSettings, customers: [hina]) { d, _, book in
                 d.choose(book[0])
-                // Started on the signed-in person, from the house's list; a name off the list is let go.
+                // Nothing fills Taken by in (2026-11-16): the person chooses it, and the order waits for it.
                 d.settleTakenBy(person: "Test Clerk", list: ["Test Clerk", "Test Counter"])
+                expect(d.takenBy.isEmpty, "everything the form can carry", "Taken by was filled in for the person")
                 d.hideRates = true
                 d.notes = "  Wanted for a wedding, call before Friday  "
                 d.deliver = true
@@ -533,6 +537,11 @@ enum OrderCases {
                 d.discount = "5000"
                 d.advance = "25000"
                 d.advanceMethod = ""
+                // The whole order is there but no one is under Taken by: it waits for a name (src/lib/taken-by.ts), unless it
+                // is the edit of an order the customer placed online.
+                expect(NewOrderMath.problem(d) == "Choose who took this order under Taken by.", "everything the form can carry", "an order without Taken by was accepted")
+                expect(NewOrderMath.problem(d, nameOptional: true) == nil, "everything the form can carry", "a Shopify order's edit was asked for a name")
+                d.takenBy = "Test Clerk"
                 // A name that is not on the house's list is not saved (the web refines it against TAKEN_BY).
                 var probe = d
                 probe.takenBy = "Someone Typed"
@@ -541,11 +550,11 @@ enum OrderCases {
                 expect(NewOrderMath.problem(d, takenBy: ["Test Clerk", "Test Counter"]) == nil, "everything the form can carry", "the person on the list was refused")
             }
             let o = sent(c)
-            expect((o["takenBy"] as? String) == "Test Clerk", c.name, "Taken by did not start on the signed-in person")
+            expect((o["takenBy"] as? String) == "Test Clerk", c.name, "the chosen Taken by was not sent")
             var stale = NewOrderDraft.fresh()
             stale.takenBy = "Someone Typed"
             stale.settleTakenBy(person: "Test Clerk", list: ["Test Clerk", "Test Counter"])
-            expect(stale.takenBy == "Test Clerk", c.name, "a name off the list was kept")
+            expect(stale.takenBy.isEmpty, c.name, "a name off the list was kept")
             var quiet = NewOrderDraft.fresh()
             quiet.settleTakenBy(person: "Test Clerk", list: ["Test Clerk"])
             expect(quiet.isBlank, c.name, "a default Taken by made the order worth keeping")

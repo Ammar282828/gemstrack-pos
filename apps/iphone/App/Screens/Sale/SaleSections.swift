@@ -520,17 +520,19 @@ extension SaleForm {
     // MARK: The summary under the steps
 
     /// Where each step stands, from the sale as typed: a tick when it is complete, an amber dot where Save is
-    /// held up (Payment carries the sale's `blockedReason`, as the bar at the foot says it in words).
+    /// held up (Payment carries the bill's `moneyBlockedReason`, Review a missing Taken by; the bar at the foot says it in words).
     func stepStates(_ f: SaleFigures) -> [EntryStep: EntryStepState] {
         var out: [EntryStep: EntryStepState] = [:]
         if f.namedCustomer { out[.customer] = .done }
         if f.hasPieces { out[.pieces] = f.missingRates.isEmpty ? .done : .attention }
-        if f.blockedReason != nil {
+        if f.moneyBlockedReason != nil {
             // An empty sale is not yet a problem to look at: the Pieces step has nothing, and says so.
             if f.hasPieces { out[.payment] = .attention }
         } else if f.hasEstimate && f.paidNow > 0 {
             out[.payment] = .done
         }
+        // Taken by sits on Review: the dot says where the missing name is chosen.
+        if f.hasPieces && f.takenByMissing { out[.review] = .attention }
         return out
     }
 

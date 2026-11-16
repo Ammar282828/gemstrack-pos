@@ -91,6 +91,16 @@ vi.mock('@/lib/people', () => ({ personFor: () => undefined }));
 const { POST } = await import('./route');
 
 let autoId = 0;
+/**
+ * Every order and sale names who took it (lib/taken-by.ts, 2026-11-16) and both apps refuse to send one without.
+ * The cases are about money and some were written before that: a case with no name is sent with a clerk's.
+ */
+const named = (send: Record<string, unknown>, op: 'createOrder' | 'createInvoice'): Record<string, unknown> => {
+  if (op === 'createInvoice') return send.takenBy ? send : { ...send, takenBy: 'Test Clerk' };
+  const order = (send.order || {}) as Record<string, unknown>;
+  return order.takenBy ? send : { ...send, order: { ...order, takenBy: 'Test Clerk' } };
+};
+
 const call = async (body: unknown, email: string | null = 'owner@example.com') => {
   if (body && typeof body === 'object' && !('requestId' in body)) body = { ...body, requestId: `req-auto-${String(++autoId).padStart(6, '0')}` };
   const res = await POST(new NextRequest('https://erp.example.com/api/app/write', {
@@ -163,7 +173,7 @@ for (const [phone, file] of files) {
         expect('karat' in it && it.karat !== undefined).toBe('karat' in pieces[i] && pieces[i].karat !== undefined);
       });
 
-      const r = await call({ op: 'createOrder', ...c.send });
+      const r = await call({ op: 'createOrder', ...named(c.send, 'createOrder') });
       expect(r.status, String(r.body.error)).toBe(200);
       const id = (r.body.order as { id: string }).id;
       const saved = data.orders[id];
@@ -242,7 +252,7 @@ for (const [phone, file] of files) {
     beforeEach(() => seed(c));
 
     it('is saved, priced again by the ERP, at the figures the phone showed', async () => {
-      const r = await call({ op: 'createInvoice', ...c.send });
+      const r = await call({ op: 'createInvoice', ...named(c.send, 'createInvoice') });
       expect(r.status, String(r.body.error)).toBe(200);
       const inv = r.body.invoice as Record<string, unknown>;
       expect(money(inv.subtotal)).toBeCloseTo(c.shown.subtotal, MONEY_DIGITS);

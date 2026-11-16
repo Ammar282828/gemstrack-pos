@@ -117,8 +117,11 @@ struct SaleFigures {
     /// The first box holding text that is not a number, by name; Save waits for it.
     let unreadable: String?
     let margin: Margin?
+    /// No one is named under Taken by: the sale waits for a name (owner, 2026-11-16; src/lib/taken-by.ts).
+    let takenByMissing: Bool
 
     init(draft: SaleDraft, settings: Settings?, customers: [Customer], marginSettings: MarginSettings, who known: SaleCustomer? = nil) {
+        takenByMissing = draft.takenBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let book = SaleRateBook(settings: settings, typed: draft.rates)
         rateBook = book
         unreadable = draft.unreadableField
@@ -217,8 +220,16 @@ struct SaleFigures {
         }
     }
 
-    /// Why Save is off, in words (sale-page.tsx `invoiceBlockedReason`), or nil when the sale can be saved.
+    /// Why Save is off, in words (sale-page.tsx `invoiceBlockedReason`), or nil when the sale can be saved. The money's own
+    /// problems first; then the name, which every sale must carry.
     var blockedReason: String? {
+        if let money = moneyBlockedReason { return money }
+        if takenByMissing { return "Choose who took this sale under Taken by." }
+        return nil
+    }
+
+    /// What stops the bill itself (the contract cases check the money without a counter name).
+    var moneyBlockedReason: String? {
         if locked { return "The database is locked. Unlock it in Settings to save sales." }
         if !hasPieces { return "Add a piece to the sale first." }
         if rateBook.settings == nil { return "The shop's rates have not loaded yet." }
