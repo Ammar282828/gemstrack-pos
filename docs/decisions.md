@@ -1137,6 +1137,15 @@ things and allow the user to enter those specific diagrams or graphs to get a mo
   (web, iPhone, iPad, Mac, and one started by voice) starts with **Taken by empty**; someone picks who took it. Supersedes
   "Taken by starts on them for a new order, sale" above; repairs and Given by still start on the signed-in person, and the
   Shopify orders' karigar (Uzair) is a separate rule. Android not changed (owner's instruction).
+- **Taken by is required: no order or sale is unassigned** (owner, 2026-11-16: "there should not be any unassigned
+  possibility"). One rule, `lib/taken-by.ts`. Every screen refuses to save without a name (web order form and sale page;
+  iPhone, iPad and Mac New order and New sale, with a dot on the step that holds the field), and the server refuses a
+  write that arrives without one (`/api/app/write` createOrder, createInvoice and updateOrder; `/api/staff/write`
+  createOrder: 400 `{ error, field: 'takenBy' }`), so an older app, Android (left untouched; it fills the signed-in name
+  and the server answers its "Not set") or an agent cannot slip one through. Editing an old order or invoice with no name
+  asks for one. The only orders allowed none are those the customer placed online (Shopify `SHOPIFY-…` /
+  `shopifyOrderName`, taheri.shop `website`), made by the server. Whether the name is on the house's list stays the
+  screens' check, so a saved name the list has since dropped is kept.
 - **Orders and Invoices start on everyone, not the signed-in person** (2026-10-05, owner: "remove the default filter for every
   account when looking at orders and invoice page … default should be by day … if its my account my orders should be
   highlighted rather than sorted"; both houses). `useMineFilter(list, { startOnMe: false })`: they open on *Anyone*, and a

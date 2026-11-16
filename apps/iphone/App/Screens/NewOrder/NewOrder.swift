@@ -240,7 +240,7 @@ struct NewOrder: View {
         }
     }
 
-    /// "Taken by" starts on the signed-in person (their counter name on the house's list), once.
+    /// "Taken by" starts empty (no auto-assign, 2026-11-16): this only lets go of a name the house's list has dropped.
     private func settleTakenBy() {
         guard loaded, edit == nil, let shop = session.me?.shop else { return }
         draft.settleTakenBy(person: shop.person, list: shop.takenBy)
@@ -405,6 +405,10 @@ struct NewOrder: View {
     private var stepStates: [EntryStep: EntryStepState] {
         var out: [EntryStep: EntryStepState] = [:]
         if !draft.customerName.trimmingCharacters(in: .whitespaces).isEmpty { out[.customer] = .done }
+        // Taken by is on the Customer step and every order needs it (src/lib/taken-by.ts): the dot shows where.
+        if draft.takenBy.trimmingCharacters(in: .whitespaces).isEmpty && !(edit?.placedOnline ?? false) && !draft.pieces.isEmpty {
+            out[.customer] = .attention
+        }
         if !draft.pieces.isEmpty {
             let complete = draft.pieces.allSatisfy { (p: NewOrderPieceDraft) in
                 p.description.trimmingCharacters(in: .whitespaces).count >= 3
@@ -646,7 +650,7 @@ struct NewOrder: View {
             tell("The order can't be saved yet", "The shop's rates haven't loaded. Check the connection and try again.")
             return
         }
-        if let problem = NewOrderMath.problem(draft, takenBy: session.shop.takenBy) {
+        if let problem = NewOrderMath.problem(draft, takenBy: session.shop.takenBy, nameOptional: edit?.placedOnline ?? false) {
             tell("The order can't be saved yet", problem)
             return
         }

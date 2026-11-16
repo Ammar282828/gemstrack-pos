@@ -54,6 +54,7 @@ import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared
 import { invoiceMargin } from '@/lib/margin';
 import { owesMoney, isCredit, rupees } from '@/lib/money';
 import { useShallow } from 'zustand/react/shallow';
+import { takenByBlank } from '@/lib/taken-by';
 
 
 type RateInputs = {
@@ -639,8 +640,10 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       return `Enter a ${missing.join(' and ')} gold rate above — it is currently zero, so the total cannot be worked out.`;
     }
     if (overpaid) return 'The payments come to more than the total. To keep the rest as credit, name the customer; otherwise check the amounts received.';
+    // No sale without a name (lib/taken-by.ts; owner 2026-11-16). Last, so the money's own problems are said first.
+    if (takenByBlank(takenBy)) return 'Choose who took this sale under Taken by.';
     return null;
-  }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo, overpaid]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo, overpaid, takenBy]);
 
   const handleGenerateInvoice = async () => {
     if (isGeneratingEstimate || saleLock.current) return; // Prevent double-submit (the ref covers taps before the state re-renders)
@@ -655,6 +658,12 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
         description: "Invoicing is turned off while the database is locked. Unlock it in Settings to create invoices.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // No sale without a name (lib/taken-by.ts). The button stays live so the tap says what is missing.
+    if (takenByBlank(takenBy)) {
+      toast({ title: 'Taken by is empty', description: 'Choose who took this sale, then save.', variant: 'destructive' });
       return;
     }
 

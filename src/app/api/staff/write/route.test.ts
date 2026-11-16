@@ -64,3 +64,11 @@ describe('/api/staff/write updateOrderStatus', () => {
     expect((await call({ op: 'updateOrderStatus', orderId: 'O-P', status: 'Pending' })).status).toBe(200);
   });
 });
+
+describe('/api/staff/write createOrder', () => {
+  it('refuses an order with no one under Taken by (lib/taken-by.ts), before anything is written', async () => {
+    const r = await call({ op: 'createOrder', order: { items: [{ description: 'Demo ring' }] } });
+    expect(r.status).toBe(400);
+    expect(r.body).toMatchObject({ error: 'Choose who took it (Taken by).', field: 'takenBy' });
+  });
+});

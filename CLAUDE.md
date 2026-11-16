@@ -181,7 +181,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in
 - [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked rules for the owner to publish; share keys
-- [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Workshop; Orders/Invoices: all, yours lit; new orders and sales start with Taken by empty (no auto-assign, 2026-11-16)
+- [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Workshop; Orders/Invoices: all, yours lit; new orders and sales start with Taken by empty (no auto-assign) and can't be saved without it, server-checked (`lib/taken-by.ts`; online orders exempt; 2026-11-16)
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 - [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; Marketing group only, via the server; audiences owners'
 - [Staff see no money](docs/decisions.md#staff-see-no-money) — staff see amounts on orders, invoices, repairs and drafts only; Home has no figures but their shortcuts and Help (`/help`); no analytics, expenses, customer totals or settings; a staff member also on the marketing list gets Marketing and Ads (made paused, no spend; `lib/ads/spend.ts`)

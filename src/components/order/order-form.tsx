@@ -70,6 +70,7 @@ import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
+import { takenByProblem } from '@/lib/taken-by';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -699,6 +700,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
 
     const enrichedItems: OrderItem[] = pricedOrderItems(data.items as OrderFormItem[], ratesForOrder);
 
+    // No order without a name (lib/taken-by.ts); only one the customer placed online may stay without.
+    const takenByMiss = takenByProblem(data.takenBy, isEditMode ? order : null);
+    if (takenByMiss) {
+        form.setError('takenBy', { type: 'required', message: 'Choose who took this order' });
+        toast({ title: 'Taken by is empty', description: 'Choose who took this order, then save.', variant: 'destructive' });
+        return;
+    }
+
     if (isEditMode && order) {
         const isWalkIn = data.customerId === WALK_IN_CUSTOMER_VALUE;
         const finalCustomerId = isWalkIn ? undefined : data.customerId;
@@ -1097,7 +1106,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                     <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
                         <FormField control={form.control} name="takenBy" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Taken by <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                            <FormLabel className="text-xs">Taken by</FormLabel>
                             <FormControl>
                               <TakenByPicker value={field.value} onChange={field.onChange} />
                             </FormControl>
