@@ -108,11 +108,13 @@ fun QuickAction(
         BasicText(
             title,
             // A little slack each side: the last letter's edge is drawn a pixel or two past the measured width.
-            Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 1.dp),
             style = label,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = label.fontSize),
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            // Half-sp steps: a whole-sp step jumped from "fits" to "a hair too wide" for WhatsApp in the order page's narrower cells.
+            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = label.fontSize, stepSize = 0.25.sp),
         )
     }
 }

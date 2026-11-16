@@ -315,9 +315,9 @@ fun BusyBlock(label: String, modifier: Modifier = Modifier) {
  */
 @Composable
 fun BusyLabel(busy: Boolean, modifier: Modifier = Modifier, color: Color = Color.Unspecified, label: @Composable () -> Unit) {
-    Box(modifier, contentAlignment = Alignment.Center) {
-        Row(Modifier.alpha(if (busy) 0f else 1f), verticalAlignment = Alignment.CenterVertically) { label() }
-        if (busy) Loading(Modifier.size(22.dp), if (color == Color.Unspecified) androidx.compose.material3.LocalContentColor.current else color)
+    Box(modifier) {
+        Row(Modifier.align(Alignment.Center).alpha(if (busy) 0f else 1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { label() }
+        if (busy) Loading(Modifier.size(22.dp).align(Alignment.Center), if (color == Color.Unspecified) androidx.compose.material3.LocalContentColor.current else color)
     }
 }
 

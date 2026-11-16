@@ -275,7 +275,7 @@ private fun CollectRowView(r: CollectRow, now: java.time.Instant, open: () -> Un
         Monogram(r.customerName, size = MonogramSize.row)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(r.customerName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(line, style = MaterialTheme.typography.bodySmall, color = ErpColors.quiet, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(line, style = MaterialTheme.typography.bodySmall, color = ErpColors.quiet, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             NumericText(

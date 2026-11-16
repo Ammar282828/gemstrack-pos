@@ -126,11 +126,7 @@ internal fun PromisedSection(holder: DraftHolder) {
         title = "Promised for",
         footer = "What the piece is chased against. Within $URGENT_WINDOW_DAYS days is marked urgent.",
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        erp.app.ui.ChipFlow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             NewOrderLogic.quickDays.forEach { n ->
                 NewOrderChip("${n}d", on = d.promised == NewOrderDay.after(n)) { holder.edit { promised = NewOrderDay.after(n) } }
             }

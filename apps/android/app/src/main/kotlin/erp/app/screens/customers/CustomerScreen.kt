@@ -262,7 +262,6 @@ private fun Header(c: Customer, addPhone: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Monogram(CustomerKit.shown(c), size = MonogramSize.hero)
-            Text(CustomerKit.shown(c), style = ErpType.heading, textAlign = TextAlign.Center)
             CustomerKit.filled(c.phone)?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

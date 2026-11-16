@@ -181,7 +181,7 @@ fun CustomersList() {
                 )
             }
             animatedItem(key = "chips", contentType = "chips") {
-                ChipRow(Modifier.padding(bottom = GAP)) {
+                ChipRow(Modifier.padding(bottom = GAP), inset = 0.dp) {
                     for (option in CustomersShowing.values().filter { money || it != CustomersShowing.owing }) FilterChip(option.title, chosen = option == showing, onClick = { showing = option })
                 }
             }
