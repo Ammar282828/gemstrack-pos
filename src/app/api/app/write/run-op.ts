@@ -77,6 +77,7 @@ import { DESCRIBE_OPS, runDescribeOp } from './ops-describe';
 import { SHOPIFY_OPS, runShopifyOp } from './ops-shopify';
 import { PAYLINK_OPS, runPaylinkOp } from './ops-paylinks';
 import { COURIER_OPS, runCourierOp } from './ops-courier';
+import { takenByBlank, takenByProblem, TAKEN_BY_MISSING } from '@/lib/taken-by';
 
 type Body = { op?: string } & Record<string, unknown>;
 type FollowUp = { path: string; body: Record<string, unknown> };
@@ -280,6 +281,8 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
           const editing = text(body.existingInvoiceId);
           const cart = Array.isArray(body.cart) ? (body.cart as SaleLine[]).filter((l) => l && typeof l.sku === 'string' && l.sku) : [];
           if (!cart.length) return NextResponse.json({ error: 'The sale has no pieces.' }, { status: 400 });
+          // No sale without a name, from any app or version (lib/taken-by.ts).
+          if (takenByBlank(body.takenBy)) return NextResponse.json({ error: TAKEN_BY_MISSING, field: 'takenBy' }, { status: 400 });
           // The invoice's own pieces are sold already, to it: an edit keeps them without asking the stock.
           const onInvoice = new Set<string>();
           if (editing) {
@@ -320,6 +323,8 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
           if (!order || !Array.isArray(order.items) || order.items.length === 0) {
             return NextResponse.json({ error: 'An order needs at least one piece.' }, { status: 400 });
           }
+          // No order without a name, from any app or version (lib/taken-by.ts).
+          if (takenByBlank(order.takenBy)) return NextResponse.json({ error: TAKEN_BY_MISSING, field: 'takenBy' }, { status: 400 });
           const created = await createOrder(adminPort, order as never, {
             // A new customer as the browser makes one (store.ts addCustomer).
             createCustomer: async (c) => {
@@ -353,6 +358,13 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
               if (!Number.isFinite(n) || n < 0) return NextResponse.json({ error: `${key} must be a figure of 0 or more.` }, { status: 400 });
               edit[key] = n;
             } else edit[key] = v;
+          }
+          // An edit cannot leave the order without a name, unless the customer placed it online (lib/taken-by.ts).
+          {
+            const before = onFile.data() || {};
+            const after = 'takenBy' in edit ? edit.takenBy : before.takenBy;
+            const miss = takenByProblem(after, { id: orderId, ...before });
+            if (miss) return NextResponse.json({ error: miss, field: 'takenBy' }, { status: 400 });
           }
           // The phone sends each piece with the index it had: the form's fields go over the stored piece, so
           // what the form does not show (finished, given, its sample photo) stays as it was. A new picture

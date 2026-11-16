@@ -68,9 +68,9 @@ import {
 import type { OrderDraft } from '@/lib/vision/order-draft';
 import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
-import { useMe } from '@/hooks/use-me';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { useShallow } from 'zustand/react/shallow';
+import { takenByProblem } from '@/lib/taken-by';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -399,7 +399,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   );
 
   // A new order starts as the signed-in person's (lib/people.ts); an edited one keeps its own.
-  const me = useMe();
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
@@ -417,7 +416,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       customerName: '',
       customerContact: '',
       source: undefined,
-      takenBy: me,
+      // Taken by starts empty (owner, 2026-11-16: no auto-assign): someone picks who took it.
+      takenBy: undefined,
       // Fourteen days unless something else is agreed. Blank meant the order was only
       // chased once it was a week old, which is rarely what anyone said at the counter.
       promisedDate: promiseIn(DEFAULT_PROMISE_DAYS),
@@ -699,6 +699,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     };
 
     const enrichedItems: OrderItem[] = pricedOrderItems(data.items as OrderFormItem[], ratesForOrder);
+
+    // No order without a name (lib/taken-by.ts); only one the customer placed online may stay without.
+    const takenByMiss = takenByProblem(data.takenBy, isEditMode ? order : null);
+    if (takenByMiss) {
+        form.setError('takenBy', { type: 'required', message: 'Choose who took this order' });
+        toast({ title: 'Taken by is empty', description: 'Choose who took this order, then save.', variant: 'destructive' });
+        return;
+    }
 
     if (isEditMode && order) {
         const isWalkIn = data.customerId === WALK_IN_CUSTOMER_VALUE;
@@ -1098,7 +1106,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                     <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
                         <FormField control={form.control} name="takenBy" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Taken by <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                            <FormLabel className="text-xs">Taken by</FormLabel>
                             <FormControl>
                               <TakenByPicker value={field.value} onChange={field.onChange} />
                             </FormControl>

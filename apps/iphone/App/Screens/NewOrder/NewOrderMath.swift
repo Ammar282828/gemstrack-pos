@@ -126,7 +126,8 @@ enum NewOrderMath {
             || d.pieces.contains(where: { u($0.weight) || u($0.stoneWeight) || u($0.wastage) || u($0.making) || u($0.stones) || u($0.manualPrice) })
     }
 
-    static func problem(_ d: NewOrderDraft, takenBy: [String] = []) -> String? {
+    /// `nameOptional`: an edit of an order the customer placed online, which no one at the counter took.
+    static func problem(_ d: NewOrderDraft, takenBy: [String] = [], nameOptional: Bool = false) -> String? {
         if d.pieces.isEmpty { return "Add at least one piece to the order." }
         for (i, p) in d.pieces.enumerated() {
             let who = "Piece \(i + 1)"
@@ -146,6 +147,8 @@ enum NewOrderMath {
                 return "A positive gold rate is required for each gold karat type present in the order."
             }
         }
+        // No order without a name (owner, 2026-11-16; src/lib/taken-by.ts): nothing fills it in, so the person chooses.
+        if trim(d.takenBy).isEmpty && !nameOptional { return "Choose who took this order under Taken by." }
         if !takenBy.isEmpty && !trim(d.takenBy).isEmpty && !takenBy.contains(trim(d.takenBy)) {
             return "Taken by: Choose a name from the list"
         }

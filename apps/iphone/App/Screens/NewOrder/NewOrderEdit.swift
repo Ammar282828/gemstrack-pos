@@ -20,9 +20,12 @@ struct NewOrderEdit: Equatable {
     /// The advance on file as the form opened: sent with the edit (`advanceSeen`), so an advance typed lower is a
     /// correction the ERP makes, not a stale form it ignores (lib/writes/update-order.ts reconcileOrderMoney).
     let advanceSeen: Double
+    /// A Shopify web order: no one at the counter took it, so an edit may leave Taken by empty (src/lib/taken-by.ts).
+    let placedOnline: Bool
 
     init(_ o: Order) {
         orderId = o.id
+        placedOnline = o.id.hasPrefix("SHOPIFY-")
         advanceSeen = o.advancePayment
         invoiced = !(o.invoiceId ?? "").isEmpty
         var d = NewOrderDraft()
