@@ -651,6 +651,10 @@ struct NewOrder: View {
             return
         }
         if let problem = NewOrderMath.problem(draft, takenBy: session.shop.takenBy, nameOptional: edit?.placedOnline ?? false) {
+            #if os(macOS)
+            // A narrow Mac window keeps the customer's form, Taken by with it, in the panel's first tab: show it.
+            if problem.contains("Taken by") { macPanel = .customer }
+            #endif
             tell("The order can't be saved yet", problem)
             return
         }

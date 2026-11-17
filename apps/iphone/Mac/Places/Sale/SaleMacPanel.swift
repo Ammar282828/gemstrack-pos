@@ -3,7 +3,7 @@ import SwiftUI
 import ERPCore
 
 // The sale's panel at the right of the New sale / Edit invoice window (docs/features/mac-design.md, "New sale"): 320 pt, a
-// grouped form that scrolls on its own. Customer (a combo box, not suggestion rows), Payment, Discount (with Round ▾),
+// grouped form that scrolls on its own. Customer (a combo box, not suggestion rows; Taken by), Payment, Discount (with Round ▾),
 // Exchange, then Rates, Delivery and For the shop as disclosures. Every field writes the same SaleDraft the phone's steps
 // write, through the same functions (SaleDraft.pick, changeExchange, payRest, addPayment…); only the controls are a Mac's.
 
@@ -136,6 +136,9 @@ extension SaleForm {
                 recentKey: book.invoices.revision &+ book.orders.revision &* 31,
                 recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items) },
                 pick: { pickCustomer($0) })
+            // Who took the sale sits with who it is for, as New order's Customer section has it: since ERP 2.8.1 nothing
+            // fills it in and since 2.8.2 no sale saves without it, so it is never folded away under For the shop.
+            takenByRow
         } header: {
             Text("Customer")
         } footer: {
@@ -424,7 +427,6 @@ extension SaleForm {
 
     @ViewBuilder
     private func macShopRows(_ f: SaleFigures) -> some View {
-        takenByRow
         Toggle(isOn: $draft.hideRates) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Leave rates off the printed bill")
