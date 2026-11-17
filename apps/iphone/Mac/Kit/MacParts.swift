@@ -453,6 +453,40 @@ enum MacInspector {
     static let key = "mac.inspector.shown"
 }
 
+/// A Bool in UserDefaults for the app's scenes and the menu bar, which can't hold an @AppStorage: on macOS 27 an
+/// @AppStorage there (or in a view the menu bar's rebuild touches) is marked changed on every rebuild of the main menu, the
+/// rebuild redraws whatever holds it, and that rebuilds the menu again: 2.8.2 (179) spun at 100% at launch and never
+/// answered. This changes only when the stored value does.
+@MainActor
+@Observable
+final class MacDefaultsFlag {
+    static let inspectorShown = MacDefaultsFlag(MacInspector.key, true)
+    static let menuBarExtra = MacDefaultsFlag("mac.menuBarExtra", true)
+
+    let key: String
+    private let fallback: Bool
+    private(set) var value: Bool
+
+    private init(_ key: String, _ fallback: Bool) {
+        self.key = key
+        self.fallback = fallback
+        value = UserDefaults.standard.object(forKey: key) as? Bool ?? fallback
+        // Any change to the defaults (a Settings toggle, another window's @AppStorage) is looked at; only a new value for
+        // this key changes `value`. Not KVO: the keys have dots, which KVO reads as a path.
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+    }
+
+    private func refresh() {
+        let now = UserDefaults.standard.object(forKey: key) as? Bool ?? fallback
+        if now != value { value = now }
+    }
+
+    func set(_ on: Bool) { if on != value { UserDefaults.standard.set(on, forKey: key) } }
+    func toggle() { set(!value) }
+}
+
 private struct MacInspectorModifier<Panel: View>: ViewModifier {
     @AppStorage(MacInspector.key) private var shown = true
     let panel: () -> Panel

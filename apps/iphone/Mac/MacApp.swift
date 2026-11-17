@@ -11,7 +11,8 @@ import FirebaseCore
 struct ERPMacApp: App {
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
     /// Settings › This Mac › Menu bar: the figures' menu-bar item is on unless turned off.
-    @AppStorage("mac.menuBarExtra") private var showMenuBar = true
+    /// Not an @AppStorage (see MacDefaultsFlag).
+    private var menuBarExtra: MacDefaultsFlag { .menuBarExtra }
 
     init() {
         LaunchClock.armTimeout()
@@ -55,7 +56,7 @@ struct ERPMacApp: App {
         .defaultSize(width: 920, height: 700)
 
         // Today's figures for every business signed in on this Mac, a click away in the menu bar.
-        MenuBarExtra(isInserted: $showMenuBar) {
+        MenuBarExtra(isInserted: Binding(get: { menuBarExtra.value }, set: { menuBarExtra.set($0) })) {
             MacTodayMenu()
         } label: {
             Label("ERP", systemImage: "diamond")

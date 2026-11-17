@@ -181,7 +181,11 @@ struct MacSidebar: View {
     let open: (Route) -> Void
 
     @Environment(Book.self) private var book
-    @AppStorage("mac.sidebar.open") private var openRaw = "/orders|/invoices"
+    /// Which places with rows under them are disclosed, kept as "mac.sidebar.open" ("/orders|/invoices"). Read once and
+    /// written on a change, not an @AppStorage: on macOS 27 an @AppStorage here was marked changed on every rebuild of the
+    /// menu bar, which redrew the sidebar, which rebuilt the menu bar, and the app never answered (2.8.2 (179)).
+    @State private var openRaw = UserDefaults.standard.string(forKey: MacSidebar.openKey) ?? "/orders|/invoices"
+    static let openKey = "mac.sidebar.open"
     @State private var counted = Memo<[MacSidebarCount: Int]>()
     private var inbox: OnlineInbox { .shared }
 
@@ -261,7 +265,10 @@ struct MacSidebar: View {
             set: { on in
                 var set = Set(openRaw.split(separator: "|").map(String.init))
                 if on { set.insert(id) } else { set.remove(id) }
-                openRaw = set.sorted().joined(separator: "|")
+                let raw = set.sorted().joined(separator: "|")
+                guard raw != openRaw else { return }
+                openRaw = raw
+                UserDefaults.standard.set(raw, forKey: MacSidebar.openKey)
             })
     }
 

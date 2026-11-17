@@ -78,3 +78,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-16: ERP 2.8.1 — a new order or sale starts with Taken by empty (no longer filled with whoever is signed in); pick who took it.
 - 2026-11-16: ERP 2.8.2 — every order and sale needs Taken by: Save waits until someone is chosen (a dot marks the step), and the ERP refuses one without a name.
 - 2026-11-17: On the Mac, a new sale's Taken by sits in the Customer section (it was folded away under For the shop, where a sale that needs a name could not show where to give it); an order that cannot save for want of a name opens its Customer tab.
+- 2026-11-18: ERP 2.8.2 (180) — the Mac app opens again: 2.8.2 (179) spun at full CPU at launch and never answered (the sidebar, the menu bar and the menu-bar figures each held an @AppStorage that macOS 27 marks changed on every rebuild of the main menu, so each redraw rebuilt the menu and the menu redrew them).

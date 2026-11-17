@@ -14,7 +14,8 @@ struct MacCommands: Commands {
     @FocusedValue(\.macViewFilters) private var filters
     @Environment(\.openWindow) private var openWindow
     /// View › Show or Hide Inspector: the title follows the state, as Mail's "Hide Preview" does.
-    @AppStorage(MacInspector.key) private var inspectorShown = true
+    /// Not an @AppStorage (see MacDefaultsFlag).
+    private var inspectorShown: Bool { MacDefaultsFlag.inspectorShown.value }
 
     /// The page in front: a separate window's, else the main window's deepest.
     private var current: Route? { ready ? place ?? shell?.current : nil }
@@ -175,7 +176,7 @@ struct MacCommands: Commands {
 
     private var viewMenu: some Commands {
         CommandGroup(after: .sidebar) {
-            Button(inspectorShown ? "Hide Inspector" : "Show Inspector") { inspectorShown.toggle() }
+            Button(inspectorShown ? "Hide Inspector" : "Show Inspector") { MacDefaultsFlag.inspectorShown.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
             // The place's ways of showing its records, in its toolbar control's order (the HIG: every toolbar item in the
             // menu bar). No key: Control-key shortcuts are dropped (docs/design-audit.md). A place with one way disables them.
