@@ -1313,6 +1313,8 @@ taheri. Keep the old one as backup if we don't like this new one."
 - **Reverted 2026-11-18** (owner: "Please revert order slip format back to original"): Taheri prints the classic slip again
   (`classic` in `apphosting.taheri.yaml`). The card stays in the code behind `card`. Wastage stays off the slip (its own
   decision of 2026-11-14).
+- **Restored the same day** (owner: "I tried printing the order slip, but it was printing the old format, not the new format
+  I gave you"): `card` again. If the slip is to change again, ask which one before flipping it.
 
 ### Shop outage
 

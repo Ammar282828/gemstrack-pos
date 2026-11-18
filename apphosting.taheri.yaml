@@ -308,10 +308,11 @@ env:
   - variable: META_ADS_INSTAGRAM
     value: "collectionstaheri"
     availability: [RUNTIME]
-  # The order slip: "classic", the detailed slip, again (owner, 2026-11-18: "revert order slip format back to original").
-  # "card" prints the shop card on A5 (lib/order-card-slip.ts; the owner's redesign of 2026-11-10), kept as the backup.
+  # The order slip: "card", the shop card on A5 (lib/order-card-slip.ts; the owner's redesign of 2026-11-10). Reverted to
+  # "classic" the morning of 2026-11-18, then back to the card the same day (the owner: "I tried printing the order slip,
+  # but it was printing the old format, not the new format I gave you"). "classic" is the detailed slip, kept as the backup.
   - variable: NEXT_PUBLIC_STORE_ORDER_SLIP
-    value: "classic"
+    value: "card"
     availability:
       - BUILD
       - RUNTIME
