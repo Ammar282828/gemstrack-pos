@@ -177,6 +177,12 @@ From the owner's snapshots of all 56 pages. Each rule fixes something that was v
 - **A window belongs to the business it opened on**: `MacPlaceWindow` closes when another business opens.
 - **Back/Forward are a browser's**: a page opened by a link or ⌘K drops Forward; a role change forgets places it lost.
 - Every one of these has a test in `MacTests` or `MacUITests`; a new rule here comes with its test.
+- **No `@AppStorage` in the menu bar's reach** (the owner, 2026-11-18, ERP 2.8.2 (179) hung at launch): on macOS 27 an
+  `@AppStorage` held by `ERPMacApp`'s scenes, by `MacCommands`, or by a view the main-menu rebuild touches (the sidebar) is
+  marked changed on every rebuild, redraws, and rebuilds the menu again: 100% CPU, never answers. There, read a Bool through
+  `MacDefaultsFlag` (`Mac/Kit/MacParts.swift`) or keep `@State` read once and write the default on a real change, as
+  `MacSidebar` does. A place's own view settings (`mac.<place>.view`, sorts) and the shell's `mac.lastPlace` stay
+  `@AppStorage`: build 180 idles with them. Debug does not reproduce it; check a Release build.
 
 ## Done means
 
