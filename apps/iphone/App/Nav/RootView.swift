@@ -89,7 +89,11 @@ struct RootView: View {
     // business has no such tab.
     // Kept per window, so the app reopens on the tab it was left on (HIG: restore state); a business switch or the demo check
     // sets it on appear.
-    @SceneStorage("tab") private var tab = "home"
+    // The choice lives in an object only the TabView's own binding reads (as `creating` below): a tap on a tab used to
+    // redraw this whole body, every tab and its content, while the bar's glass was still moving to the tapped tab, so the
+    // selection jumped and flickered (owner, 2026-11-18: "the bottom bar liquid glass glitching on selection"). `TabMemory`
+    // keeps it per window and for a business switch.
+    @State private var choice = TabChoice()
     /// The iPad's tab bar and sidebar as the person arranged them (iPadOS 18's tab customization).
     @AppStorage("erp.tabCustomization") private var customization = TabViewCustomization()
     /// The page opened over the tabs (a notification's, voice's, a shortcut's, the phone's +). Kept in an object read only by
@@ -122,8 +126,8 @@ struct RootView: View {
     /// The chosen tab, or the first one when the remembered choice is not this person's (no Home for marketing).
     private func selection(_ entries: [NavEntry]) -> Binding<String> {
         Binding(
-            get: { (entries.map(\.id) + ["search"]).contains(tab) ? tab : (entries.first?.id ?? "search") },
-            set: { tab = $0 })
+            get: { [choice] in (entries.map(\.id) + ["search"]).contains(choice.tab) ? choice.tab : (entries.first?.id ?? "search") },
+            set: { [choice] in if choice.tab != $0 { choice.tab = $0 } })
     }
 
     /// Online orders waiting beside Orders, as the web's sidebar counts them (nav.ts `count: 'online'`). Owners confirm them.
@@ -156,14 +160,14 @@ struct RootView: View {
         guard creating.route == nil else { return }
         switch kind {
         case .tab(let i):
-            if entries.indices.contains(i) { tab = entries[i].id }
+            if entries.indices.contains(i) { choice.tab = entries[i].id }
         case .newSale:
             if session.isOwner, map.newSale != nil { creating.route = Route(path: "/invoices/new") }
         case .newOrder:
             if session.role != "marketing" { creating.route = Route(path: "/orders/add") }
         case .search:
             ShellCommands.shared.searchWanted = true
-            tab = "search"
+            choice.tab = "search"
         }
     }
 
@@ -261,12 +265,9 @@ struct RootView: View {
             BusinessChip(wide: true)
                 .padding(.vertical, pt(6))
         }
-        // The tab is kept outside the view so a business switch can open the next business on it.
-        .onChange(of: tab) { _, now in BusinessCarry.noteTab(now) }
-        .onAppear {
-            if let opening = openingTab { tab = opening }
-            BusinessCarry.noteTab(tab)
-        }
+        // The tab, remembered per window and for a business switch, in a modifier of its own so a tap on a tab redraws
+        // only that, never this body.
+        .modifier(TabMemory(choice: choice, opening: openingTab))
         // The new business's screens have been made from what was carried.
         .task { BusinessCarry.settled() }
         .onChange(of: ShellCommands.shared.request) { _, r in
@@ -304,6 +305,32 @@ struct RootView: View {
         .onChange(of: AppRouter.shared.open) { _, r in
             if let r { creating.route = r; AppRouter.shared.open = nil }
         }
+    }
+}
+
+/// The tab chosen. An object, so RootView's body never reads it: only the TabView's selection binding does (`RootView.choice`).
+@MainActor @Observable
+final class TabChoice {
+    var tab = "home"
+}
+
+/// The chosen tab kept per window, so the app reopens on it (HIG: restore state), and outside the view, so a business switch
+/// opens the next business on it (BusinessCarry). On appear, what a business switch or the simulator check says wins.
+private struct TabMemory: ViewModifier {
+    let choice: TabChoice
+    let opening: String?
+    @SceneStorage("tab") private var stored = "home"
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                choice.tab = opening ?? stored
+                BusinessCarry.noteTab(choice.tab)
+            }
+            .onChange(of: choice.tab) { _, now in
+                stored = now
+                BusinessCarry.noteTab(now)
+            }
     }
 }
 

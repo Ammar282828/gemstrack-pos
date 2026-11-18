@@ -105,3 +105,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-15: ERP 2.8 — screens fit the space they have, not the device (an iPhone Duo inner display or a wide window gets the iPad layout); New sale and New order full screen; on the Mac: Undo in the Edit menu (⌘Z), a small Settings window for this Mac and Shop Settings for the shop’s records (⇧⌘,), Save in the toolbar of New Sale, Overheads and Orders.
 - 2026-11-16: ERP 2.8.1 — a new order or sale starts with Taken by empty (no longer filled with whoever is signed in); pick who took it.
 - 2026-11-16: ERP 2.8.2 — every order and sale needs Taken by: Save waits until someone is chosen (a dot marks the step), and the ERP refuses one without a name.
+- 2026-11-18: ERP 2.8.3 — the tab bar no longer flickers when a tab is tapped: choosing a tab used to redraw every tab while the glass was still moving to it; now only the bar changes.
