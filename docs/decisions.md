@@ -1310,6 +1310,9 @@ taheri. Keep the old one as backup if we don't like this new one."
   same page: the apps' Print slip (`/api/app/pdf/order-slip`) prints it too.
 - **The backup:** `NEXT_PUBLIC_STORE_ORDER_SLIP` — `card` in `apphosting.taheri.yaml`; `classic` (or anything else, Mina's
   default) prints the detailed slip, unchanged (`drawDetailedOrderSlip`). Going back is that one value.
+- **Reverted 2026-11-18** (owner: "Please revert order slip format back to original"): Taheri prints the classic slip again
+  (`classic` in `apphosting.taheri.yaml`). The card stays in the code behind `card`. Wastage stays off the slip (its own
+  decision of 2026-11-14).
 
 ### Shop outage
 
