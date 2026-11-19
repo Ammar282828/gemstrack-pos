@@ -181,8 +181,17 @@ From the owner's snapshots of all 56 pages. Each rule fixes something that was v
   `@AppStorage` held by `ERPMacApp`'s scenes, by `MacCommands`, or by a view the main-menu rebuild touches (the sidebar) is
   marked changed on every rebuild, redraws, and rebuilds the menu again: 100% CPU, never answers. There, read a Bool through
   `MacDefaultsFlag` (`Mac/Kit/MacParts.swift`) or keep `@State` read once and write the default on a real change, as
-  `MacSidebar` does. A place's own view settings (`mac.<place>.view`, sorts) and the shell's `mac.lastPlace` stay
-  `@AppStorage`: build 180 idles with them. Debug does not reproduce it; check a Release build.
+  `MacSidebar` does. **The same in any view that publishes the menu bar's values** (`macRecordMenu`, `macViewFilters`,
+  `macRefresh`, the shell's own) **or holds one** (2026-11-19, ERP 2.8.3's "website tab make sidebar glitch": Website ›
+  Visitors held its period in an @AppStorage beside its Refresh): use `@MacDefault("key")` / `@MacDefaultBool("key")`
+  (`Mac/Kit/MacParts.swift`), which read and write the same default the same way (`x`, `x = …`, `$x`) through a store that
+  changes only when the stored value does; in a file the iPhone shares, behind `#if os(macOS)` with the iPhone's
+  `@AppStorage` in `#else`. Debug does not reproduce it; check a Release build.
+- **Values a window hands its pages are equal across redraws**: `MacGo` and `OpenPlaceWindow` compare by their window
+  (`window: ObjectIdentifier`), so a redraw of the shell does not redraw the forty pages that read them; a closure in them
+  reads what it needs when it runs, never a copy taken at the redraw.
+- **A place's figures outlive the place**: the shell makes a place anew on each click (`.id(path)`), so its memos come from
+  `MacMemos.memo(name, path)`, not `@State`; Today keeps its last figures per business.
 
 ## Done means
 

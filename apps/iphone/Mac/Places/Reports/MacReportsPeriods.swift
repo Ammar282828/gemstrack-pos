@@ -135,10 +135,7 @@ enum MacReportsPeriods {
     static func months(now: Date = Date()) -> [MacReportsMonth] {
         let cal = AnaDate.karachi
         let start = monthStart(now)
-        let f = DateFormatter()
-        f.calendar = cal
-        f.timeZone = ERPDate.karachi
-        f.dateFormat = "MMMM yyyy"
+        let f = monthNames
         var out: [MacReportsMonth] = []
         for back in 0..<24 {
             guard let d = cal.date(byAdding: .month, value: -back, to: start) else { continue }
@@ -148,6 +145,15 @@ enum MacReportsPeriods {
         }
         return out
     }
+
+    /// "October 2026", made once (the toolbar asked for the months on every drawing, and a DateFormatter is slow to make).
+    private static let monthNames: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = AnaDate.karachi
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "MMMM yyyy"
+        return f
+    }()
 }
 
 /// A month the monthly PDF can be drawn for.

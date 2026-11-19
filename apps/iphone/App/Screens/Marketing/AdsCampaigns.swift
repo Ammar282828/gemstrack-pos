@@ -17,7 +17,11 @@ struct AdsCampaignsScreen: View {
     @State private var allExpanded = false
     @Environment(Session.self) private var session
 
+    #if os(macOS)
+    @MacDefault("ads.range") private var rangeKey = "last_7d"
+    #else
     @AppStorage("ads.range") private var rangeKey = "last_7d"
+    #endif
     @State private var data: AdCampaigns?
     @State private var problem: String?
     @State private var filter = Filter.all

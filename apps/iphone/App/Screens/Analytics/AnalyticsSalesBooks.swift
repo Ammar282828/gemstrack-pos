@@ -257,5 +257,8 @@ struct AbDaySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 480)
+        #endif
     }
 }

@@ -145,7 +145,15 @@ struct Dashboard: View {
     /// screen while the next is worked out. Lateness and "due today" turn over at Karachi's midnight, but a bench
     /// job's age counts whole 24-hour spans (`DashBench.daysSince`), so the clock enters in 15-minute steps (which
     /// also carry the day's turn: Karachi's midnight falls on one).
+    #if os(macOS)
+    /// The last figures worked out on this Mac, by business: the shell makes Today anew on every click in the sidebar, so its
+    /// figures started empty and the skeleton showed each time (owner, ERP 2.8.3: "much snappier"). They show at once now
+    /// while the next are worked out, as they already did on a change of the books.
+    @MainActor private static var lastFigures: [String: DashFigures] = [:]
+    @State private var figures: DashFigures? = Dashboard.lastFigures[Businesses.shared.current.id]
+    #else
     @State private var figures: DashFigures?
+    #endif
 
     private var figuresKey: [Int] {
         [book.orders.revision, book.invoices.revision, book.revenue.revision, book.expenses.revision,
@@ -168,6 +176,9 @@ struct Dashboard: View {
         }.value
         guard !Task.isCancelled else { return }
         figures = made
+        #if os(macOS)
+        Self.lastFigures[Businesses.shared.current.id] = made
+        #endif
     }
 
     // MARK: The page

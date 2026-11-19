@@ -58,7 +58,8 @@ struct MacRepairsListView<RowMenu: View>: View {
     let open: (Set<String>) -> Void
     @ViewBuilder let menu: (Set<String>) -> RowMenu
 
-    @State private var made = Memo<[MacRepairsGroup]>()
+    /// Kept outside the view (MacMemos), by the saved list it shows, so coming back to it finds the groups made.
+    private var made: Memo<[MacRepairsGroup]> { MacMemos.memo("repairs.list", listTitle ?? "") }
 
     var body: some View {
         let groups = made(version + [sort.hashValue]) { Self.groups(rows, sort: sort) }

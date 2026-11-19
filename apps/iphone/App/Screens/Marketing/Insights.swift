@@ -538,7 +538,11 @@ private struct InsightPage<Narrow: View, Wide: View>: View {
 
 struct InsightsOverviewScreen: View {
     @Environment(Session.self) private var session
+    #if os(macOS)
+    @MacDefault("insights.range") private var rangeKey = "last_28d"
+    #else
     @AppStorage("insights.range") private var rangeKey = "last_28d"
+    #endif
     @State private var data: InsightsOverview?
     @State private var found: [InsightFinding] = []
     @State private var problem: String?
@@ -829,7 +833,11 @@ struct InsightsOverviewScreen: View {
 
 struct InsightsPostsScreen: View {
     @Environment(Session.self) private var session
+    #if os(macOS)
+    @MacDefault("insights.range") private var rangeKey = "last_28d"
+    #else
     @AppStorage("insights.range") private var rangeKey = "last_28d"
+    #endif
     @State private var data: InsightsPosts?
     @State private var problem: String?
     @State private var filter = "all"
@@ -1029,7 +1037,11 @@ struct InsightsPostsScreen: View {
 
 struct InsightsAudienceScreen: View {
     @Environment(Session.self) private var session
+    #if os(macOS)
+    @MacDefault("insights.range") private var rangeKey = "last_28d"
+    #else
     @AppStorage("insights.range") private var rangeKey = "last_28d"
+    #endif
     @State private var data: InsightsAudience?
     @State private var problem: String?
     @State private var group = "followers"

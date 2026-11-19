@@ -483,12 +483,130 @@ final class MacDefaultsFlag {
         if now != value { value = now }
     }
 
-    func set(_ on: Bool) { if on != value { UserDefaults.standard.set(on, forKey: key) } }
+    /// The new value at once (the defaults' notice arrives a turn later), then the default.
+    func set(_ on: Bool) {
+        guard on != value else { return }
+        value = on
+        UserDefaults.standard.set(on, forKey: key)
+    }
     func toggle() { set(!value) }
+
+    /// The one flag for a key (`MacDefaultBool`): the two above for theirs, else one made on first use and kept.
+    static func named(_ key: String, _ fallback: Bool) -> MacDefaultsFlag {
+        if key == inspectorShown.key { return inspectorShown }
+        if key == menuBarExtra.key { return menuBarExtra }
+        if let hit = registry[key] { return hit }
+        let made = MacDefaultsFlag(key, fallback)
+        registry[key] = made
+        return made
+    }
+    private static var registry: [String: MacDefaultsFlag] = [:]
+}
+
+/// The figures a place works out, kept outside the place (owner, ERP 2.8.3: "it needs to be much snappier"). The shell
+/// gives each place `.id(path)`, so a click in the sidebar made the place anew and its `@State` memos with it: coming back
+/// to Orders sorted and grouped every order again before the first frame. One `Memo` per place, list and business here
+/// lives on, and still works a figure out again whenever its key (the books' revisions, the search, the filters) moves.
+@MainActor
+enum MacMemos {
+    private static var all: [String: AnyObject] = [:]
+
+    static func memo<Value>(_ name: String, _ path: String) -> Memo<Value> {
+        let key = Businesses.shared.current.id + "|" + name + "|" + path
+        if let hit = all[key] as? Memo<Value> { return hit }
+        let made = Memo<Value>()
+        all[key] = made
+        return made
+    }
+}
+
+/// MacDefaultsFlag's string twin: one per key, changing only when the stored string does, so a write from elsewhere (View ›
+/// as Cards writes the place's default) still reaches the view that shows it.
+@MainActor
+@Observable
+final class MacDefaultsText {
+    let key: String
+    private let fallback: String
+    private(set) var value: String
+
+    private init(_ key: String, _ fallback: String) {
+        self.key = key
+        self.fallback = fallback
+        value = UserDefaults.standard.string(forKey: key) ?? fallback
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+    }
+
+    private func refresh() {
+        let now = UserDefaults.standard.string(forKey: key) ?? fallback
+        if now != value { value = now }
+    }
+
+    func set(_ text: String) {
+        guard text != value else { return }
+        value = text
+        UserDefaults.standard.set(text, forKey: key)
+    }
+
+    static func named(_ key: String, _ fallback: String) -> MacDefaultsText {
+        if let hit = registry[key] { return hit }
+        let made = MacDefaultsText(key, fallback)
+        registry[key] = made
+        return made
+    }
+    private static var registry: [String: MacDefaultsText] = [:]
+}
+
+/// `@AppStorage` for a Mac view that also publishes the menu bar's values (a record menu, the View menu's filters, Refresh),
+/// or that holds such a view (MAC-CONVENTIONS, "No @AppStorage in the menu bar's reach"): on macOS 27 an @AppStorage there
+/// is marked changed on every rebuild of the main menu, the view redraws, publishes again, and the menu rebuilds: a loop
+/// that pins the CPU and makes the sidebar flicker (owner, ERP 2.8.3: "website tab make sidebar glitch"). The same default,
+/// read and written the same way (`x`, `x = …`, `$x`), through a store that changes only when the stored value does.
+@MainActor
+@propertyWrapper
+struct MacDefault {
+    private let store: MacDefaultsText
+
+    init(wrappedValue: String, _ key: String) {
+        store = .named(key, wrappedValue)
+    }
+
+    var wrappedValue: String {
+        get { store.value }
+        nonmutating set { store.set(newValue) }
+    }
+
+    var projectedValue: Binding<String> {
+        let store = store
+        return Binding(get: { store.value }, set: { store.set($0) })
+    }
+}
+
+/// `MacDefault` for a Bool (the inspector's flag, the designer's snapping).
+@MainActor
+@propertyWrapper
+struct MacDefaultBool {
+    private let store: MacDefaultsFlag
+
+    init(wrappedValue: Bool, _ key: String) {
+        store = .named(key, wrappedValue)
+    }
+
+    var wrappedValue: Bool {
+        get { store.value }
+        nonmutating set { store.set(newValue) }
+    }
+
+    var projectedValue: Binding<Bool> {
+        let store = store
+        return Binding(get: { store.value }, set: { store.set($0) })
+    }
 }
 
 private struct MacInspectorModifier<Panel: View>: ViewModifier {
-    @AppStorage(MacInspector.key) private var shown = true
+    /// Not an @AppStorage: this modifier sits on every place, which publishes the menu bar's values (MacDefault).
+    @MacDefaultBool(MacInspector.key) private var shown = true
     let panel: () -> Panel
 
     func body(content: Content) -> some View {

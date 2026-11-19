@@ -30,7 +30,7 @@ struct StudioBoards: View {
     /// A design or note the Delete key or the right-click menu asked to remove (asks first).
     @State private var removing: BoardRemoval?
     /// The View menu's Show or Hide Inspector (⌥⌘I) is one key for every window: the board's details follow it.
-    @AppStorage(MacInspector.key) private var shellInspector = true
+    @MacDefaultBool(MacInspector.key) private var shellInspector = true
     #endif
 
     private var compact: Bool { sizeClass == .compact }

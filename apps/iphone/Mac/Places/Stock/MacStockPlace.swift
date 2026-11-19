@@ -55,7 +55,7 @@ struct MacStockPlace: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.openPlaceWindow) private var openPlace
-    @AppStorage(MacStockView.key) private var viewRaw = MacStockView.table.rawValue
+    @MacDefault(MacStockView.key) private var viewRaw = MacStockView.table.rawValue
     @State private var query = ""
     /// nil is every category; "" is the pieces with none.
     @State private var category: String?
@@ -64,10 +64,11 @@ struct MacStockPlace: View {
     @State private var anchor: String?
     /// The shelf's own order (the iPhone's) unless the Filter menu says otherwise.
     @State private var sort: [KeyPathComparator<MacStockPlaceRow>] = []
-    @State private var made = Memo<MacStockPlaceRows>()
+    // Kept outside the place (MacMemos), so a click back to it in the sidebar finds its figures made.
+    private var made: Memo<MacStockPlaceRows> { MacMemos.memo("stock.rows", path) }
     /// The rows in the table's order: a change of sort sorts again, it never prices the pieces again.
-    @State private var ordered = Memo<[MacStockPlaceRow]>()
-    @State private var categories = Memo<[StockKit.Category]>()
+    private var ordered: Memo<[MacStockPlaceRow]> { MacMemos.memo("stock.ordered", path) }
+    private var categories: Memo<[StockKit.Category]> { MacMemos.memo("stock.categories", path) }
     @State private var deletion: OwnerDeletion?
     @State private var tagging: Product?
     @State private var replacing = false

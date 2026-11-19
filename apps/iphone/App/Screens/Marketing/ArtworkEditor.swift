@@ -44,7 +44,11 @@ struct ArtworkEditor: View {
     /// Designer v2: a slider's steps folded into one undo (see `fold`), snapping while a layer is dragged, the order layers
     /// were picked in (for "match the first one picked"), and the QR code being typed.
     @State private var pendingKey: String?
+    #if os(macOS)
+    @MacDefaultBool("artwork.snap") private var snapping = true
+    #else
     @AppStorage("artwork.snap") private var snapping = true
+    #endif
     @State private var snapX: Double?
     @State private var snapY: Double?
     @State private var dragMoving: ArtworkBox?
@@ -64,7 +68,7 @@ struct ArtworkEditor: View {
     @State private var macPicking = false
     @FocusState private var macTextFocus: Bool
     @FocusState private var macCanvasFocus: Bool
-    @AppStorage(MacInspector.key) private var macInspectorShown = true
+    @MacDefaultBool(MacInspector.key) private var macInspectorShown = true
     #endif
     private var sideBySide: Bool { wideLayout && sheetWidth >= 820 && !typeSize.isAccessibilitySize }
     private var pageWidth: Double { doc["frame"].n("w", 1080) }

@@ -130,7 +130,13 @@ struct WebsiteInterestScreen: View {
     private var wide: Bool { wideLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     /// The period last chosen on this device (the web keeps it too); Custom is not remembered.
+    #if os(macOS)
+    // Not an @AppStorage on the Mac (MacDefault): this page publishes the menu bar's Refresh, and on macOS 27 the two
+    // made a redraw loop that flickered the sidebar (owner, ERP 2.8.3: "website tab make sidebar glitch").
+    @MacDefault("erp.websiteInterest.period") private var storedPeriod = "30d"
+    #else
     @AppStorage("erp.websiteInterest.period") private var storedPeriod = "30d"
+    #endif
     @State private var custom = false
     @State private var customFrom = ""
     @State private var customTo = ""

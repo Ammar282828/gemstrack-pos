@@ -39,9 +39,16 @@ struct AbHost<Content: View>: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    // Not @AppStorage on the Mac (MacDefault): a report's redraw must not bounce off the menu bar's rebuild on macOS 27.
+    @MacDefault("erp.analytics.range") private var rangeKey = AnaPeriod.defaultKey
+    @MacDefault("erp.analytics.from") private var customFrom = ""
+    @MacDefault("erp.analytics.to") private var customTo = ""
+    #else
     @AppStorage("erp.analytics.range") private var rangeKey = AnaPeriod.defaultKey
     @AppStorage("erp.analytics.from") private var customFrom = ""
     @AppStorage("erp.analytics.to") private var customTo = ""
+    #endif
     @State private var now = Date()
     @State private var covered = false
     @State private var reckoned: AbCtx?

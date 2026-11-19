@@ -271,6 +271,9 @@ private extension View {
                     ScreenRegistry.view(for: "/customers/\(t.id)/edit")
                         .navigationBarTitleDisplayMode(.inline)
                 }
+                #if os(macOS)
+                .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 640)
+                #endif
             }
     }
 }
@@ -346,6 +349,9 @@ struct SendDocSheet: View {
             .savedFeedback(trigger: done)
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 460, minHeight: 320)
+        #endif
         .interactiveDismissDisabled(busy)
     }
 

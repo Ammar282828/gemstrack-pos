@@ -14,6 +14,8 @@ struct MacTodayMenu: View {
     private var links: [ERPWidgetLink.Link] { ERPWidgetLink.all() }
 
     var body: some View {
+        // Read once a drawing: each read is the Keychain and a JSON decode, and the list asked it three times and once a row.
+        let links = self.links
         VStack(alignment: .leading, spacing: 14) {
             if links.isEmpty {
                 ContentUnavailableView("Not signed in", systemImage: "diamond",

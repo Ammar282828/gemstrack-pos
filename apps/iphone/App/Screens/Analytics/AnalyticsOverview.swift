@@ -376,6 +376,9 @@ struct AnaMonthlyReportSheet: View {
                     )
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { opened = false } } }
                 }
+                #if os(macOS)
+                .frame(minWidth: 560, idealWidth: 720, minHeight: 520, idealHeight: 760)
+                #endif
             }
         }.presentationDetents([.medium, .large])
         .presentationSizing(.form)

@@ -52,7 +52,12 @@ struct DesignWorkspaceView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .sheet(item: $editing, onDismiss: { model.endEditing() }) { target in
             ArtworkEditor(doc: model.docBinding(target.pageId), photos: model.photos, fields: model.work?.fields ?? [:], ad: model.work?.kind == "ad")
+                #if os(macOS)
+                // Room to work, without asking more than a 13-inch window gives (the window's own floor is 960 × 600).
+                .frame(minWidth: 760, idealWidth: 1100, minHeight: 520, idealHeight: 760)
+                #else
                 .macSheetSize(minWidth: 980, minHeight: 700)
+                #endif
         }
         .sheet(item: $model.sheet) { $0.shown }
         .photosPicker(isPresented: $devicePicker, selection: $picked, matching: .images)

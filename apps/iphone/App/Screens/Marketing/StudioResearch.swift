@@ -233,7 +233,8 @@ extension StudioRivals {
                 add(MarketingValue(["username": username, "source": "owner"]))
             }
         }
-        .frame(width: 440, height: 180)
+        // A floor, not a fixed box: fixed at 440 × 180 the form's own bar and field were clipped.
+        .frame(minWidth: 440, minHeight: 240)
     }
 
     private var macFindSheet: some View {

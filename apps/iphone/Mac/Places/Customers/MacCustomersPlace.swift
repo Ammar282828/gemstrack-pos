@@ -93,11 +93,12 @@ struct MacCustomersPlace: View {
     @State private var sort: MacCustomersSort
     @State private var selection = Set<String>()
     /// List or Cards (the toolbar's control, View › as List / as Cards).
-    @AppStorage("mac.customers.view") private var layoutRaw = "table"
-    @State private var reckoned = Memo<MacCustomersBooks>()
-    @State private var made = Memo<[MacCustomersRow]>()
-    @State private var ordered = Memo<[MacCustomersGroup]>()
-    @State private var nearby = Memo<MacCustomersRecent>()
+    @MacDefault("mac.customers.view") private var layoutRaw = "table"
+    // Kept outside the place (MacMemos), so a click back to it in the sidebar finds its figures made.
+    private var reckoned: Memo<MacCustomersBooks> { MacMemos.memo("customers.books", path) }
+    private var made: Memo<[MacCustomersRow]> { MacMemos.memo("customers.rows", path) }
+    private var ordered: Memo<[MacCustomersGroup]> { MacMemos.memo("customers.groups", path) }
+    private var nearby: Memo<MacCustomersRecent> { MacMemos.memo("customers.recent", path) }
     @State private var adding = false
     @State private var editing: MacCustomersEdit?
     @State private var merging = false

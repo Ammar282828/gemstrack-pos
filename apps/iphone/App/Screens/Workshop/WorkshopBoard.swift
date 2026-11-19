@@ -41,7 +41,7 @@ struct WorkshopBoard: View {
     @State private var macPicked = Set<String>()
     @State private var macSort: [KeyPathComparator<WorkshopJob>] = []
     /// The board or the table, remembered on this Mac.
-    @AppStorage(MacWorkshopView.key) private var macViewRaw = MacWorkshopView.board.rawValue
+    @MacDefault(MacWorkshopView.key) private var macViewRaw = MacWorkshopView.board.rawValue
     /// What the pieces and the board come to, worked out once per change of the books, the filters and the sort.
     @State private var macJobsMemo = Memo<[WorkshopJob]>()
     @State private var macDataMemo = Memo<MacWorkshopData>()

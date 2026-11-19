@@ -213,7 +213,13 @@ struct ReferencePickerSheet: View {
     let onPick: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    #if os(macOS)
+    // The Mac's own width class (Kit's `layoutWidthClass`, regular): the system's size class can be unset on a Mac, which
+    // laid the catalogue out in a phone's 104-point tiles.
+    @Environment(\.layoutWidthClass) private var sizeClass
+    #else
     @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
     private let store = CatalogueStore.shared
     @State private var scope: String
     @State private var filter = CatalogueFilter()

@@ -77,5 +77,17 @@ final class JSCompatTests: XCTestCase {
         XCTAssertEqual(JS.karachiStartOfDay(ERPDate.parse("2026-10-08T19:30:00Z")!), ERPDate.parse("2026-10-08T19:00:00Z"))
         XCTAssertEqual(JS.karachiStartOfDay(ERPDate.parse("2026-10-08T18:59:59Z")!), ERPDate.parse("2026-10-07T19:00:00Z"))
         XCTAssertEqual(JS.calendarDays(ERPDate.parse("2026-10-08T20:00:00Z")!, since: ERPDate.parse("2026-10-08T10:00:00Z")!), 1)
+        // The arithmetic start of day (2026-11-19) is the instant the old way gave: Karachi's day printed, read back as UTC
+        // midnight, less five hours. Every hour of a leap year's turn, each side of Karachi's midnight, and before 1970.
+        func old(_ d: Date) -> Date { ERPDate.parse(ERPDate.karachiDay(d))!.addingTimeInterval(-5 * 3600) }
+        let starts = [ERPDate.parse("2027-12-30T00:00:00Z")!, ERPDate.parse("1969-12-30T00:00:00Z")!]
+        for start in starts {
+            for h in stride(from: 0, to: 24 * 4, by: 1) {
+                for edge in [-1.0, -0.001, 0, 0.001, 1] {
+                    let d = start.addingTimeInterval(Double(h) * 3600 + 19 * 3600 + edge)
+                    XCTAssertEqual(JS.karachiStartOfDay(d), old(d), "\(d)")
+                }
+            }
+        }
     }
 }

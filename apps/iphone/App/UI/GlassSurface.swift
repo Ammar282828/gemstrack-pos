@@ -33,7 +33,9 @@ enum UIStyle {
 /// `private var mode = GlassMode()` in a view or modifier. `live` is true only when the shop chose Liquid Glass, this is
 /// not a Mac, and the reader has not asked for less transparency or more contrast.
 struct GlassMode: DynamicProperty {
+    #if os(iOS)
     @AppStorage(UIStyle.key) private var style = "standard"
+    #endif
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 

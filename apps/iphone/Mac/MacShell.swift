@@ -129,7 +129,8 @@ struct MacShell: View {
     /// The last place any window showed, for the first window of a launch: macOS restores a window's scene storage only
     /// when it reopens its windows, and with System Settings' "Close windows when quitting an application" on (the
     /// default) it never does, so every launch opened on Today (the Mac check, 2026-10-27).
-    @AppStorage("mac.lastPlace") private var lastPlace = "/"
+    /// Not an @AppStorage (MacDefault): the shell publishes the menu bar's values.
+    @MacDefault("mac.lastPlace") private var lastPlace = "/"
     /// The launch's first window has taken `lastPlace`; a New Window (⌥⇧⌘N) opens on Today.
     @MainActor private static var launchRestored = false
     @State private var restored = false
@@ -164,11 +165,16 @@ struct MacShell: View {
                     .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path).modifier(MacPageGround()) }
             }
             // A hub's row opened in a window of its own (its context menu or a double-click) comes through here.
-            .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
+            // Both are the window's own and equal from one redraw to the next (`window`): built afresh they were new values
+            // on every redraw of the shell, so every page reading them (about 40) redrew with it.
+            .environment(\.openPlaceWindow, OpenPlaceWindow(window: ObjectIdentifier(model)) { openWindow(id: MacWindows.place, value: $0) })
             // A dashboard's card or row goes there in this window, as a link does: a place of the sidebar is selected,
             // anything else opens over the page (Back returns).
-            .environment(\.macGo, MacGo { [model] path in
-                if MacSidebarMap.allPaths(sections).contains(path) { model.go(path) } else { model.stack.append(Route(path: path)) }
+            .environment(\.macGo, MacGo(window: ObjectIdentifier(model)) { [model, session] path in
+                // The sidebar as it is when the link is followed (the role or the business may have changed since).
+                let now = MacSidebarMap.sections(NavMap.current.visible(to: session.navRole),
+                                                 websiteSelling: session.shop.websiteSelling, role: session.role)
+                if MacSidebarMap.allPaths(now).contains(path) { model.go(path) } else { model.stack.append(Route(path: path)) }
             })
         }
         // The window's only toolbar items: Back and Forward, ahead of the title as Finder's are. A Mac toolbar with nothing
@@ -324,7 +330,12 @@ struct MacShell: View {
         case "/orders": return AnyView(MacOrdersPlace(path: path))
         case "/invoices": return AnyView(MacInvoicesPlace(path: path))
         case "/customers": return AnyView(MacCustomersPlace(path: path))
-        case "/repairs": return AnyView(MacRepairsPlace(path: path))
+        case "/repairs":
+            // A new repair (?new=1) or one ticket (?id=) is a document window of its own (RepairsScreen.macBody), never the
+            // place: matched on the bare path, New Repair (⌥⌘N) and a ticket's window opened the whole list at 1000 × 780.
+            let asks = URLComponents(string: path)?.queryItems ?? []
+            if asks.contains(where: { $0.name == "new" || $0.name == "id" }) { return nil }
+            return AnyView(MacRepairsPlace(path: path))
         case "/products": return AnyView(MacStockPlace(path: path))
         default: return nil
         }
@@ -360,10 +371,16 @@ struct MacPageGround: ViewModifier {
 }
 
 /// Goes to a path in the main window (a sidebar place, or a page over the current one); nil in a separate window.
-struct MacGo {
+struct MacGo: Equatable {
+    /// The window it belongs to: one window's go is the same go however often the shell redraws, so no reader redraws.
+    let window: ObjectIdentifier
     let go: (String) -> Void
     func callAsFunction(_ path: String) { go(path) }
+    static func == (a: MacGo, b: MacGo) -> Bool { a.window == b.window }
 }
+
+/// A window's identity for the values it hands its pages (`MacGo`, `OpenPlaceWindow`), kept in its @State.
+final class MacWindowToken {}
 
 private struct MacGoKey: EnvironmentKey { static let defaultValue: MacGo? = nil }
 
@@ -375,9 +392,12 @@ extension EnvironmentValues {
 }
 
 /// Lets a screen deep in the detail (a table's row) open a place in a window of its own without knowing the scene.
-struct OpenPlaceWindow {
+struct OpenPlaceWindow: Equatable {
+    /// The window it belongs to (as `MacGo`'s): equal across redraws, so the pages that read it don't redraw with the shell.
+    let window: ObjectIdentifier
     let open: (Route) -> Void
     func callAsFunction(_ route: Route) { open(route) }
+    static func == (a: OpenPlaceWindow, b: OpenPlaceWindow) -> Bool { a.window == b.window }
 }
 
 private struct OpenPlaceWindowKey: EnvironmentKey { static let defaultValue: OpenPlaceWindow? = nil }
@@ -398,6 +418,7 @@ struct MacPlaceWindow: View {
     /// The business this window was opened on. Its books are that business's: a switch to another closes the window
     /// rather than draw the same path (an order number, a half-made sale) from the other business's books.
     @State private var openedOn: String?
+    @State private var token = MacWindowToken()
 
     var body: some View {
         let business = Businesses.shared.current
@@ -410,7 +431,7 @@ struct MacPlaceWindow: View {
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path).modifier(MacPageGround()) }
                 }
                 // A record in this window opens another record in a window of its own, as the main window's do.
-                .environment(\.openPlaceWindow, OpenPlaceWindow { openWindow(id: MacWindows.place, value: $0) })
+                .environment(\.openPlaceWindow, OpenPlaceWindow(window: ObjectIdentifier(token)) { openWindow(id: MacWindows.place, value: $0) })
                 .focusedSceneValue(\.macPlace, stack.last ?? route)
             } else {
                 ContentUnavailableView("Sign in in the main window", systemImage: "person.crop.circle.badge.questionmark")

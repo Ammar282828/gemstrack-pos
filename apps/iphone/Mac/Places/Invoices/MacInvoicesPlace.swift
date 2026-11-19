@@ -81,18 +81,19 @@ struct MacInvoicesPlace: View {
 
     @State private var selection = Set<String>()
     /// List or Cards (the toolbar's control, View › as List / as Cards).
-    @AppStorage("mac.invoices.view") private var layoutRaw = "table"
+    @MacDefault("mac.invoices.view") private var layoutRaw = "table"
     @State private var query = ""
     /// "" is anyone.
     @State private var takenBy = ""
     /// "" is every source.
     @State private var source = ""
     @State private var sort = MacInvoicesSort.date
-    @State private var made = Memo<MacInvoicesPlaceTable>()
-    @State private var ordered = Memo<[MacInvoicesPlaceGroup]>()
-    @State private var people = Memo<[String]>()
-    @State private var channels = Memo<[String]>()
-    @State private var hays = Memo<[String: MacInvoicesPlaceHay]>()
+    // Kept outside the place (MacMemos), so a click back to it in the sidebar finds its figures made.
+    private var made: Memo<MacInvoicesPlaceTable> { MacMemos.memo("invoices.table", path) }
+    private var ordered: Memo<[MacInvoicesPlaceGroup]> { MacMemos.memo("invoices.groups", path) }
+    private var people: Memo<[String]> { MacMemos.memo("invoices.people", path) }
+    private var channels: Memo<[String]> { MacMemos.memo("invoices.channels", path) }
+    private var hays: Memo<[String: MacInvoicesPlaceHay]> { MacMemos.memo("invoices.hays", path) }
     @State private var desk = MacInvoiceDesk()
 
     var body: some View {

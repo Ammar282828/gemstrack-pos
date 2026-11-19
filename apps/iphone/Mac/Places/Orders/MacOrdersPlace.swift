@@ -32,14 +32,16 @@ struct MacOrdersPlace: View {
     /// The window's: a status change goes on it, so ⌘Z puts it back (MacUndo).
     @Environment(\.undoManager) private var undoManager
 
-    @AppStorage(MacOrdersPlace.viewKey) private var viewRaw = MacOrdersView.table.rawValue
-    @AppStorage("mac.orders.sort") private var sortRaw = MacOrdersSort.stage.rawValue
+    // Not @AppStorage (MacDefault): the place publishes the menu bar's Order menu and filters.
+    @MacDefault(MacOrdersPlace.viewKey) private var viewRaw = MacOrdersView.table.rawValue
+    @MacDefault("mac.orders.sort") private var sortRaw = MacOrdersSort.stage.rawValue
     @State private var selection = Set<String>()
     @State private var query = ""
     @State private var takenBy = ""
     /// The Payment filter (getOrderPaymentStatus's words: Paid, Partial, Unpaid, Nothing due); "" is any payment.
     @State private var payment = ""
-    @State private var made = Memo<MacOrdersBase>()
+    // Kept outside the place (MacMemos), so a click back to it in the sidebar finds its figures made.
+    private var made: Memo<MacOrdersBase> { MacMemos.memo("orders.base", path) }
     /// Statuses just chosen, shown before the shelf's copy catches up (order id to status).
     @State private var localStatus: [String: String] = [:]
     @State private var sheet: MacOrdersSheet?
@@ -418,6 +420,8 @@ struct MacOrdersPlace: View {
 
     /// Drop what the shelf now agrees with.
     private func reconcile() {
+        // Nothing shown ahead of the books (the usual case): no walk over every order at each change of them.
+        guard !localStatus.isEmpty else { return }
         for o in book.orders.items where localStatus[o.id] == o.status.rawValue { localStatus[o.id] = nil }
     }
 

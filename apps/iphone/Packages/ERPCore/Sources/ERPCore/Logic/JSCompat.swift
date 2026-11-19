@@ -240,10 +240,12 @@ enum JS {
         return newDate(t)
     }
 
-    /// date-fns `startOfDay`, in Karachi.
+    /// date-fns `startOfDay`, in Karachi. Karachi is a fixed UTC+5 (`ERPDate.karachi`, no daylight saving), so the day's
+    /// start is arithmetic: the instant the old way gave (Karachi's day printed, read back as UTC midnight, less the offset)
+    /// without two formatter calls per date, about twelve per order row through `orderTiming` (Mac speed review, 2026-11-19).
     static func karachiStartOfDay(_ d: Date) -> Date {
-        let midnightUTC = ERPDate.parse(ERPDate.karachiDay(d)) ?? d
-        return midnightUTC.addingTimeInterval(-karachiOffset)
+        let day = ((d.timeIntervalSince1970 + karachiOffset) / 86_400).rounded(.down)
+        return Date(timeIntervalSince1970: day * 86_400 - karachiOffset)
     }
 
     /// date-fns `differenceInCalendarDays(a, b)` for two Karachi days.

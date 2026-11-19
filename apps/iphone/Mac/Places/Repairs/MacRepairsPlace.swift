@@ -69,12 +69,13 @@ struct MacRepairsPlace: View {
     @Environment(\.undoManager) private var undoManager
     @State private var model = MacRepairsModel()
     /// List or Cards (the toolbar's control, View › as List / as Cards).
-    @AppStorage("mac.repairs.view") private var layoutRaw = "table"
+    @MacDefault("mac.repairs.view") private var layoutRaw = "table"
     @State private var query = ""
     @State private var selection = Set<String>()
-    @AppStorage("mac.repairs.sort") private var sortRaw = MacRepairsSort.status.rawValue
-    @State private var made = Memo<[MacRepairsRow]>()
-    @State private var summed = Memo<[String]>()
+    @MacDefault("mac.repairs.sort") private var sortRaw = MacRepairsSort.status.rawValue
+    // Kept outside the place (MacMemos), so a click back to it in the sidebar finds its figures made.
+    private var made: Memo<[MacRepairsRow]> { MacMemos.memo("repairs.rows", path) }
+    private var summed: Memo<[String]> { MacMemos.memo("repairs.summed", path) }
     /// New Repair where there is no window to open it in (the place shown in a sheet or a pushed page).
     @State private var newSheet = false
 

@@ -377,6 +377,9 @@ struct DescribeHistorySheet: View {
             .task { store.load("") }
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 480, minHeight: 520)
+        #endif
     }
 
     private func choose(_ text: String) {
@@ -450,6 +453,9 @@ struct StoneComboSheet: View {
             .interactiveDismissDisabled(!picked.isEmpty || !extra.isEmpty)
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 440, minHeight: 380)
+        #endif
     }
 }
 

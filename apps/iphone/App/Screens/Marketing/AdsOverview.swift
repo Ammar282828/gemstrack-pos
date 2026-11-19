@@ -11,7 +11,11 @@ import ERPCore
 struct AdsOverviewScreen: View {
     @Environment(Session.self) private var session
 
+    #if os(macOS)
+    @MacDefault("ads.range") private var rangeKey = "last_7d"
+    #else
     @AppStorage("ads.range") private var rangeKey = "last_7d"
+    #endif
     @State private var data: AdOverview?
     @State private var problem: String?
     @State private var acting: String?

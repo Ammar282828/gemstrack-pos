@@ -31,7 +31,8 @@ struct PhoneSettings: View {
     @AppStorage("deviceTheme") private var deviceTheme = ""
     #if os(macOS)
     /// Mac/MacApp.swift's MenuBarExtra: on unless turned off here.
-    @AppStorage("mac.menuBarExtra") private var showMenuBar = true
+    /// The same flag the app's menu-bar item reads (MacDefaultsFlag.menuBarExtra), not an @AppStorage in a Settings scene.
+    @MacDefaultBool("mac.menuBarExtra") private var showMenuBar = true
     #endif
     @State private var lockOn = AppLock.shared.enabled
     @Environment(\.openURL) private var openURL

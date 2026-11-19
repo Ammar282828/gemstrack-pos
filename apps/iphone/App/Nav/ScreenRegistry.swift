@@ -57,8 +57,10 @@ enum ScreenRegistry {
         // settings form or a short add/edit form reads in a column.
         let forms = ["/settings/shop", "/settings/alerts", "/settings/data", "/settings/voice", "/settings/integrations",
                      "/settings/backups", "/settings/contact-import", "/settings/hisaab-import", "/settings/import-taheri",
-                     "/app/phone", "/app/label-live", "/app/tag-printer", "/customers/add", "/karigars/add"]
+                     "/app/phone", "/app/label-live", "/app/tag-printer", "/customers/add", "/karigars/add", "/help"]
         if forms.contains(bare) || bare.hasPrefix("/app/settings/") { return 720 }
+        // The phone's rows, read in a column: To collect stretched each bill's line across the whole window.
+        if bare == "/collect" { return 820 }
         if (bare.hasPrefix("/customers/") || bare.hasPrefix("/karigars/")) && bare.hasSuffix("/edit") { return 720 }
         return nil
         #endif

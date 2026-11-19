@@ -183,7 +183,14 @@ struct RateSheetHost: View {
     @Environment(Session.self) private var session
 
     var body: some View {
+        #if os(macOS)
+        // One size wherever it opens (the sidebar's rate, Go › Today's Rates, Today): it was 440 wide from the sidebar and
+        // 540 from Today, the frame Today gave it.
+        Group { if session.isOwner { RateSheet() } else { RateReadout() } }
+            .frame(minWidth: 540, minHeight: 520)
+        #else
         if session.isOwner { RateSheet() } else { RateReadout() }
+        #endif
     }
 }
 

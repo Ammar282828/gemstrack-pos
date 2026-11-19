@@ -856,6 +856,9 @@ struct TeamNotePresentation: ViewModifier {
                         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { reading = false } } }
                 }
                 .presentationDetents([.medium, .large])
+                #if os(macOS)
+                .frame(minWidth: 480, minHeight: 320)
+                #endif
             }
     }
 }
@@ -920,6 +923,9 @@ struct TeamNoteEditor: View {
             .interactiveDismissDisabled(saving)
         }
         .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 360)
+        #endif
         .savedFeedback(trigger: saved)
     }
 
