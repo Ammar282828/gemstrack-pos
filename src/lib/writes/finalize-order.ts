@@ -148,6 +148,10 @@ export function invoiceFromOrder(
       ...(order.shopifyFinancialStatus && { shopifyFinancialStatus: order.shopifyFinancialStatus }),
       ...(order.shopifyFulfillment && { shopifyFulfillment: order.shopifyFulfillment }),
       ...(order.shopifyOrderName && { shopifyOrderName: order.shopifyOrderName }),
+      // Where the parcel is, so the invoice reads as the order did until Shopify's next word (lib/shopify-delivery.ts).
+      ...((order as { shopifyDelivery?: string }).shopifyDelivery && { shopifyDelivery: (order as { shopifyDelivery?: string }).shopifyDelivery }),
+      ...((order as { shopifyTracking?: unknown }).shopifyTracking ? { shopifyTracking: (order as { shopifyTracking?: unknown }).shopifyTracking } : {}),
+      ...((order as { shopifyDeliveryAt?: string }).shopifyDeliveryAt && { shopifyDeliveryAt: (order as { shopifyDeliveryAt?: string }).shopifyDeliveryAt }),
     }),
   } as Omit<Invoice, 'id'>;
 }

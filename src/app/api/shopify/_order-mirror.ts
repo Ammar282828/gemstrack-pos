@@ -21,6 +21,8 @@ import { mirrorShopifyOrder, type ShopifyMirrorResult } from '@/lib/writes/invoi
 import { importShopifyAsOrder, mirrorShopifyToOrder, shopifyOrderId, type ShopifyOrderMirror, type ShopifyWebOrder } from '@/lib/writes/shopify-order';
 import { STORE_CONFIG, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { shopifyKarigarId } from '@/lib/shopify-karigar-server';
+import { autoInvoiceShopifyOrder } from '@/lib/writes/shopify-auto-invoice';
+import { cleanObject } from '@/lib/writes/create-invoice';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { stripUndefined } from '@/lib/website/checkout';
 import { mapInvoice, shopifyRequest } from './_lib';
@@ -171,6 +173,12 @@ async function mirrorToErpOrder(shop: string, token: string, order: ShopifyWebOr
   const transactions = withDeliveredCod(order, await fetchShopifyTransactions(shop, token, String(order.id)));
   const result = await mirrorShopifyToOrder(adminPort, erpOrderId, order, transactions, { log });
   const name = `#${order.order_number}`;
+  // Shipped, so Completed: its invoice is made at once (writes/shopify-auto-invoice.ts). Never fails the notice: the sweep retries.
+  if (result) {
+    const inv = await autoInvoiceShopifyOrder(adminPort, erpOrderId, { clean: cleanObject }, { log })
+      .catch(e => { console.error('[shopify] auto invoice', erpOrderId, (e as Error)?.message); return null; });
+    if (inv && 'invoiceId' in inv) console.log(`[shopify] ${name} shipped: invoiced as ${inv.invoiceId}`);
+  }
   return result
     ? { asOrder: true, erpOrderId, order: name, gist, added: result.added, cancelled: result.cancelled, changed: result.changed, ...(imported && { imported }) }
     : { skipped: 'not-imported', order: name, gist };

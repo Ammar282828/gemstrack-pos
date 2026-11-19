@@ -21,6 +21,7 @@ import { normalizePhoneNumber } from '@/lib/utils';
 import { cleanObject } from '@/lib/writes/create-invoice';
 import { convertAllShopifyInvoices, nameHiddenDelivery } from '@/lib/writes/shopify-invoice-to-order';
 import { settleOpenLinks } from '@/lib/writes/payment-links';
+import { autoInvoicePlan, autoInvoiceShopifyOrder } from '@/lib/writes/shopify-auto-invoice';
 import { paymentLinksOn } from '@/lib/safepay';
 import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 
@@ -204,6 +205,35 @@ export async function tickShippedShopifyPieces(now = new Date()): Promise<{ tick
   await ref.set({ at: now.toISOString(), ticked: ticked.length, ids: ticked.slice(0, 50) });
   if (ticked.length) await activityLog('invoice.update', `Shipped web sales: ${ticked.length} pieces' invoices marked done`, ticked.join(', ').slice(0, 900));
   return { ticked };
+}
+
+/**
+ * Hourly, House of Mina: every web order Completed because it shipped (or by hand) and not yet invoiced is invoiced
+ * (writes/shopify-auto-invoice.ts) — the ones shipped before this existed, and any a notice's own attempt missed. One that
+ * is a person's to finalize (re-priced by weight, totals that disagree) is left, its reason kept in the state.
+ */
+export async function invoiceShippedShopifyOrders(now = new Date()): Promise<{ invoiced: string[]; left: { id: string; reason: string }[]; errors: string[] } | null> {
+  if (!STORE_SHOPIFY_SECTION) return null;
+  const ref = adminDb.collection('shopify_sync').doc('auto-invoice');
+  const last = (await ref.get()).data()?.at as string | undefined;
+  if (last && now.getTime() - Date.parse(last) < 3600 * 1000) return null;
+  const done = await adminDb.collection('orders').where('source', '==', 'shopify').where('status', '==', 'Completed').get();
+  const out = { invoiced: [] as string[], left: [] as { id: string; reason: string }[], errors: [] as string[] };
+  for (const d of done.docs) {
+    const plan = autoInvoicePlan(d.data());
+    if ('skip' in plan) {
+      if (plan.skip !== 'invoiced already' && plan.skip !== 'not shipped') out.left.push({ id: d.id, reason: plan.skip });
+      continue;
+    }
+    try {
+      const r = await autoInvoiceShopifyOrder(adminPort, d.id, { clean: cleanObject }, { log: activityLog });
+      if ('invoiceId' in r) out.invoiced.push(`${d.id} → ${r.invoiceId}`);
+    } catch (e) {
+      out.errors.push(`${d.id}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  await ref.set({ at: now.toISOString(), invoiced: out.invoiced.slice(0, 50), left: out.left.slice(0, 50), errors: out.errors.slice(0, 10) });
+  return out;
 }
 
 const activityLog = async (action: string, title: string, detail: string, relatedId?: string) => {

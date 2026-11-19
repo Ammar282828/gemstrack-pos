@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import { importShopifyAsOrder, mirrorShopifyToOrder, shopifyPieces, type ShopifyWebOrder } from './shopify-order';
+import { autoInvoicePlan, autoInvoiceShopifyOrder } from './shopify-auto-invoice';
 import { invoiceFromOrder } from './finalize-order';
 import type { FinalizedItem } from '@/lib/order-finalize';
 import type { Order, Settings } from '@/lib/store';
@@ -282,5 +283,45 @@ describe('the delivery a Shopify order charges (owner: "delivery fees logic is w
     (data.orders['SHOPIFY-1440'] as Record<string, unknown>).deliveryCharge = 0;
     await mirrorShopifyToOrder(db, 'SHOPIFY-1440', withShipping({ financial_status: 'pending' }), []);
     expect(data.orders['SHOPIFY-1440']).toMatchObject({ deliveryCharge: 0 });
+  });
+});
+
+describe('a shipped web order is invoiced by itself (owner, 2026-11-19)', () => {
+  const shipped = (o: Partial<ShopifyWebOrder> = {}) => order({ fulfillment_status: 'fulfilled', fulfillments: [{ status: 'success', shipment_status: 'in_transit', tracking_company: 'TCS', tracking_number: '123' }], ...o } as Partial<ShopifyWebOrder>);
+
+  it('as Finalize & invoice makes it untouched: the paid prices, the discount, Shopify’s payments carried, the rest owed', async () => {
+    const { db, data } = fakeDb(seed());
+    await importShopifyAsOrder(db, order(), deps);
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', shipped({ financial_status: 'partially_paid' }), [tx(8, '2000.00')]);
+    expect(data.orders['SHOPIFY-1440'].status).toBe('Completed');
+    const r = await autoInvoiceShopifyOrder(db, 'SHOPIFY-1440', deps);
+    expect(r).toEqual({ invoiceId: 'INV-000001' });
+    expect(data.invoices['INV-000001']).toMatchObject({
+      source: 'shopify', sourceOrderId: 'SHOPIFY-1440', shopifyOrderId: '7445131428120', shopifyTransactionIds: ['8'],
+      subtotal: 6000, discountAmount: 500, grandTotal: 5500, amountPaid: 2000, balanceDue: 3500, shopifyDelivery: 'in_transit',
+    });
+    expect(data.orders['SHOPIFY-1440']).toMatchObject({ status: 'Completed', invoiceId: 'INV-000001' });
+    // Once: the notice and the hourly sweep can both ask.
+    expect(await autoInvoiceShopifyOrder(db, 'SHOPIFY-1440', deps)).toEqual({ skip: 'invoiced already' });
+  });
+
+  it('carries the delivery onto the invoice beside the pieces', async () => {
+    const { db, data } = fakeDb(seed());
+    const o = shipped({ total_price: '8350.00', total_discounts: '0.00', financial_status: 'paid', line_items: [{ id: 1, name: 'Stack', price: '4000.00', quantity: 2 }], shipping_lines: [{ price: '350.00' }] } as Partial<ShopifyWebOrder>);
+    await importShopifyAsOrder(db, o, deps);
+    await mirrorShopifyToOrder(db, 'SHOPIFY-1440', o, [tx(9, '8350.00')]);
+    await autoInvoiceShopifyOrder(db, 'SHOPIFY-1440', deps);
+    expect(data.invoices['INV-000001']).toMatchObject({ subtotal: 8000, deliveryCharge: 350, grandTotal: 8350, amountPaid: 8350, balanceDue: 0 });
+  });
+
+  it('leaves for a person an unshipped order, one priced by weight, or one whose sums disagree', () => {
+    const base = { source: 'shopify', status: 'Completed', shopifyFulfillment: 'fulfilled', subtotal: 3000, items: [{ isManualPrice: true, manualPrice: 3000 }] };
+    expect(autoInvoicePlan(base)).toMatchObject({ additionalDiscount: 0 });
+    expect(autoInvoicePlan({ ...base, shopifyFulfillment: 'unfulfilled' })).toEqual({ skip: 'not shipped' });
+    expect(autoInvoicePlan({ ...base, shopifyDelivery: 'returned' })).toEqual({ skip: 'not shipped' });
+    expect(autoInvoicePlan({ ...base, status: 'In Progress' })).toEqual({ skip: 'not completed' });
+    expect(autoInvoicePlan({ ...base, items: [{ isManualPrice: false, estimatedWeightG: 4 }] })).toMatchObject({ skip: expect.stringMatching(/weight/) });
+    expect(autoInvoicePlan({ ...base, subtotal: 3500 })).toMatchObject({ skip: expect.stringMatching(/differ/) });
+    expect(autoInvoicePlan({ ...base, source: 'walkin' })).toEqual({ skip: 'not a web order' });
   });
 });

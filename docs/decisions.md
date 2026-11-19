@@ -711,6 +711,17 @@ invoices and completed orders."
     Search / More / the iPad sidebar); the apps detect the section by the nav entry id `shopify` in the exported map
     (`npm run nav:export`), no new API field.
 
+**A shipped web order is invoiced by itself** (2026-11-19, owner: "make the invoice automatically for all fulfilled orders").
+A web order that ships went to Completed and then waited for Finalize & invoice, which for a web order only confirmed what Shopify
+said. Now `writes/shopify-auto-invoice.ts` makes the invoice the dialog makes untouched, through `finalizeOrder`: each piece at the
+price paid, the order's discount, the delivery beside the pieces, Shopify's payments carried as payments (their ids too, so the
+mirror adds none twice), the next INV- number, and what is still owed (a COD parcel TCS hasn't delivered) on the customer's
+hisaab — paid off by the mirror when TCS delivers. It runs as the notice completes the order, and hourly over every Completed
+uninvoiced web order (`invoiceShippedShopifyOrders`, `shopify_sync/auto-invoice`, which keeps the reason for any left). Left for a
+person: pieces re-priced by weight, or pieces + delivery that no longer add up to the order. A parcel returned after its invoice
+voids the invoice (the mirror's rule for a cancelled web sale with nothing paid); the order keeps its Completed status. Mina only
+(the Shopify section). First run: 14 orders, #1461–#1489, each total checked against its order before it went live.
+
 **A shipped web sale leaves the Workshop** (2026-11-19, owner: "orders fulfilled on Shopify are not … getting completed … and their
 products getting removed from workshop"). The orders were completing; the pieces stayed because they were on the *invoices*: before
 2026-11-09 a web order came in as an invoice, the tick gave its pieces to Uzair (`SHOPIFY_ORDER_KARIGAR`), and the Workshop (web,
