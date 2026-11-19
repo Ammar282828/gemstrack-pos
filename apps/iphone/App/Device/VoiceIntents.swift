@@ -25,6 +25,16 @@ struct ERPShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "New sale",
             systemImageName: "cart")
+        // An expense without opening the app (QuickExpenseIntent.swift): Siri asks the amount and what for, and files it.
+        AppShortcut(
+            intent: AddExpenseIntent(),
+            phrases: [
+                "Add an expense in \(.applicationName)",
+                "Add expense in \(.applicationName)",
+                "New expense in \(.applicationName)",
+            ],
+            shortTitle: "Add expense",
+            systemImageName: "minus.circle")
     }
 }
 

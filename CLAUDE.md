@@ -205,6 +205,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
+- [Quick expense](docs/decisions.md#quick-expense) — iPhone "Add expense" App Intent in the background (Shortcuts widget, Control Center / Lock Screen Shortcut control, Siri): amount + what for, House of Mina first, never opens the app
 - [Voice, Siri-grade](docs/decisions.md#voice-siri-grade) — iPhone/Mac: warm at launch, on-device words, end of speech by itself, keeps listening for changes and "yes"; Siri / Action button / Control Center open it listening; a glass capsule over the open screen (never a sheet), told the record on screen (`context`) so "make it 22 karat" needs no name; small changes are one allow-listed `edit` step, never money
 
 **Design** (`docs/features/design.md`) — replaced Post a piece and the Ads Studio tab (2026-10-12)

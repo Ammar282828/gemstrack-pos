@@ -1090,6 +1090,21 @@ things and allow the user to enter those specific diagrams or graphs to get a mo
   charts); colours `--ana-1…6` in a fixed order, checked for colour blindness in light and dark, following the thing they
   stand for (22K is always the same colour); good and bad in the tones only; thin marks, a tooltip on every chart.
 
+### Quick expense
+
+Owner, 2026-11-19: "a way to very quickly add an expense for house of mina through the APP WITHOUT OPENING THE APP EVEN …
+make it a widget option … i dont want to make my action button bound".
+
+- One App Intent, **Add expense** (`apps/iphone/App/Device/QuickExpenseIntent.swift`), run in the background
+  (`supportedModes = .background`): the app never comes up. It asks for the amount and what it was for; the business starts on
+  the one last used, else House of Mina, else the open one; the category on the house's first (from its last
+  `/api/app/me`), or one named. Same write as the Expenses sheet (`addExpense`, owners only, checked by the ERP); with no
+  line it waits in the Outbox. The phone must be unlocked (`requiresAuthentication`).
+- **Where it is:** the Shortcuts widget on the Home Screen (add the widget, choose "Add expense"), the Shortcut control in
+  Control Center or on the Lock Screen, Siri ("Add an expense in ERP"), Spotlight. Nothing binds the Action button.
+- Not the ERP's own widget: a widget can't take typed input and its buttons run in the widget extension, which holds no
+  sign-in; the system's Shortcuts widget runs the app's intent in place with its prompt.
+
 ## People and sign-in
 
 ### Add photos sign-in

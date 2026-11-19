@@ -106,3 +106,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-16: ERP 2.8.1 — a new order or sale starts with Taken by empty (no longer filled with whoever is signed in); pick who took it.
 - 2026-11-16: ERP 2.8.2 — every order and sale needs Taken by: Save waits until someone is chosen (a dot marks the step), and the ERP refuses one without a name.
 - 2026-11-18: ERP 2.8.3 — the tab bar no longer flickers when a tab is tapped: choosing a tab used to redraw every tab while the glass was still moving to it; now only the bar changes.
+- 2026-11-19: ERP 2.8.4 — Add expense without opening the app: from the Shortcuts widget, Control Center, the Lock Screen or Siri, say the amount and what for, and it's in House of Mina's books.
