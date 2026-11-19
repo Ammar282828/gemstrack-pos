@@ -107,3 +107,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-16: ERP 2.8.2 — every order and sale needs Taken by: Save waits until someone is chosen (a dot marks the step), and the ERP refuses one without a name.
 - 2026-11-18: ERP 2.8.3 — the tab bar no longer flickers when a tab is tapped: choosing a tab used to redraw every tab while the glass was still moving to it; now only the bar changes.
 - 2026-11-19: ERP 2.8.4 — Add expense without opening the app: from the Shortcuts widget, Control Center, the Lock Screen or Siri, say the amount and what for, and it's in House of Mina's books.
+- 2026-11-19: ERP 2.8.5 — Add expense (widget, Control Center, Siri) does everything the Expenses form does: a date, any category or a new one, who paid, a partner's salary, a karigar payment into his hisaab.
