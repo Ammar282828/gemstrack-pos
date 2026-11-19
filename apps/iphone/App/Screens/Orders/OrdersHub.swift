@@ -925,7 +925,7 @@ struct OrdersHub: View {
     }
 
     private func advanced(_ amount: Double, _ exchanges: [[String: Any]] = []) {
-        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges)), in: $note, reduce: reduceMotion)
+        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges), peak: true), in: $note, reduce: reduceMotion)
     }
 
     /// An advance from the card: owners only (the ERP refuses anyone else), and never once invoiced.

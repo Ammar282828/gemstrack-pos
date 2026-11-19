@@ -298,6 +298,8 @@ struct RecordRow<Accessory: View>: View {
         }
         .padding(.vertical, pt(2))
         .accessibilityElement(children: .combine)
+        // In its turn on the list's first showing this launch (MotionMoments.swift); at once otherwise.
+        .staggerIn()
     }
 
     /// An iPad's narrow list column folds the figures under the name, as does any window wide enough for the list beside
@@ -556,6 +558,8 @@ struct RecordListScaffold<Rows: View, Cards: View, Empty: View>: View {
     /// The toolbar's magnifying glass: brings the pull-down search out without the pull (a person who does not know the
     /// gesture finds the search here, as in Mail).
     @State private var summon = false
+    /// Its rows come in one after another the first time this list is shown since launch (MotionMoments.swift).
+    @State private var stagger = StaggerBox()
 
     var body: some View {
         Group {
@@ -577,6 +581,7 @@ struct RecordListScaffold<Rows: View, Cards: View, Empty: View>: View {
                 .pullDownSearch(text: $search, prompt: prompt, summon: $summon)
             }
         }
+        .environment(\.staggerClock, stagger.clock(for: String(describing: prompt)))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         #if os(iOS)
         .toolbar {

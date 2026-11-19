@@ -174,6 +174,8 @@ struct InvoiceScreen: View {
         .safepayLinkSheet($safepay)
         .failureAlert($ownersOnly, title: "Owners only")
         .noteToast($note)
+        // Made a moment ago by New sale: it says so with the success moment (MotionMoments.swift).
+        .justSavedNote($note)
     }
 
     /// Say a note from a sheet or a send on the page's toast.
@@ -190,7 +192,7 @@ struct InvoiceScreen: View {
         case .credit: detail = "Paid in full, \(Money.pkr(line.amount)) in credit"
         case .paid: detail = "Paid in full"
         }
-        Note.show(Note(title: "Payment recorded", detail: detail), in: $note, reduce: reduceMotion)
+        Note.show(Note(title: "Payment recorded", detail: detail, peak: true), in: $note, reduce: reduceMotion)
     }
 
     // MARK: The receipt: who, when, what is due

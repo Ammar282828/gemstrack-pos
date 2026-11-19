@@ -231,6 +231,12 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   morph/container transitions between pages twice ("a veil", "ghost text", "back feels off"): no shared element or container transform between pages, no
   `overridePendingTransition`.
 
+- **iPhone, iPad and Mac** (2.8.7, from the web's pass): zoom from the tapped card was already there (`zoomSource` /
+  `zoomDestination`). Added: a list's rows (`RecordRow`, in `RecordListScaffold`) come in 30 ms apart, the first eight, on the
+  list's first showing since launch, at once ever after (`apps/iphone/App/UI/MotionMoments.swift`); the end of a sale
+  (Invoice created / updated), Order created, Payment recorded and Advance recorded say it with a tick that lands with an
+  overshoot and a bounce, felt with the success tap (`Note.peak`; never ordinary saves). Reduce Motion plays none of it.
+
 ### Recent picks
 
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**

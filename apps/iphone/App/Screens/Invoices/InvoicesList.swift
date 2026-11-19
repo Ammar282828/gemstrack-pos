@@ -433,7 +433,7 @@ struct InvoicesList: View {
         case .credit: detail = "Paid in full, \(Money.pkr(line.amount)) in credit"
         case .paid: detail = "Paid in full"
         }
-        Note.show(Note(title: "Payment recorded", detail: detail), in: $note, reduce: reduceMotion)
+        Note.show(Note(title: "Payment recorded", detail: detail, peak: true), in: $note, reduce: reduceMotion)
     }
 
     // MARK: The three figures

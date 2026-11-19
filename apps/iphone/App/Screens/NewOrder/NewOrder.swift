@@ -748,6 +748,7 @@ struct NewOrderLanding: View {
         if waited || book.orders.items.contains(where: { $0.id == id }) {
             OrderScreen(id: id)
                 .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
+                .environment(\.justSaved, Note(title: "Order created", detail: id, peak: true))
         } else {
             SkeletonRecord(rows: 3, label: "Opening \(id)")
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

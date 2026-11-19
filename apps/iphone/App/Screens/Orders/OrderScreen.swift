@@ -104,6 +104,8 @@ struct OrderScreen: View {
         .moneyFeedback(success: moneyTick, failure: 0)
         .savedFeedback(trigger: savedTick)
         .noteToast($note)
+        // Made a moment ago by New order: it says so with the success moment (MotionMoments.swift).
+        .justSavedNote($note)
         .onAppear {
             book.orders.need()
             book.invoices.need()
@@ -836,7 +838,7 @@ struct OrderScreen: View {
     }
 
     private func advanced(_ amount: Double, _ exchanges: [[String: Any]] = []) {
-        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges)), in: $note, reduce: reduceMotion)
+        Note.show(Note(title: "Advance recorded", detail: OrderAdvance.said(amount: amount, exchanges: exchanges), peak: true), in: $note, reduce: reduceMotion)
     }
 
     private func advanceSheet(_ order: Order) -> some View {

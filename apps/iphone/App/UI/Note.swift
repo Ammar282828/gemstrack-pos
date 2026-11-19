@@ -17,9 +17,12 @@ struct Note: Equatable {
     var undo: (@MainActor () -> Void)?
     /// The Mac's Edit menu names the undo after this ("Undo Remove Line"); empty, the title names it.
     var undoName = ""
+    /// The end of something that matters (a sale, an order, a payment): the tick lands with a bounce (peak-end, decisions
+    /// "Motion"). Never on ordinary saves.
+    var peak = false
 
     static func == (a: Note, b: Note) -> Bool {
-        a.title == b.title && a.detail == b.detail && a.failed == b.failed && (a.undo == nil) == (b.undo == nil)
+        a.title == b.title && a.detail == b.detail && a.failed == b.failed && (a.undo == nil) == (b.undo == nil) && a.peak == b.peak
     }
 
     /// Say it: the toast rises on the enter curve (it only appears under Reduce Motion). Pass the screen's
@@ -42,8 +45,12 @@ struct NoteBanner: View {
 
     var body: some View {
         HStack(spacing: pt(10)) {
-            Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(note.failed ? Tone.problem.ink : Tone.settled.ink)
+            if note.peak && !note.failed {
+                PeakTick()
+            } else {
+                Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(note.failed ? Tone.problem.ink : Tone.settled.ink)
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(note.title).font(.house(.subheadline).weight(.semibold))
                 if !note.detail.isEmpty {

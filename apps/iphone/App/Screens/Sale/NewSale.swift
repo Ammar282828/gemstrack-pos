@@ -110,6 +110,7 @@ struct SaleForm: View {
             if let id = made {
                 InvoiceScreen(id: id)
                     .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
+                    .environment(\.justSaved, Note(title: edit == nil ? "Invoice created" : "Invoice updated", detail: id, peak: true))
             } else if !book.settings.loaded {
                 SkeletonPage(shape: .form).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
