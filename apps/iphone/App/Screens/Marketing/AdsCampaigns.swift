@@ -79,6 +79,8 @@ struct AdsCampaignsScreen: View {
             }
         }
         #if os(macOS)
+        // The window's search from the first frame, not once the campaigns arrive (the page's own then adds none).
+        .macSearchable(text: $search, prompt: "Search campaigns, ad sets, ads")
         .navigationTitle("Ads")
         #else
         .navigationTitle("Campaigns")

@@ -153,7 +153,11 @@ struct WebsiteLiveScreen: View {
                 Image(systemName: "circle.fill")
                     .font(.house(.caption))
                     .foregroundStyle(l.visitors > 0 ? Tone.settled.ink : Color.secondary.opacity(0.4))
+                    #if os(iOS)
+                    // Not on a Mac: the pulse never stops while anyone is on the site, and kept Live at ~14% CPU idle
+                    // (the owner's Mac, 2026-11-19).
                     .symbolEffect(.pulse, isActive: l.visitors > 0 && !reduceMotion)
+                    #endif
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: pt(4)) {
                     Text("\(l.visitors)")

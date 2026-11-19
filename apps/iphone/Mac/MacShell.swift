@@ -131,6 +131,8 @@ struct MacShell: View {
     /// default) it never does, so every launch opened on Today (the Mac check, 2026-10-27).
     /// Not an @AppStorage (MacDefault): the shell publishes the menu bar's values.
     @MacDefault("mac.lastPlace") private var lastPlace = "/"
+    /// The place being reopened at launch, until it has stood a few seconds (a crash-loop guard; see the restore).
+    static let reopeningKey = "mac.reopeningPlace"
     /// The launch's first window has taken `lastPlace`; a New Window (⌥⇧⌘N) opens on Today.
     @MainActor private static var launchRestored = false
     @State private var restored = false
@@ -277,15 +279,36 @@ struct MacShell: View {
             // Back where this window was when the app last quit (a place this person can still open).
             if !restored {
                 restored = true
+                // A place that took the app down while it was being reopened is not reopened again: 2.8.3 died at launch on
+                // /shopify and, the place being restored at every launch, never opened again (the owner's Mac, 2026-11-19).
+                // The place is noted before it opens and the note cleared once it has stood for a few seconds; a note left
+                // over at launch names the place that did not.
+                let fell = UserDefaults.standard.string(forKey: Self.reopeningKey)
+                UserDefaults.standard.removeObject(forKey: Self.reopeningKey)
+                // Forgotten too, or the launch after this one would try it again (and every other launch would die).
+                if let fell {
+                    if lastPlace == fell { lastPlace = "/" }
+                    if savedPlace == fell { savedPlace = "/" }
+                }
                 if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") {
                     // The UI tests open one page at launch (`-ERPDemoOpen /orders?list=late`), as the iPhone's do.
                     model.go(p)
-                } else if savedPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
+                } else if savedPlace != "/", savedPlace != fell, MacSidebarMap.allPaths(sidebarSections(map)).contains(savedPlace) {
                     model.selection = savedPlace
-                } else if !Self.launchRestored, lastPlace != "/", MacSidebarMap.allPaths(sidebarSections(map)).contains(lastPlace) {
+                } else if !Self.launchRestored, lastPlace != "/", lastPlace != fell,
+                          MacSidebarMap.allPaths(sidebarSections(map)).contains(lastPlace) {
                     model.selection = lastPlace
                 }
                 Self.launchRestored = true
+                if let s = model.selection, s != "/", s != Self.searchID {
+                    UserDefaults.standard.set(s, forKey: Self.reopeningKey)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(8))
+                        if UserDefaults.standard.string(forKey: Self.reopeningKey) == s {
+                            UserDefaults.standard.removeObject(forKey: Self.reopeningKey)
+                        }
+                    }
+                }
             }
             // A role with no Today (marketing) opens on its first place, never on a dashboard of books it may not see.
             let sections = sidebarSections(map)

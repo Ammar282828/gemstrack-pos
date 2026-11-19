@@ -312,6 +312,8 @@ extension WebsiteEditScreen {
             }
             .navigationTitle("Edit a piece")
             .navigationSubtitle(store.phase == .loaded ? "\(macRows.count) of \(store.pieces.count) pieces" : "")
+            // The window's search from the first frame, not once the pieces arrive (the table's own then adds none).
+            .macSearchable(text: $search, prompt: "Name, collection, ruby, Ring 12…")
             .toolbar { macToolbar }
             .macRecordMenu(macMenu)
             .macRefresh { Task { await store.load(fresh: true) } }

@@ -190,6 +190,15 @@ From the owner's snapshots of all 56 pages. Each rule fixes something that was v
 - **Values a window hands its pages are equal across redraws**: `MacGo` and `OpenPlaceWindow` compare by their window
   (`window: ObjectIdentifier`), so a redraw of the shell does not redraw the forty pages that read them; a closure in them
   reads what it needs when it runs, never a copy taken at the redraw.
+- **One search field per window** (2026-11-19, 2.8.3 died at launch on /shopify: "NSToolbar … already contains an item with
+  the identifier com.apple.SwiftUI.search"): a second `.searchable` in a window's toolbar makes AppKit throw. Use
+  `macSearchable` / `pullDownSearch` / `macToolbarSearch`, never a bare `.searchable`: the first one down the tree marks it
+  (`macSearchHosted`), every one below adds none. Put it at a level that exists from the first frame (outside the loading
+  state): one added when the data arrives goes into the toolbar mid-layout ("layoutSubtreeIfNeeded on a view which is
+  already being laid out").
+- **A place that crashed the app at launch is not reopened** (`MacShell.reopeningKey`): the restored place is noted before
+  it opens and the note cleared after 8 seconds; a note found at launch skips and forgets that place.
+- **Nothing animates forever at rest**: a `.symbolEffect(.pulse)` that never stops kept Website › Live at 14% CPU idle.
 - **A place's figures outlive the place**: the shell makes a place anew on each click (`.id(path)`), so its memos come from
   `MacMemos.memo(name, path)`, not `@State`; Today keeps its last figures per business.
 

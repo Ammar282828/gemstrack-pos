@@ -246,12 +246,20 @@ private struct MacSearchable: ViewModifier {
     let prompt: String
     @FocusState private var focused: Bool
     @State private var find = MacFind.shared
+    /// One search field per window: a second in the toolbar makes AppKit throw (`macSearchHosted`, PullDownSearch.swift).
+    @Environment(\.macSearchHosted) private var hosted
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content
-            .searchable(text: $text, placement: .toolbar, prompt: prompt)
-            .searchFocused($focused)
-            .onChange(of: find.asks) { _, _ in focused = true }
+        if hosted {
+            content
+        } else {
+            content
+                .environment(\.macSearchHosted, true)
+                .searchable(text: $text, placement: .toolbar, prompt: prompt)
+                .searchFocused($focused)
+                .onChange(of: find.asks) { _, _ in focused = true }
+        }
     }
 }
 

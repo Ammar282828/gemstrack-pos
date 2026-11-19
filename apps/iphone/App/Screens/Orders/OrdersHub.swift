@@ -95,8 +95,10 @@ struct OrdersHub: View {
         .trackCovered($covered)
         .hubTitleDisplay()
         #if os(macOS)
-        // The Mac keeps the window toolbar's search; the phone and iPad pull theirs down on the list (hub).
-        .searchable(text: $query, placement: .toolbar, prompt: "Order, customer, phone or piece")
+        // The Mac keeps the window toolbar's search; the phone and iPad pull theirs down on the list (hub). The one field
+        // of the window: the list below (RecordListScaffold's pull-down search, the same words) adds none, where 2.8.3
+        // added a second and AppKit threw at launch on /shopify.
+        .macToolbarSearch(text: $query, prompt: "Order, customer, phone or piece")
         #endif
         .toolbar { hubToolbar }
         .ordersWebDestination($web)

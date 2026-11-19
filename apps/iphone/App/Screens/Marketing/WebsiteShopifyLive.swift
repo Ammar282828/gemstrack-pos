@@ -109,7 +109,10 @@ struct ShopifyLiveView: View {
             Image(systemName: "circle.fill")
                 .font(.house(.caption))
                 .foregroundStyle(on ? Tone.settled.ink : Color.secondary.opacity(0.4))
+                #if os(iOS)
+                // Not on a Mac: a pulse that never stops kept the page busy at idle (WebsiteLive's, 2026-11-19).
                 .symbolEffect(.pulse, isActive: on && !reduceMotion)
+                #endif
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: pt(4)) {
                 Text(n.map { (x: Int) -> String in String(x) } ?? "\u{2013}")

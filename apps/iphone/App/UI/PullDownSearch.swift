@@ -32,14 +32,42 @@ extension View {
 }
 
 #if os(macOS)
-/// A Mac keeps the window toolbar's search.
+/// A window's toolbar holds one search field. A second `.searchable` landing in it makes AppKit throw
+/// (NSInternalInconsistencyException: "NSToolbar … already contains an item with the identifier com.apple.SwiftUI.search"),
+/// and ERP 2.8.3 died so at launch on /shopify, where the Orders hub's own field sat over its list's (the owner's Mac, the
+/// "iPhone app build and TestFlight upload" session, 2026-11-19). The first field down the tree says so here; every
+/// field below it then adds none (theirs search the same words, or the page's own field serves the page).
+private struct MacSearchHostedKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    var macSearchHosted: Bool {
+        get { self[MacSearchHostedKey.self] }
+        set { self[MacSearchHostedKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// The window toolbar's search, unless a view above has put one there already.
+    func macToolbarSearch(text: Binding<String>, prompt: LocalizedStringKey) -> some View {
+        modifier(MacSearch(text: text, prompt: prompt, enabled: true))
+    }
+}
+
+/// A Mac keeps the window toolbar's search: one per window (MacSearchHostedKey).
 private struct MacSearch: ViewModifier {
     @Binding var text: String
     let prompt: LocalizedStringKey
     let enabled: Bool
+    @Environment(\.macSearchHosted) private var hosted
     @ViewBuilder
     func body(content: Content) -> some View {
-        if enabled { content.searchable(text: $text, placement: .toolbar, prompt: prompt) } else { content }
+        if enabled && !hosted {
+            content
+                .environment(\.macSearchHosted, true)
+                .searchable(text: $text, placement: .toolbar, prompt: prompt)
+        } else {
+            content
+        }
     }
 }
 #endif

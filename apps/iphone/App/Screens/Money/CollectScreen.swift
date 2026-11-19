@@ -28,6 +28,11 @@ struct CollectScreen: View {
                    offline: book.invoices.offline || book.orders.offline, shape: .list) {
             content
         }
+        #if os(macOS)
+        // The window's search from the first frame (the list's own then adds none): added only when the books arrived, it
+        // went into the toolbar mid-layout ("layoutSubtreeIfNeeded on a view which is already being laid out", 2026-11-19).
+        .pullDownSearch(text: $filters.query, prompt: "Customer, number or bill")
+        #endif
         .navigationTitle("To collect")
         .hubTitleDisplay()
         .task {

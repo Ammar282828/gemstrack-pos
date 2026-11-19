@@ -71,8 +71,9 @@ struct WebsiteWeightsScreen: View {
         .navigationTitle("Photo weights")
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
-        // The Mac keeps the window toolbar's search; the phone's is pulled down on its List (phonePage).
-        .searchable(text: $search, placement: .toolbar, prompt: "Find a photo…")
+        // The Mac keeps the window toolbar's search; the phone's is pulled down on its List (phonePage). The window's one
+        // field (macToolbarSearch): a narrow window's List below adds none, where a second made AppKit throw.
+        .macToolbarSearch(text: $search, prompt: "Find a photo…")
         #endif
         .task {
             await site.loadSettings()
