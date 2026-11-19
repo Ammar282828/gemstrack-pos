@@ -13,7 +13,7 @@ import { getShopifyCredentials, shopifyRequest } from '@/app/api/shopify/_lib';
 import { mirrorShopifyOrderById } from '@/app/api/shopify/_order-mirror';
 import { followUpPaidOrder, shopifyOrderWhatsAppOn, startOrderFlow } from '@/lib/shopify-whatsapp-server';
 import { deliveryOf } from '@/lib/shopify-delivery';
-import { codTransactionId, shopifyDeliveryCharge, withDeliveredCod } from '@/lib/shopify-mirror';
+import { codTransactionId, shippedPiecesDone, shopifyDeliveryCharge, withDeliveredCod } from '@/lib/shopify-mirror';
 import { ensureShopifyWebhooks } from '@/lib/shopify-webhooks';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminPort } from '@/lib/db-admin-port';
@@ -176,6 +176,34 @@ export async function convertShopifyInvoicesToOrders(now = new Date()) {
   }, 40, { log: activityLog });
   await ref.set({ at: now.toISOString(), seen: r.seen, remaining: r.remaining, open: r.open.length, completed: r.completed.length, cancelled: r.cancelled.length, renamed: r.renamed?.length || 0, skipped: r.skipped.slice(0, 50) });
   return r;
+}
+
+/**
+ * Once a day, both houses: every web sale that has left the shop has its pieces ticked done (lib/shopify-mirror.ts
+ * shippedPiecesDone), so none stays on a karigar's Workshop list. The mirror ticks them as an order ships; this catches the
+ * ones shipped before it did (11 pieces of #1453–#1462 on 2026-11-19) and any given to a karigar after they left.
+ */
+export async function tickShippedShopifyPieces(now = new Date()): Promise<{ ticked: string[] } | null> {
+  const ref = adminDb.collection('shopify_sync').doc('workshop-shipped');
+  const last = (await ref.get()).data()?.at as string | undefined;
+  if (last && now.getTime() - Date.parse(last) < 24 * 3600 * 1000) return null;
+  const [api, csv] = await Promise.all([
+    adminDb.collection('invoices').where('source', '==', 'shopify').get(),
+    adminDb.collection('invoices').where('source', '==', 'shopify_import').get(),
+  ]);
+  const ticked: string[] = [];
+  let batch = adminDb.batch(), n = 0;
+  for (const d of [...api.docs, ...csv.docs]) {
+    const done = shippedPiecesDone(d.data());
+    if (!done) continue;
+    batch.update(d.ref, { items: done });
+    ticked.push(d.id);
+    if (++n === 400) { await batch.commit(); batch = adminDb.batch(); n = 0; }
+  }
+  if (n) await batch.commit();
+  await ref.set({ at: now.toISOString(), ticked: ticked.length, ids: ticked.slice(0, 50) });
+  if (ticked.length) await activityLog('invoice.update', `Shipped web sales: ${ticked.length} pieces' invoices marked done`, ticked.join(', ').slice(0, 900));
+  return { ticked };
 }
 
 const activityLog = async (action: string, title: string, detail: string, relatedId?: string) => {

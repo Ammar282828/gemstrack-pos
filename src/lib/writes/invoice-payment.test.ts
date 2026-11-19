@@ -112,7 +112,8 @@ describe("Shopify's word on a web order", () => {
     const inv = data.invoices['SHOPIFY-1416'];
     expect(inv).toMatchObject({ amountPaid: 7_850, balanceDue: 0, shopifyFinancialStatus: 'paid', shopifyFulfillment: 'fulfilled', shopifyTransactionIds: ['77'] });
     expect(inv.paymentHistory).toEqual([{ amount: 7_850, date: '2026-09-16T12:12:00Z', notes: 'Paid on Shopify (Order #1416, Cash on Delivery (COD))', method: 'Bank Transfer', reference: 'Shopify #1416' }]);
-    expect(inv.items).toEqual([{ karigarId: 'k1', metalType: 'silver' }]); // what the shop added is left alone
+    // What the shop added is kept (its karigar); shipped, the piece is done, so it leaves the Workshop (shippedPiecesDone).
+    expect(inv.items).toEqual([{ karigarId: 'k1', metalType: 'silver', isCompleted: true }]);
     expect(data.hisaab.h1).toBeUndefined();
     expect(stats.transactions).toBe(1);
 

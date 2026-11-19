@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPosPushedOrder, paymentLinkInvoiceId, shopifyPaymentMethod } from './shopify-mirror';
+import { isPosPushedOrder, paymentLinkInvoiceId, shippedPiecesDone, shopifyPaymentMethod } from './shopify-mirror';
 
 describe('which invoice a Shopify order speaks for', () => {
   it("an order the ERP pushed out is the ERP's own echo, whatever its note says", () => {
@@ -30,5 +30,22 @@ describe('how a Shopify payment reached the shop', () => {
     expect(shopifyPaymentMethod('Easypaisa Mobile Account')).toBe('Bank Transfer');
     expect(shopifyPaymentMethod('manual')).toBeUndefined();
     expect(shopifyPaymentMethod(undefined)).toBeUndefined();
+  });
+});
+
+describe('shippedPiecesDone (a shipped web sale leaves the Workshop)', () => {
+  const k = { name: 'Juno Knot Ring', karigarId: 'uzair' };
+  it('ticks every piece once Shopify calls it fulfilled or TCS has it', () => {
+    expect(shippedPiecesDone({ items: [k, { ...k, isCompleted: true }], shopifyFulfillment: 'fulfilled' })).toEqual([{ ...k, isCompleted: true }, { ...k, isCompleted: true }]);
+    expect(shippedPiecesDone({ items: [k], shopifyFulfillment: 'unfulfilled', shopifyDelivery: 'in_transit' })).toEqual([{ ...k, isCompleted: true }]);
+  });
+  it('keeps the older map shape', () => {
+    expect(shippedPiecesDone({ items: { 0: k }, shopifyFulfillment: 'fulfilled' })).toEqual({ 0: { ...k, isCompleted: true } });
+  });
+  it('leaves an unshipped, cancelled, returned or already-done sale alone', () => {
+    expect(shippedPiecesDone({ items: [k], shopifyFulfillment: 'unfulfilled' })).toBeNull();
+    expect(shippedPiecesDone({ items: [k], shopifyFulfillment: 'fulfilled', shopifyCancelledAt: '2026-11-01' })).toBeNull();
+    expect(shippedPiecesDone({ items: [k], shopifyFulfillment: 'fulfilled', shopifyDelivery: 'returned' })).toBeNull();
+    expect(shippedPiecesDone({ items: [{ ...k, isCompleted: true }], shopifyFulfillment: 'fulfilled' })).toBeNull();
   });
 });

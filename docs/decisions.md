@@ -711,6 +711,16 @@ invoices and completed orders."
     Search / More / the iPad sidebar); the apps detect the section by the nav entry id `shopify` in the exported map
     (`npm run nav:export`), no new API field.
 
+**A shipped web sale leaves the Workshop** (2026-11-19, owner: "orders fulfilled on Shopify are not … getting completed … and their
+products getting removed from workshop"). The orders were completing; the pieces stayed because they were on the *invoices*: before
+2026-11-09 a web order came in as an invoice, the tick gave its pieces to Uzair (`SHOPIFY_ORDER_KARIGAR`), and the Workshop (web,
+iPhone, Android alike) lists an invoice's piece while a karigar holds it, fulfilled or not. When those invoices became Completed
+orders, the invoice's own pieces were never ticked: 11 pieces of #1453–#1462, shipped and mostly delivered, sat on Uzair's list.
+Now the data says it: a web sale that has left the shop (Shopify `fulfilled`, or TCS has it) has every invoice piece `isCompleted`
+(`shippedPiecesDone`, lib/shopify-mirror.ts) — written by the invoice mirror as it ships, by the conversion to a Completed order,
+and once a day over every Shopify invoice (`tickShippedShopifyPieces`, the queue tick; `shopify_sync/workshop-shipped`). The
+karigar's name is kept. Cancelled or returned sales are left as they are. No app change: the three Workshops read the tick.
+
 ### Shopify orders to Uzair
 
 - **Every Shopify order's pieces go to one karigar** (owner, 2026-11-14: "assign all shopify orders to uzair automatically";

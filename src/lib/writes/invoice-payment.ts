@@ -12,7 +12,7 @@ import type { Payment } from '@/lib/store';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 import { owesMoney, rupees } from '@/lib/money';
 import { checkIsoDate, checkMoney } from './validate';
-import { planShopifyMirror, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
+import { planShopifyMirror, shippedPiecesDone, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 
 const INVOICES = 'invoices';
 const HISAAB = 'hisaab';
@@ -273,10 +273,13 @@ export async function mirrorShopifyOrder(
     if (!invoice) return null;
     const plan = planShopifyMirror(invoice, order, transactions, opts);
     const extraChanged = Object.entries(extra).some(([k, v]) => (invoice as unknown as Record<string, unknown>)[k] !== v);
-    if (!plan.changed && !extraChanged) return { invoiceId, added: [], changed: false };
+    // Shipped: its pieces are made, so they leave the Workshop (shippedPiecesDone). Never on a voided one (Refunded leaves anyway).
+    const done = plan.voids ? null : shippedPiecesDone({ ...invoice, ...plan.fields });
+    if (!plan.changed && !extraChanged && !done) return { invoiceId, added: [], changed: false };
     tx.update(INVOICES, invoiceId, {
       ...plan.fields,
       ...extra,
+      ...(done && { items: done }),
       shopifySyncedAt: new Date().toISOString(),
       ...(plan.added.length && { paymentHistory: plan.paymentHistory, amountPaid: plan.amountPaid, balanceDue: plan.balanceDue }),
       // A voided invoice owes nothing: its balance goes to 0 with its status (it kept the old balance, so it read Refunded yet Balance due).

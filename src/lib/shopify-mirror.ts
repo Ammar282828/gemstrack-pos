@@ -23,7 +23,7 @@
  */
 
 import type { Payment, PaymentType } from '@/lib/store';
-import { deliveryOf, type ShopifyFulfillmentLike } from '@/lib/shopify-delivery';
+import { deliveryOf, isShippedOut, type ShopifyFulfillmentLike } from '@/lib/shopify-delivery';
 
 export interface ShopifyTransaction {
   id: number | string;
@@ -206,4 +206,28 @@ export function withDeliveredCod<T extends ShopifyTransaction>(order: ShopifyOrd
   const amount = Number(order.current_total_price ?? order.total_price) || 0;
   if (amount < 1) return list;
   return [...list, { id: codTransactionId(order.id), kind: 'sale', status: 'success', amount, gateway: 'Cash on Delivery (TCS)', processed_at: d.at || new Date().toISOString() }];
+}
+
+/**
+ * A web sale that has left the shop has nothing left to make: its pieces are done (owner, 2026-11-19: "orders fulfilled on
+ * Shopify … their products [not] getting removed from workshop"). The Workshop lists an invoice's piece while a karigar
+ * holds it (lib/workshop.ts, and the iPhone's and Android's WorkshopLogic), and Mina's web sales had every piece given to
+ * Uzair as they came in (SHOPIFY_ORDER_KARIGAR), so a fulfilled one stayed on his list for good: 11 pieces of #1453–#1462 on
+ * 2026-11-19, their orders long Completed. Ticking the pieces in the data clears all three apps at once.
+ *
+ * The invoice's items with every piece done, in the shape they are stored (a list, or the older map by index), or null when
+ * it has not left the shop (unfulfilled, cancelled, returned) or every piece is already ticked.
+ */
+export function shippedPiecesDone(inv: { items?: unknown; shopifyFulfillment?: string | null; shopifyDelivery?: string | null; shopifyCancelledAt?: string | null; status?: string }): unknown[] | Record<string, unknown> | null {
+  if (inv.shopifyCancelledAt || inv.shopifyDelivery === 'returned' || inv.status === 'Refunded') return null;
+  const left = String(inv.shopifyFulfillment || '').toLowerCase() === 'fulfilled' || isShippedOut(inv.shopifyDelivery);
+  if (!left || !inv.items || typeof inv.items !== 'object') return null;
+  const tick = (it: unknown) => (it && typeof it === 'object' && !(it as { isCompleted?: boolean }).isCompleted ? { ...(it as object), isCompleted: true } : it);
+  if (Array.isArray(inv.items)) {
+    const next = inv.items.map(tick);
+    return next.some((it, i) => it !== (inv.items as unknown[])[i]) ? next : null;
+  }
+  const map = inv.items as Record<string, unknown>;
+  const next = Object.fromEntries(Object.entries(map).map(([k, v]) => [k, tick(v)]));
+  return Object.keys(map).some(k => next[k] !== map[k]) ? next : null;
 }

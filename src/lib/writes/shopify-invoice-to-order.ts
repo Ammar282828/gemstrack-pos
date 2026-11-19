@@ -18,6 +18,7 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { convertBlocker, type ConvertibleInvoice } from '@/lib/shopify-orders';
 import { isShippedOut } from '@/lib/shopify-delivery';
+import { shippedPiecesDone } from '@/lib/shopify-mirror';
 import { invoiceLines } from '@/lib/invoice-actions';
 import { rupees } from '@/lib/money';
 import { createOrder, type CreateOrderDeps } from './create-order';
@@ -242,7 +243,9 @@ export async function linkShopifyInvoiceAsOrder(
       },
     }, { notify: undefined, log: undefined });
   }
-  await db.update(INVOICES, inv.id, { sourceOrderId: orderId });
+  // Completed beside its invoice: the invoice's own pieces are done too, or a karigar's name on them keeps them in the Workshop.
+  const done = status === 'Completed' ? shippedPiecesDone({ ...inv, shopifyFulfillment: inv.shopifyFulfillment || 'fulfilled' } as Parameters<typeof shippedPiecesDone>[0]) : null;
+  await db.update(INVOICES, inv.id, { sourceOrderId: orderId, ...(done && { items: done }) });
   return { orderId };
 }
 

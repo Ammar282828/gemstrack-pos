@@ -37,7 +37,7 @@ import { snapshotIfDue } from '@/lib/social-insights/snapshot';
 import { syncSafepayFees } from '@/lib/safepay-fees-server';
 import { syncShopifyBills } from '@/lib/shopify-bills-server';
 import { syncTcsPayments } from '@/lib/tcs-payments-server';
-import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders } from '@/lib/shopify-order-sweep';
+import { catchUpShopifyDelivery, convertShopifyInvoicesToOrders, settlePaymentLinks, sweepShopifyOrders, tickShippedShopifyPieces } from '@/lib/shopify-order-sweep';
 import { shopifyKarigarBackfill } from '@/lib/shopify-karigar-server';
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +98,9 @@ export async function POST(req: NextRequest) {
   // Every ten minutes (the net under the live notices): each web order the ERP has against Shopify — paid, shipped, delivered by TCS, returned.
   const shopifyDelivery = dry ? null : await catchUpShopifyDelivery().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
   if (shopifyDelivery) console.log('[queue/tick] shopify delivery', JSON.stringify(shopifyDelivery));
+  // Once a day: a shipped web sale's pieces ticked done, so none stays on a karigar's Workshop list (lib/shopify-mirror.ts shippedPiecesDone).
+  const shippedPieces = dry ? null : await tickShippedShopifyPieces().catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+  if (shippedPieces && ('error' in shippedPieces || shippedPieces.ticked.length)) console.log('[queue/tick] shipped pieces', JSON.stringify(shippedPieces));
   // Insights' hourly snapshot (stories die after a day); in every house with Meta, never in the way.
   const insights = dry ? null : await snapshotIfDue().catch(() => null);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
