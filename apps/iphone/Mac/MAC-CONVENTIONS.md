@@ -198,6 +198,10 @@ From the owner's snapshots of all 56 pages. Each rule fixes something that was v
   already being laid out").
 - **A place that crashed the app at launch is not reopened** (`MacShell.reopeningKey`): the restored place is noted before
   it opens and the note cleared after 8 seconds; a note found at launch skips and forgets that place.
+- **One success moment per event** (motion's peak-end, 2026-11-19): the end of a sale, an order, a payment or an advance
+  is a `Note` with `peak: true` on the window's toast (`App/UI/MotionMoments.swift`), never a second HUD or sheet beside
+  it, never an ordinary save. A place's records come in on its first showing in a launch through `staggerKey` on
+  `MacRecordCollection` (the iPhone's `StaggerBox` clock); at once after that and under Reduce Motion.
 - **Nothing animates forever at rest**: a `.symbolEffect(.pulse)` that never stops kept Website › Live at 14% CPU idle.
 - **A place's figures outlive the place**: the shell makes a place anew on each click (`.id(path)`), so its memos come from
   `MacMemos.memo(name, path)`, not `@State`; Today keeps its last figures per business.

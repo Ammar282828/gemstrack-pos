@@ -137,6 +137,7 @@ struct MacInvoicesPlace: View {
         }
         let books = book
         return MacRecordCollection(layout: layoutRaw == "cards" ? .cards : .list, sections: sections, selection: $selection,
+                                   staggerKey: path,
                                    open: { (ids: Set<String>) in open(ids, cx) },
                                    // ⌘C: the picked invoices as lines ("INV-000123 · Ayesha · PKR 1,20,000 · Due PKR 20,000").
                                    lines: { (ids: Set<String>) -> [String] in

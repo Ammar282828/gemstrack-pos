@@ -38,6 +38,9 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
     let sections: [MacRecordSection<Item>]
     var searching = false
     @Binding var selection: Set<String>
+    /// The place's records come in one after another the first time this key shows records in a launch (nil: never;
+    /// the iPhone's lists' clock, `StaggerBox` in MotionMoments.swift).
+    var staggerKey: String?
     let open: (Set<String>) -> Void
     /// ⌘C: the picked records as lines of text.
     var lines: (Set<String>) -> [String] = { _ in [] }
@@ -52,6 +55,9 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
     /// Where a ⇧-click run starts and the arrow keys move from.
     @State private var anchor: String?
     @FocusState private var focused: Bool
+    /// The first showing's clock, decided when the records first draw (not while the place is still loading, so they
+    /// come in when they land).
+    @State private var stagger = StaggerBox()
 
     private var radius: CGFloat { layout == .cards ? Radius.card : 14 }
     private static var gap: CGFloat { 12 }
@@ -88,6 +94,7 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
                 }
             }
         }
+        .environment(\.staggerClock, clock)
         .onCommand(#selector(NSResponder.selectAll(_:))) { selection = Set(visibleIDs) }
         .macCopiesSelection(selection, lines)
     }
@@ -171,6 +178,9 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
                 shape.strokeBorder(picked ? Theme.accent : Color.primary.opacity(0.08), lineWidth: picked ? 2 : 0.5)
                     .allowsHitTesting(false)
             }
+            // The first showing (motion principles, staggering with frequency of use): the first eight 30 ms apart, as the
+            // iPhone's rows; at once ever after in this launch, and under Reduce Motion.
+            .staggerIn()
             .contentShape(shape)
             // The click picks at once; the second click of a double-click opens (two exclusive gestures would hold the
             // pick back by the double-click interval), as Stock's gallery does.
@@ -182,6 +192,12 @@ struct MacRecordCollection<Item: Identifiable, Face: View, RowMenu: View>: View 
             .accessibilityAddTraits(picked ? [.isSelected, .isButton] : .isButton)
             .accessibilityAction { open([item.id]) }
             .id(item.id)
+    }
+
+    /// The first showing's clock: asked for only once there are records, so a place still loading spends nothing.
+    private var clock: StaggerClock? {
+        guard let staggerKey, sections.contains(where: { !$0.items.isEmpty }) else { return nil }
+        return stagger.clock(for: "mac|" + staggerKey)
     }
 
     // MARK: Picking

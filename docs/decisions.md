@@ -236,6 +236,11 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   list's first showing since launch, at once ever after (`apps/iphone/App/UI/MotionMoments.swift`); the end of a sale
   (Invoice created / updated), Order created, Payment recorded and Advance recorded say it with a tick that lands with an
   overshoot and a bounce, felt with the success tap (`Note.peak`; never ordinary saves). Reduce Motion plays none of it.
+  - **The Mac's own places** (2026-11-19): Orders, Invoices, Customers, Repairs and Stock draw `MacRecordCollection`'s tiles
+    and cards, not `RecordRow`, so they take the same clock through `staggerKey` (asked for when their records first draw:
+    a place still loading comes in when they land), and their own Payment recorded / Advance recorded notes are `peak`.
+    One success moment per event: nothing beside the note (a Mac HUD tick, built the same day, was dropped for showing a
+    sale twice). Menus, popovers, sheets and switches move as AppKit moves them; a pointer needs no 44-point target.
 
 ### Recent picks
 

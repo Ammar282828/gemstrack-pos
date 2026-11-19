@@ -70,7 +70,8 @@ struct MacRepairsListView<RowMenu: View>: View {
                                     trailing: g.owed >= 1 ? Money.pkrLac(g.owed, digits: 1) + " owed" : nil,
                                     folds: g.folds && !named, items: g.rows)
         }
-        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection, open: open,
+        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection,
+                            staggerKey: "repairs|" + (listTitle ?? ""), open: open,
                             lines: { (ids: Set<String>) -> [String] in rows.filter { ids.contains($0.id) }.map(Self.line) },
                             dragText: { (r: MacRepairsRow) -> String in Self.line(r) }) { (r: MacRepairsRow) in
             if layout == .cards {

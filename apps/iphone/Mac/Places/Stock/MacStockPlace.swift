@@ -198,7 +198,7 @@ struct MacStockPlace: View {
                 .joined(separator: " \u{00B7} ")
         }
         return MacRecordCollection(layout: .list, sections: [MacRecordSection(id: "all", items: data.rows)],
-                                   selection: $selection, open: { (ids: Set<String>) in open(Array(ids)) },
+                                   selection: $selection, staggerKey: path, open: { (ids: Set<String>) in open(Array(ids)) },
                                    // ⌘C: the picked pieces as lines ("TC-0412 · Polki jhumka · 12.40 g").
                                    lines: { (ids: Set<String>) -> [String] in ids.sorted().compactMap { data.byId[$0] }.map(line) },
                                    dragText: line) { (r: MacStockPlaceRow) in

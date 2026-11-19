@@ -265,6 +265,7 @@ struct MacCustomersPlace: View {
         let books = book
         let money = seesMoney
         return MacRecordCollection(layout: layoutRaw == "cards" ? .cards : .list, sections: sections, selection: $selection,
+                                   staggerKey: path,
                                    open: { (ids: Set<String>) in for id in ids.sorted().prefix(5) { go(CustomerKit.route(id)) } },
                                    // ⌘C: the picked customers as lines, name and number ("Ayesha Khan · 0300 1234567"); never
                                    // what they spent.

@@ -64,7 +64,8 @@ struct MacOrdersListView<RowMenu: View>: View {
                                     trailing: owner && g.worth >= 1 ? "worth " + Money.pkrLac(g.worth, digits: 1) : nil,
                                     hint: named ? "" : g.hint, folds: g.folds && !named, items: g.rows)
         }
-        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection, open: open,
+        MacRecordCollection(layout: layout, sections: sections, searching: searching, selection: $selection,
+                            staggerKey: "orders|" + (listTitle ?? ""), open: open,
                             lines: { (ids: Set<String>) -> [String] in rows.filter { ids.contains($0.id) }.map(Self.line) },
                             dragText: { (r: MacOrdersListRow) -> String in Self.line(r) }) { (r: MacOrdersListRow) in
             if layout == .cards {
