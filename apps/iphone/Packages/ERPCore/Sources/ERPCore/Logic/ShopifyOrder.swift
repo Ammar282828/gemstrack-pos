@@ -49,12 +49,6 @@ extension Invoice {
         if ["voided", "refunded"].contains(financial) { return false }
         return (shopifyFulfillment ?? "").lowercased() != "fulfilled"
     }
-}
-
-extension Order {
-    /// A Shopify web order in the ERP's orders (id "SHOPIFY-<n>", `source: "shopify"`; owner, 2026-11-09). `source` is read as a
-    /// CustomerSource, where "shopify" is the unknown word, kept as written.
-    public var isShopifyOrder: Bool { id.hasPrefix("SHOPIFY-") || isShopifyOrderSource(source?.rawValue) }
 
     /// The invoice of an order the section already lists (made from it, or linked to it): the order's card shows it, so the
     /// list does not show it again (as the web's Orders hub and Android's ShopifyOrders.earlier). Owner, 2026-11-19: the 14
@@ -62,6 +56,12 @@ extension Order {
     public func isFromShopifyOrder(_ orderInvoiceIds: Set<String>) -> Bool {
         !(sourceOrderId ?? "").isEmpty || orderInvoiceIds.contains(id)
     }
+}
+
+extension Order {
+    /// A Shopify web order in the ERP's orders (id "SHOPIFY-<n>", `source: "shopify"`; owner, 2026-11-09). `source` is read as a
+    /// CustomerSource, where "shopify" is the unknown word, kept as written.
+    public var isShopifyOrder: Bool { id.hasPrefix("SHOPIFY-") || isShopifyOrderSource(source?.rawValue) }
 
     /// To confirm (the COD confirmation has not come back), Cancelled (the order's own status, or the customer's cancel request), or neither.
     public var shopifyStage: ShopifyOrderStage {
