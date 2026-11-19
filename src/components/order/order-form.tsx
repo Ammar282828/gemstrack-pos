@@ -817,7 +817,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                 if (seedFromCart) clearCart();
                 // Out of Drafts, and nothing written there again while the page moves on.
                 workDraft.finish();
-                toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
+                toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved.", variant: "success" });
                 router.push(`/orders/${newOrder.id}`);
             } else {
                 toast({ title: "Order not saved", description: "Failed to save the custom order. Please try again.", variant: "destructive" });

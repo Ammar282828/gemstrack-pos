@@ -69,7 +69,7 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
       if (!updated) throw new Error();
       intent.renew();
       const after = balanceLine(updated.balanceDue);
-      toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.` });
+      toast({ title: 'Payment recorded', variant: 'success', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.` });
       onOpenChange(false);
     } catch {
       toast({ title: 'Payment not recorded', description: 'Check the connection and try again.', variant: 'destructive' });

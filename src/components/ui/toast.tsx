@@ -32,6 +32,8 @@ const toastVariants = cva(
         default: "border bg-background text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
+        // The end of a sale, an order or a payment (peak-end): the Toaster puts a drawn tick beside the words.
+        success: "border bg-background text-foreground",
       },
     },
     defaultVariants: {

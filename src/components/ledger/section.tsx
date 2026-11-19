@@ -1,7 +1,10 @@
+'use client';
+
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LedgerHeading, type LedgerHeadingProps } from './heading';
+import { useFirstShow } from '@/hooks/use-first-show';
 
 export interface LedgerSectionProps extends Omit<LedgerHeadingProps, 'className' | 'as'> {
   footer?: React.ReactNode;
@@ -17,9 +20,11 @@ const CARD = 'overflow-hidden rounded-card bg-card divide-y divide-separator [&>
 
 /** Heading + an inset-rows card + an optional footer. */
 export function LedgerSection({ footer, collapsible, defaultOpen = true, className, children, ...heading }: LedgerSectionProps) {
+  // Rows come in one after another the first time a page is shown this session; at once after that (globals.css .stagger-rows).
+  const first = useFirstShow();
   const body = (
     <>
-      <div className={CARD}>{children}</div>
+      <div className={cn(CARD, first && 'stagger-rows')}>{children}</div>
       {footer ? <div className="px-4 pt-2 text-ios-foot text-muted-foreground">{footer}</div> : null}
     </>
   );

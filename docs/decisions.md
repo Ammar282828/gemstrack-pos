@@ -201,6 +201,24 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   - Left: the desktop sidebar's width animation reflows the table each frame (fine at full speed); the piece
     editor's first render (~130 ms at 4x); Invoices and Customers render the phone list and the hidden desktop table
     both, every keystroke in the search box.
+- **Second pass: the principles of motion** (2026-11-19, the owner sent a list — exaggeration, origin awareness,
+  staggering, squash and stretch, rubber banding, the Doherty threshold, anticipation, Fitts's law, slow in / slow out,
+  Hick's law, follow-through, arcs, Von Restorff, timing under 300 ms, interruptible motion, secondary action, solid
+  drawing, frequency of use, peak-end — "add these changes in the web erp"). What the ERP lacked, added on the same curves:
+  - **Origin awareness:** menus, popovers, selects and tooltips grow from their trigger (Radix's transform-origin), and a
+    dialog grows from the point that was pressed (`lib/tap-origin.ts`; from its centre without a fresh press).
+  - **Staggering, with frequency of use:** a ledger section's rows come in 30 ms apart (the first eight, done inside
+    300 ms) the first time a page is shown in a session, at once after that (`hooks/use-first-show.ts`, `.stagger-rows`).
+  - **Squash and stretch:** a switch's thumb stretches toward where it will go while pressed, as iOS's does.
+  - **Fitts's law:** small buttons (`size="sm"`) take a full 44 px under a finger without changing their look (`.hit-44`).
+  - **Peak-end, with follow-through:** the end of a sale, an order and a payment is a toast with a tick that draws itself in a
+    circle landing with a small overshoot (`variant: 'success'`); not on ordinary saves, so it keeps its meaning.
+  - Already held, left as they were: timing (press 150, fade 200, sheets 300; only progress bars and the board's arrival
+    glow run longer), slow in / slow out (the three curves), interruptible motion (presses and switches are transitions,
+    which reverse mid-way), the Doherty threshold (non-money saves leave at once; skeletons at once), Von Restorff (one
+    filled primary action). Not added: rubber banding (the browser's own overscroll is the platform's), arcs and solid
+    drawing (the flat cards are a decision of their own, [Web matches the app](#web-matches-the-app)), anticipation.
+  - Reduce Motion: none of it plays (rows at once, the tick drawn).
 - **Android moves on Material 3 Expressive's springs** (2026-10-27, owner: "add proper Material You animations as well"). The curves above are the web's;
   the Android app has none of its own. Everything that moves or resizes uses the theme's `MotionScheme.expressive()` spatial springs, everything that fades or
   changes colour its effects springs (`ErpMotion` in `ui/Motion.kt`: `spatial/fastSpatial/slowSpatial`, `effects/fastEffects/slowEffects`, `fadeThrough`,

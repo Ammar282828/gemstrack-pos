@@ -1145,3 +1145,40 @@ td, th { font-variant-numeric: tabular-nums; }
   main > .container { padding-top: 0.25rem; }
 }
 
+
+/* ── Motion principles, second pass (2026-11-19, the owner sent a list: exaggeration, origin awareness, staggering,
+   squash and stretch, Fitts's law, peak-end, frequency of use, timing under 300 ms…). docs/decisions.md#motion. ──── */
+
+/* Staggering: a list's rows come in one after another, not all at once — 30 ms apart, the first eight only, so the
+   last starts by 240 ms and the whole thing is done inside 300. Frequency of use: only the first time a page is opened
+   in a session (useFirstShow); the hundredth visit to Orders shows its rows at once. */
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.stagger-rows > * { animation: rowIn var(--dur-fade) var(--ease-enter) both; }
+.stagger-rows > *:nth-child(2) { animation-delay: 30ms; }
+.stagger-rows > *:nth-child(3) { animation-delay: 60ms; }
+.stagger-rows > *:nth-child(4) { animation-delay: 90ms; }
+.stagger-rows > *:nth-child(5) { animation-delay: 120ms; }
+.stagger-rows > *:nth-child(6) { animation-delay: 150ms; }
+.stagger-rows > *:nth-child(7) { animation-delay: 180ms; }
+.stagger-rows > *:nth-child(n+8) { animation-delay: 210ms; }
+
+/* Peak-end: the end of a sale, an order or a payment is marked — a tick that draws itself in a circle that lands with a
+   small overshoot (follow-through), in the toast that says it is done. */
+@keyframes tickRing { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes tickDraw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.done-tick { animation: tickRing 280ms var(--ease-enter) both; }
+.done-tick path { stroke-dasharray: 24; animation: tickDraw 240ms var(--ease-enter) 120ms both; }
+
+/* Fitts's law: small buttons keep their look but take a full 44 px under a finger (the checkboxes' rule, design-audit.md). */
+@media (pointer: coarse) {
+  .hit-44 { position: relative; }
+  .hit-44::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-rows > * { animation: none !important; }
+  .done-tick, .done-tick path { animation: none !important; stroke-dashoffset: 0; }
+}

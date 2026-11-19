@@ -125,7 +125,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Feel of the app](docs/decisions.md#feel-of-the-app) — hidden screens do no work, non-money saves leave at once, failing parts show a Retry card, pressed states everywhere, tokens only; the web's service worker caches static files and keeps pages network-first
 - [Loading](docs/decisions.md#loading) — a skeleton shaped like the content when its shape is known; the spinning circle only for an action; a busy button keeps its size
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
-- [Motion](docs/decisions.md#motion) — three curves; dialogs linger; Reduce Motion
+- [Motion](docs/decisions.md#motion) — three curves; dialogs linger; Reduce Motion; menus and dialogs grow from the press, rows stagger on a page's first showing, a drawn tick at the end of a sale/order/payment, 44 px under a finger (2026-11-19)
 - [Recent picks](docs/decisions.md#recent-picks) — last five per device
 
 **Home and the day**

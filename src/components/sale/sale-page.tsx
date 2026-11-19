@@ -791,7 +791,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       // doesn't return to a form whose pieces are gone.
       if (wasEdit) router.replace(`/invoices/${invoice.id}`); else router.push(`/invoices/${invoice.id}`);
       toast({
-        title: wasEdit ? "Invoice updated" : "Invoice created",
+        title: wasEdit ? "Invoice updated" : "Invoice created", variant: "success",
         description: paymentsNow.length
           ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid${owesMoney(invoice.balanceDue) ? `, PKR ${invoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : isCredit(invoice.balanceDue) ? `, PKR ${Math.abs(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.`
           : `${invoice.id} is ready to print or send.`,

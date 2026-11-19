@@ -203,7 +203,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       setPaymentAmount('');
       setPaymentRef('');
       const after = balanceLine(updated.balanceDue);
-      toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ''}.` });
+      toast({ title: "Payment recorded", variant: "success", description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ''}.` });
     } catch {
       toast({ title: "Payment not recorded", description: "Failed to record payment.", variant: "destructive" });
     } finally {
