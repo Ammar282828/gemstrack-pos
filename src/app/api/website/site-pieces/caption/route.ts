@@ -1,5 +1,5 @@
 /**
- * POST { id, weight? } → AI words for a website piece in this house's voice
+ * POST { id, weight?, current?: { line, facts }, ask? } → AI words for a website piece in this house's voice
  * (src/lib/social/site-caption.ts): { line, facts }. The page puts them in the
  * house's frame. The photograph is fetched here from the website — only a piece
  * it lists — so the page never uploads anything. Shares Post a Piece's limits.
@@ -21,7 +21,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   const who = await postGate(req, STORE_SITE_POSTS);
   if (who instanceof NextResponse) return who;
-  const b = await req.json().catch(() => null) as { id?: string; weight?: string } | null;
+  const b = await req.json().catch(() => null) as { id?: string; weight?: string; current?: { line?: string; facts?: string } | null; ask?: string } | null;
   const piece = b?.id ? await getSitePiece(b.id) : null;
   if (!piece || !piece.image.startsWith(`${siteOrigin()}/`)) return NextResponse.json({ error: 'No such piece on the website.' }, { status: 404 });
   const [shop, caller] = await Promise.all([rateLimit('post-ai-day', 'shop', Number(process.env.IMAGE_AI_DAILY_CAP) || 300, 86_400), rateLimit('post-ai-hour', callerKey(req.headers), 60, 3_600)]);
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const house = STORE_BRAND === 'mina' ? 'mina' : 'taheri';
     const out = await generateJson<{ line: string; facts: string }>({
       system: siteCaptionSystem(house),
-      parts: [{ inlineData: { mimeType: 'image/jpeg', data: photo.toString('base64') } }, { text: siteCaptionUser({ name: piece.name, collection: piece.collection, facts: piece.facts, about: piece.about, weight: String(b?.weight || '') }) }],
+      parts: [{ inlineData: { mimeType: 'image/jpeg', data: photo.toString('base64') } }, { text: siteCaptionUser({ name: piece.name, collection: piece.collection, facts: piece.facts, about: piece.about, weight: String(b?.weight || ''), current: b?.current ?? null, ask: typeof b?.ask === 'string' ? b.ask : '' }) }],
       schema: SITE_CAPTION_SCHEMA,
     });
     const line = tidyAiWords(out.line), facts = tidyAiWords(out.facts);

@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Crop, Download, ExternalLink, Instagram, Loader2, Megaphone, PenLine, RotateCcw, Shuffle, Sparkles, Wand2, X } from 'lucide-react';
+import { CAPTION_ASK_MAX } from '@/lib/social/site-caption';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { sitePieceCaption } from '@/lib/social/caption';
@@ -104,6 +105,8 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
   const [ink, setInk] = useState<'auto' | 'white' | 'dark'>('auto');
   const [aiWords, setAiWords] = useState<{ line: string; facts: string } | null>(null);
   const [edited, setEdited] = useState(false);
+  // What the person wants the AI to do with the words (optional; kept after writing, to say more and write again).
+  const [ask, setAsk] = useState('');
   const houseCaption = (w = weight, words = aiWords) => sitePieceCaption(
     { name: p.name, url: p.url, weightGrams: validWeight(w) ? Number(w) : null, facts: words ? [words.facts] : p.facts, about: words ? words.line : p.about },
     { metal: STORE_POST_METAL, tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER, whatsappNumbers: STORE_WHATSAPP_NUMBERS },
@@ -166,7 +169,11 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
     try {
       const res = await fetch('/api/website/site-pieces/caption', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await token()) },
-        body: JSON.stringify({ id: p.id, weight: validWeight(weight) ? `${weight.trim()}g` : '' }),
+        body: JSON.stringify({
+          id: p.id, weight: validWeight(weight) ? `${weight.trim()}g` : '', ask: ask.trim(),
+          // The words the caption carries now, so a change is made to them, not to a blank page.
+          current: aiWords ?? { line: p.about || '', facts: (p.facts ?? []).join(' · ') },
+        }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
@@ -303,8 +310,17 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
             <span className="text-xs font-medium">Caption</span>
             <div className="flex items-center gap-2">
               {(edited || aiWords) && <button type="button" className="text-xs text-muted-foreground inline-flex items-center gap-1" onClick={() => { setAiWords(null); setCaption(houseCaption(weight, null)); setEdited(false); }}><RotateCcw className="h-3 w-3" /> House caption</button>}
-              <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={off} onClick={writeWithAi}>{busy === 'ai' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />} Write with AI</Button>
+              <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={off} onClick={writeWithAi}>{busy === 'ai' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />} {ask.trim() ? 'Rewrite with AI' : 'Write with AI'}</Button>
             </div>
+          </div>
+          {/* What to change, or how to write it: the AI writes the description and the facts to it; the caption's layout
+              (name, weight, link, closing lines) stays the house's own (the owner, 2026-11-19). */}
+          <div className="flex items-center gap-2">
+            <Input value={ask} onChange={e => setAsk(e.target.value.slice(0, CAPTION_ASK_MAX))} disabled={off}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && busy !== 'ai') { e.preventDefault(); void writeWithAi(); } }}
+              placeholder="Tell the AI (optional), e.g. shorter, call it a bridal set, the stones are amethyst"
+              aria-label="What the AI should change or write" className="h-9 text-base sm:text-xs" />
+            {ask && <button type="button" aria-label="Clear" className="shrink-0 text-muted-foreground" onClick={() => setAsk('')}><X className="h-4 w-4" /></button>}
           </div>
           <Textarea value={caption} onChange={e => { setCaption(e.target.value); setEdited(true); }} rows={8} className="font-mono text-xs leading-relaxed" disabled={locked} />
         </div>

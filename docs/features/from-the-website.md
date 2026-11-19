@@ -27,6 +27,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   offsets clear the 56 px top bar (`top-[4.5rem]`, Hisaab's search `top-14`), the sale page's sidebar (taller than a screen)
   is no longer sticky, the order form's pricing card scrolls inside itself.
 
+- **Tell the AI** (2026-11-19, the owner: "let me tell the AI what to change or how I want the description to be changed …
+  or let me tell it how to write the new description … but make sure it writes in the description format"). A box under
+  Caption on the piece card takes a request ("shorter", "call it bridal", "the stones are amethyst"); Write with AI becomes
+  Rewrite with AI and sends it with the caption's current words (the AI's last, else the website's). The model is told to change
+  what it is asked and keep the rest, that the owner's statements count as fact, and still answers only the line and the facts:
+  the caption's layout, link and closing lines are `sitePieceCaption`'s, never the model's.
+
 ### From the website
 
 - **Posts → From the website** (`/website/from-site` until 2026-10-04, now the Posts hub's grid and cards; 2026-09-25; owner: "give me an option to take any post from taheri.shop (or

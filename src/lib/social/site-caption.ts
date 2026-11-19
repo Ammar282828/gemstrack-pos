@@ -38,19 +38,40 @@ export function siteCaptionSystem(house: House): string {
   return `${VOICE[house]}
 
 Hard rules:
-- Never invent facts. Stones, metal and plating come only from what you are given; otherwise describe what you see only by colour and shape. Never call a stone natural, real or certified unless you are told so.
+- Never invent facts. Stones, metal and plating come only from what you are given (the owner's own words included); otherwise describe what you see only by colour and shape. Never call a stone natural, real or certified unless you are told so.
 - No hashtags, no emoji, no exclamation marks, no prices, no addresses, no phone numbers, no links — the post adds those itself.
 ${RULES[house]}`;
 }
 
-export function siteCaptionUser(p: { name: string; collection: string; facts: string[]; about: string; weight?: string }): string {
+/** The longest request a person may give the writer (the box on the piece card). */
+export const CAPTION_ASK_MAX = 500;
+
+/**
+ * The piece, and (since 2026-11-19) what the caption says now and what the owner wants done with it (the owner: "let me
+ * tell the AI what to change or how I want the description to be changed … or let me tell it how to write the new
+ * description … but make sure it writes in the description format"). The format is never the model's: it still answers
+ * only the line and the facts, and the frame (sitePieceCaption) puts them in the caption.
+ */
+export function siteCaptionUser(p: {
+  name: string; collection: string; facts: string[]; about: string; weight?: string;
+  current?: { line?: string; facts?: string } | null; ask?: string;
+}): string {
+  const ask = String(p.ask || '').replace(/\s+/g, ' ').trim().slice(0, CAPTION_ASK_MAX);
+  const nowLine = String(p.current?.line || '').trim(), nowFacts = String(p.current?.facts || '').trim();
+  const now = nowLine || nowFacts ? `\nThe caption's words now:\n- line: ${nowLine || '(none)'}\n- facts: ${nowFacts || '(none)'}\n` : '';
+  const brief = ask
+    ? `\nThe owner asks: "${ask}"
+Do what the owner asks. If it is a change, change the words now and keep the rest; if it is a new direction, write afresh to it.
+What the owner states about the piece (a stone, a metal, an occasion, that a stone is real) counts as given fact. Everything else
+in the hard rules still holds, and the answer is still only the line and the facts, each within its rule.\n`
+    : '';
   return `Write for this piece from the website. Look at the photograph.
 
 - Name: ${p.name}
 - Collection: ${p.collection || '(not given)'}
 - What the website knows: ${p.facts.join(', ') || '(nothing)'}
 - The website's own words: ${p.about || '(none)'}
-${p.weight ? `- Weight: ${p.weight} (the post shows it; don't repeat it)\n` : ''}
+${p.weight ? `- Weight: ${p.weight} (the post shows it; don't repeat it)\n` : ''}${now}${brief}
 Answer with the line and the facts.`;
 }
 
