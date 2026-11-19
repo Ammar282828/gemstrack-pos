@@ -316,8 +316,9 @@ struct OrdersHub: View {
     private func shopifyInvoiceRows() -> [Invoice] {
         guard shopify, takenBy.isEmpty, payment == "All" else { return [] }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let linked = Set(book.orders.items.compactMap { $0.invoiceId }.filter { !$0.isEmpty })
         return book.invoices.items.filter { (inv: Invoice) -> Bool in
-            inv.isShopifyOrder
+            inv.isShopifyOrder && !inv.isFromShopifyOrder(linked)
                 && (month.isEmpty || InvoiceCalendar.monthKey(inv.createdAt) == month)
                 && (q.isEmpty || inv.id.localizedCaseInsensitiveContains(q)
                     || inv.customerName.localizedCaseInsensitiveContains(q)
@@ -396,9 +397,10 @@ struct OrdersHub: View {
     private func earlierSections(now: Date) -> [InvoiceSection] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let invoices = book.invoices.items
-        return earlierMemo([book.invoices.revision, q.hashValue], resting: covered) {
+        let linked = Set(book.orders.items.compactMap { $0.invoiceId }.filter { !$0.isEmpty })
+        return earlierMemo([book.invoices.revision, book.orders.revision, q.hashValue], resting: covered) {
             let rows = invoices.filter { (inv: Invoice) -> Bool in
-                inv.isShopifyOrder && (q.isEmpty || inv.id.localizedCaseInsensitiveContains(q)
+                inv.isShopifyOrder && !inv.isFromShopifyOrder(linked) && (q.isEmpty || inv.id.localizedCaseInsensitiveContains(q)
                     || inv.customerName.localizedCaseInsensitiveContains(q)
                     || (inv.shopifyOrderName ?? "").localizedCaseInsensitiveContains(q))
             }.sorted { $0.createdAt > $1.createdAt }

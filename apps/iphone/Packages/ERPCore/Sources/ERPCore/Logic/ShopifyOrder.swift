@@ -56,6 +56,13 @@ extension Order {
     /// CustomerSource, where "shopify" is the unknown word, kept as written.
     public var isShopifyOrder: Bool { id.hasPrefix("SHOPIFY-") || isShopifyOrderSource(source?.rawValue) }
 
+    /// The invoice of an order the section already lists (made from it, or linked to it): the order's card shows it, so the
+    /// list does not show it again (as the web's Orders hub and Android's ShopifyOrders.earlier). Owner, 2026-11-19: the 14
+    /// invoices made for shipped orders stood as their own rows under Today instead of under their orders.
+    public func isFromShopifyOrder(_ orderInvoiceIds: Set<String>) -> Bool {
+        !(sourceOrderId ?? "").isEmpty || orderInvoiceIds.contains(id)
+    }
+
     /// To confirm (the COD confirmation has not come back), Cancelled (the order's own status, or the customer's cancel request), or neither.
     public var shopifyStage: ShopifyOrderStage {
         if status == .cancelled { return .cancelled }
