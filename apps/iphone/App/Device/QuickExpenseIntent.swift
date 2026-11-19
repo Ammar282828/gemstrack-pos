@@ -120,7 +120,7 @@ struct HisaabEntityQuery: EntityQuery {
 
     @MainActor
     private func all() async -> [HisaabEntity] {
-        guard let kid = intent?.karigar?.id,
+        guard let kid = intent?.karigar.id,
               let biz = Businesses.shared.business(intent?.business.id ?? QuickExpense.defaultBusinessID()) else { return [.direct] }
         let batches = await QuickExpense.batches(biz, karigarId: kid)
         return batches.map { HisaabEntity(id: $0.id, title: "\($0.label) · \(ExpenseFiling.hint($0))") } + [.direct]
