@@ -16,8 +16,8 @@ class BandLogicTests {
     )!!
 
     @Test fun builtInsKeepTheirOwnColours() {
-        assertEquals(BandLogic.Identity("0B1414", "D3B47F", true), BandLogic.identity(biz("taheri")))
-        assertEquals(BandLogic.Identity("F2E9E4", "380000", false), BandLogic.identity(biz("mina")))
+        assertEquals(BandLogic.Identity("0A1111", "CFAA62", true), BandLogic.identity(biz("taheri")))
+        assertEquals(BandLogic.Identity("F8F1EE", "8B1E2D", false), BandLogic.identity(biz("mina")))
     }
 
     @Test fun addedBusinessWearsItsDarkAccent() {

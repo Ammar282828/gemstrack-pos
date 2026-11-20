@@ -18,8 +18,8 @@ object BandLogic {
     data class Identity(val ground: String, val ink: String, val isDark: Boolean)
 
     fun identity(b: Business): Identity = when (b.art) {
-        "taheri" -> Identity("0B1414", "D3B47F", true)
-        "mina" -> Identity("F2E9E4", "380000", false)
+        "taheri" -> Identity("0A1111", "CFAA62", true)
+        "mina" -> Identity("F8F1EE", "8B1E2D", false)
         else -> {
             // An added business: its accent (the dark side's) as the ground, its name in the colour that sits on that accent.
             val side = b.palette.dark

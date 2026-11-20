@@ -63,7 +63,7 @@ final class LaunchPicker {
 /// slim list, big airy cards, full-bleed brand bands; owner: "more minimal for choosing businesses, add two cards"). The
 /// page is the system's own ground, light or dark as the device is, with one quiet heading. Each business is one card in
 /// its own identity colours (the same in light and dark): Taheri's champagne gold wordmark on #0B1414, Mina's maroon on
-/// blush #F2E9E4, an added business's name in the serif face on its accent. A card holds only the wordmark (24 pt Taheri,
+/// ivory #F8F1EE, an added business's name in the serif face on its accent. A card holds only the wordmark (24 pt Taheri,
 /// 18 pt MINA; the art is cropped to the letters) and under it one tiny line: who is signed in, or "Sign in". Cards are
 /// equal; side by side from 600 pt wide (iPad, Mac), stacked on a phone. The business used last comes first and carries
 /// a 6 pt dot; Return opens it, and ⌘ and the card's number open the others. A tap shrinks to 0.97 while pressed, gives
@@ -220,9 +220,9 @@ struct BusinessPicker: View {
     private static func identity(_ b: Business) -> Identity {
         switch b.art {
         case "taheri"?:
-            return Identity(ground: Color(hex: "0B1414") ?? .black, ink: Color(hex: "D3B47F") ?? .yellow)
+            return Identity(ground: Color(hex: "0A1111") ?? .black, ink: Color(hex: "CFAA62") ?? .yellow)
         case "mina"?:
-            return Identity(ground: Color(hex: "F2E9E4") ?? .white, ink: Color(hex: "380000") ?? .red)
+            return Identity(ground: Color(hex: "F8F1EE") ?? .white, ink: Color(hex: "8B1E2D") ?? .red)
         default:
             // An added business: its accent (the dark side's) as the ground, its name in the colour that sits on that accent.
             let side = b.palette.dark

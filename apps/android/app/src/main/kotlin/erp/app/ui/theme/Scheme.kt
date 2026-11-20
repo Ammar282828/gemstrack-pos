@@ -26,7 +26,7 @@ import erp.app.ui.Tone
 
 object ErpScheme {
     /** Taheri's gold: what a bare preview or a business whose colours cannot be read wears. */
-    const val FallbackSeed: Int = 0xFF8A6B42.toInt()
+    const val FallbackSeed: Int = 0xFF85652A.toInt()
 
     /**
      * The one colour a business's schemes grow from, light and dark alike. Its light accent, unless that is too dark to

@@ -150,7 +150,7 @@ fun LaunchPickerLayer(app: @Composable () -> Unit) {
  * The picker (BusinessPicker.swift, redone 2026-11-02 after the bands and four cards before them were turned down: owner, "more minimal
  * for choosing businesses, add two cards"). The page is the system's own surface, light or dark as the phone is, with one quiet heading,
  * "Choose a business". Each business is one card in its own identity colours (the same in light and dark): Taheri's champagne gold wordmark
- * on #0B1414, Mina's maroon on blush #F2E9E4, an added business's name on its dark accent. A card holds the wordmark and under it one tiny
+ * on #0A1111, Mina's red on ivory #F8F1EE, an added business's name on its dark accent. A card holds the wordmark and under it one tiny
  * line: who is signed in, or "Sign in", else the address. Cards are equal, centred in the screen's height, side by side from 600 dp wide
  * and stacked on a phone; the business used last comes first and carries a 6 dp dot. A press settles a card to 0.97, a tap gives one
  * haptic and the app takes the screen while the others fade. Adding and managing are two small text buttons at the foot. Material You is in

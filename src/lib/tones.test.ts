@@ -58,10 +58,10 @@ describe('the app palette in the CSS', () => {
   };
 
   const cases: Array<[string, string, Record<string, string>]> = [
-    ['Taheri light', ':root, .theme-default', { background: '#ECE8E1', card: '#FFFFFF', popover: '#FFFFFF', primary: '#8A6B42', 'primary-foreground': '#FFFFFF' }],
-    ['Taheri dark', '.dark', { background: '#030606', card: '#172020', popover: '#202A29', primary: '#D3B47F', 'primary-foreground': '#0B1414' }],
-    ['Mina light', '.brand-mina.theme-default', { background: '#F2E9E4', card: '#FFFFFF', popover: '#FFFFFF', primary: '#380000', 'primary-foreground': '#FBF9F9' }],
-    ['Mina dark', '.dark .brand-mina:not(.theme-default)', { background: '#090405', card: '#22131A', popover: '#2C1A21', primary: '#EBA9B3', 'primary-foreground': '#251318' }],
+    ['Taheri light', ':root, .theme-default', { background: '#F4F1EB', card: '#FFFFFF', popover: '#FFFFFF', primary: '#85652A', 'primary-foreground': '#FFFFFF' }],
+    ['Taheri dark', '.dark', { background: '#0A1111', card: '#132020', popover: '#1A2828', primary: '#CFAA62', 'primary-foreground': '#0A1111' }],
+    ['Mina light', '.brand-mina.theme-default', { background: '#F8F1EE', card: '#FFFFFF', popover: '#FFFFFF', primary: '#8B1E2D', 'primary-foreground': '#FFFFFF' }],
+    ['Mina dark', '.dark .brand-mina:not(.theme-default)', { background: '#140B0B', card: '#241416', popover: '#2E1B1E', primary: '#E8A5AE', 'primary-foreground': '#2A1416' }],
   ];
   for (const [name, selector, want] of cases) {
     it(`${name} holds the app's four colours`, () => {

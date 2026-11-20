@@ -169,7 +169,7 @@ export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 
 /** The house's own metal as a word, for the columns and labels that track it (Hisaab's metal
  *  balance, the rate form): "Silver" in a silver house, which Hisaab used to label "Gold". */
 export const STORE_METAL_WORD = STORE_CONFIG.defaultMetal === 'silver' ? 'Silver' : 'Gold';
-export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR?.trim() || '#030606';
+export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR?.trim() || '#0A1111';
 
 /**
  * The house's icons — browser tab, home screen, installed app — made by scripts/make-icons.mjs into
@@ -393,8 +393,8 @@ export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER
 export type PaletteSide = { accent: string; ground: string; card: string; elevated: string; onAccent: string };
 export type StorePalette = { light: PaletteSide; dark: PaletteSide };
 const TAHERI_PALETTE: StorePalette = {
-  light: { accent: '#8A6B42', ground: '#ECE8E1', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
-  dark: { accent: '#D3B47F', ground: '#030606', card: '#172020', elevated: '#202A29', onAccent: '#0B1414' },
+  light: { accent: '#85652A', ground: '#F4F1EB', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
+  dark: { accent: '#CFAA62', ground: '#0A1111', card: '#132020', elevated: '#1A2828', onAccent: '#0A1111' },
 };
 export const parsePalette = (raw: string | undefined): StorePalette => {
   let given: Record<string, Record<string, unknown> | undefined> = {};

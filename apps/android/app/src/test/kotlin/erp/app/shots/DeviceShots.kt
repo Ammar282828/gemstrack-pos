@@ -141,8 +141,8 @@ class DeviceShots(config: ShotConfig) : ShotBase(config) {
     // The Large face alone (Settings' preview page runs below the fold): one business, then two stacked, as a launcher's 4x4 draws them.
     @Test fun widget_large_faces() {
         // Each business in its own colours, as the widget draws two.
-        val gold = Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414"))
-        val pink = Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318"))
+        val gold = Business.Palette(Business.Side("#85652A", "#F4F1EB", "#FFFFFF", "#FFFFFF"), Business.Side("#CFAA62", "#0A1111", "#132020", "#0A1111"))
+        val pink = Business.Palette(Business.Side("#8B1E2D", "#F8F1EE", "#FFFFFF", "#FFFFFF"), Business.Side("#E8A5AE", "#140B0B", "#241416", "#2A1416"))
         val taheri = WidgetLinkData("taheri", "Taheri ERP", "https://example.invalid", "", gold, "taheri")
         val mina = WidgetLinkData("mina", "House of Mina ERP", "https://example.invalid", "", pink, "mina")
         val one = listOf(taheri to WidgetSummary.sample("Taheri"))

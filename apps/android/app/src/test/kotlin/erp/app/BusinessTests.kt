@@ -23,7 +23,7 @@ import kotlin.test.assertTrue
 // One app, many businesses (docs/features/android-app.md "One app, many businesses"): what a descriptor may say, how the list merges, what each
 // business keeps under its own name. Plain Kotlin, no device.
 
-private val TAHERI_PALETTE = """{"light":{"accent":"#8A6B42","ground":"#ECE8E1","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#D3B47F","ground":"#030606","card":"#172020","elevated":"#202A29","onAccent":"#0B1414"}}"""
+private val TAHERI_PALETTE = """{"light":{"accent":"#85652A","ground":"#F4F1EB","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#CFAA62","ground":"#0A1111","card":"#132020","elevated":"#1A2828","onAccent":"#0A1111"}}"""
 
 private fun descriptor(
     id: String = "acme", name: String = "ACME", url: String = "https://erp.acme.example", android: String? =
@@ -70,7 +70,7 @@ class BusinessDescriptorTests {
         assertEquals("That ERP's id isn't one this app can use.", Business.decode(descriptor(id = "Bad Id"))!!.problem)
         assertEquals("That ERP has no name.", Business.decode(descriptor(name = "  "))!!.problem)
         assertEquals("That ERP's address isn't a secure one.", Business.decode(descriptor(url = "http://erp.acme.example"))!!.problem)
-        assertEquals("That ERP's colours aren't readable.", Business.decode(descriptor(palette = TAHERI_PALETTE.replace("#8A6B42", "red")))!!.problem)
+        assertEquals("That ERP's colours aren't readable.", Business.decode(descriptor(palette = TAHERI_PALETTE.replace("#85652A", "red")))!!.problem)
         val broken = descriptor(android = """{"googleWebClientId":"not-a-client","firebase":{"apiKey":"k","appId":"1:2:ios:3","projectId":"p","senderId":"2","storageBucket":"b"}}""")
         assertTrue(Business.decode(broken)!!.problem!!.contains("Android sign-in incorrectly"))
     }
@@ -138,7 +138,7 @@ class BusinessAddressTests {
         val same = BusinessRules.judge("https://erp.acme.example", answer(descriptor()), listOf(business("acme", host = "erp.acme.example")))
         assertEquals("acme", same.id)
         assertEquals("That ERP's colours aren't readable.", assertFailsWith<BusinessFailure> {
-            BusinessRules.judge("https://erp.acme.example", answer(descriptor(palette = TAHERI_PALETTE.replace("#8A6B42", "nope"))), emptyList())
+            BusinessRules.judge("https://erp.acme.example", answer(descriptor(palette = TAHERI_PALETTE.replace("#85652A", "nope"))), emptyList())
         }.message)
         assertEquals("acme-erp", BusinessRules.slug("Acme  ERP!"))
     }
