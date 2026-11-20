@@ -110,3 +110,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-11-19: ERP 2.8.5 — Add expense (widget, Control Center, Siri) does everything the Expenses form does: a date, any category or a new one, who paid, a partner's salary, a karigar payment into his hisaab.
 - 2026-11-19: ERP 2.8.6 — House of Mina's Shopify list shows each web order once: an order's invoice sits on its card, no longer as a row of its own (the invoices made for shipped orders stood under Today).
 - 2026-11-19: ERP 2.8.7 — motion: lists' rows come in one after another the first time you open them; a finished sale, order or payment lands with a bouncing tick.
+- 2026-11-20: ERP 2.8.8 — Posts: tell the AI what to change in a piece's caption (shorter, call it bridal, the stones are amethyst); Rewrite with AI keeps the house's caption layout.

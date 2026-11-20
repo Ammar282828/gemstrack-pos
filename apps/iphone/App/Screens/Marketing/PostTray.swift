@@ -26,6 +26,8 @@ final class PostTrayCard: Identifiable {
     /// The AI's line and facts, in the house's frame in place of the site's own, while they are used.
     var aiLine: String?
     var aiFacts: String?
+    /// What the person wants the AI to do with the words (optional; kept after writing, to say more and write again).
+    var aiAsk = ""
     /// Typed over: a new weight then leaves the caption as it is.
     var edited = false
     var caption = ""
@@ -244,7 +246,13 @@ final class PostTrayModel {
 
     /// The AI's line and facts for the piece (/api/website/site-pieces/caption), put in the house's frame.
     func writeWithAI(_ card: PostTrayCard) async throws {
-        let d = try await MarketingRequest.send("/api/website/site-pieces/caption", ["id": card.id, "weight": card.weightOK ? card.grams : ""])
+        // The request (piece-card.tsx `ask`, at most CAPTION_ASK_MAX = 500) and the words the caption carries now, so a change
+        // is made to them, not to a blank page. The AI still answers only the line and the facts; the frame stays the house's.
+        let ask = String(card.aiAsk.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        let current: [String: Any] = ["line": card.aiLine ?? card.piece.about,
+                                      "facts": card.aiFacts ?? card.piece.facts.joined(separator: " · ")]
+        let d = try await MarketingRequest.send("/api/website/site-pieces/caption",
+                                                ["id": card.id, "weight": card.weightOK ? card.grams : "", "ask": ask, "current": current])
         card.aiLine = d.s("line")
         card.aiFacts = d.s("facts")
         card.edited = false

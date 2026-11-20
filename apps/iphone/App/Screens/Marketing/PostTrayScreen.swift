@@ -592,7 +592,26 @@ struct PostTrayCardSections: View {
                 .font(.house(.footnote).monospaced())
                 .lineLimit(6...16)
                 .disabled(locked)
-            Button(action: onAI) { Label("Write with AI", systemImage: "sparkles") }
+            // What to change, or how to write it (owner, 2026-11-19): the AI writes the description and the facts to it; the
+            // caption's layout (name, weight, link, closing lines) stays the house's own. Return writes.
+            HStack {
+                TextField("Tell the AI (optional), e.g. shorter, call it a bridal set", text: $card.aiAsk, axis: .vertical)
+                    .lineLimit(1...3)
+                    .submitLabel(.go)
+                    .onSubmit(onAI)
+                    .onChange(of: card.aiAsk) { _, v in if v.count > 500 { card.aiAsk = String(v.prefix(500)) } }
+                    .accessibilityLabel("What the AI should change or write")
+                if !card.aiAsk.isEmpty {
+                    Button { card.aiAsk = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                        .buttonStyle(.plain)
+                        .frame(minWidth: Metrics.tap, minHeight: Metrics.tap)
+                        .accessibilityLabel("Clear")
+                }
+            }
+            .disabled(locked)
+            Button(action: onAI) {
+                Label(card.aiAsk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Write with AI" : "Rewrite with AI", systemImage: "sparkles")
+            }
                 .disabled(locked)
             if card.edited || card.aiLine != nil {
                 Button { Task { await model.houseWords(card) } } label: { Label("The house's caption", systemImage: "arrow.uturn.backward") }
