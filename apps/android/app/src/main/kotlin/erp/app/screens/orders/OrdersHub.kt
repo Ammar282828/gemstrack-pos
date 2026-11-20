@@ -432,13 +432,13 @@ fun OrdersHub(shopify: Boolean = false) {
             onDismiss = { advancing = null },
             onSave = { entry ->
                 OrderAdvance.record(order, entry.amount, entry.method, entry.note, entry.exchanges)
-                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges)))
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges), peak = true))
             },
             owed = order.grandTotal,
             noteDefault = "Advance payment received",
             settle = if (isOwner) { entry, remainder ->
                 OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder)
-                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList())))
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList()), peak = true))
             } else null,
         )
     }
@@ -493,7 +493,7 @@ private fun Card(
 ) {
     val owed = OrdersLogic.owed(order, view.owedOn)
     OrderCard(
-        modifier = modifier.appearOnce(index),
+        modifier = modifier.appearOnce(index, "orders"),
         order = order,
         stage = OrdersLocal.stage(stageOf(order, owed), OrdersLogic.hasInvoice(order), localStatus),
         owed = owed,

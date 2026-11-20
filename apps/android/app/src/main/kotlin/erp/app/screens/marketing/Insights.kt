@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.MinTouchTarget
 import erp.app.ui.SkeletonShape
 import erp.app.ui.icons.Symbols
 import android.content.Intent
@@ -514,7 +515,7 @@ private fun PostRow(p: InsightPost, live: Boolean) {
                     if (p.older) Text("before this range", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Box(Modifier.weight(1f))
                     p.link?.takeIf { it.startsWith("http") }?.let { link ->
-                        IconButton(onClick = { openAddress(context, Intent.ACTION_VIEW, link) }, Modifier.size(32.dp)) {
+                        IconButton(onClick = { openAddress(context, Intent.ACTION_VIEW, link) }, Modifier.size(MinTouchTarget)) {
                             Icon(Symbols.OpenInNew, contentDescription = "Open the post", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }

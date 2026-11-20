@@ -1,5 +1,6 @@
 package erp.app.screens.design
 
+import erp.app.ui.MinTouchTarget
 import erp.app.ui.BusyBlock
 import erp.app.ui.TextField
 import erp.app.ui.icons.Symbols
@@ -243,7 +244,7 @@ private fun PageCell(model: DesignWorkspaceModel, work: DesignWork, page: Design
         }
         if (on) {
             Box {
-                IconButton(onClick = { menu = true }, Modifier.size(32.dp).semantics { contentDescription = "This size" }) { Icon(Symbols.MoreVert, null, Modifier.size(18.dp)) }
+                IconButton(onClick = { menu = true }, Modifier.size(MinTouchTarget).semantics { contentDescription = "This size" }) { Icon(Symbols.MoreVert, null, Modifier.size(18.dp)) }
                 DropdownMenu(menu, { menu = false }) {
                     if (stale) DropdownMenuItem(text = { Text("Re-do from the master") }, leadingIcon = { Icon(Symbols.Refresh, null) }, onClick = { menu = false; DesignHooks.redoFromMaster(model, page.id) })
                     if (page.id != work.master) DropdownMenuItem(text = { Text("Make this the master") }, leadingIcon = { Icon(Symbols.Star, null) }, onClick = { menu = false; model.setMaster(page.id) })
@@ -407,7 +408,7 @@ private fun MoreRow(model: DesignWorkspaceModel, onAdd: () -> Unit) {
                     val bmp = rememberBitmap(model.photos[id], 160)
                     Box {
                         DesignPicture(bmp, Modifier.size(56.dp).clip(Radius.thumbShape))
-                        IconButton(onClick = { model.removePhoto(id) }, Modifier.align(Alignment.TopEnd).size(32.dp).semantics { contentDescription = "Take this photo out" }) {
+                        IconButton(onClick = { model.removePhoto(id) }, Modifier.align(Alignment.TopEnd).size(MinTouchTarget).semantics { contentDescription = "Take this photo out" }) {
                             Icon(Symbols.Cancel, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape).size(20.dp))
                         }
                     }

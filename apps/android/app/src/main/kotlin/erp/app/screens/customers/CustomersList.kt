@@ -252,7 +252,7 @@ private fun LazyListScope.group(
             bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
         )
         // The rows of a group are one card; the last leaves the gap to the next group.
-        Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
+        Column(Modifier.animateItem().appearOnce(i, "customers").padding(bottom = if (last) GAP else 2.dp).clip(shape)) {
             CustomerRow(c, stats[c.id], money, onClick = { open(c.id) })
         }
     }

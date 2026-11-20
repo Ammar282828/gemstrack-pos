@@ -290,7 +290,7 @@ private fun ListView(
                     topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
                     bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                 )
-                Column(Modifier.animateItem().appearOnce(i).padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
+                Column(Modifier.animateItem().appearOnce(i, "stock").padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                     SwipeActions(
                         start = actions.sell(p),
                         end = actions.edit(p),

@@ -248,7 +248,7 @@ fun InvoicesList() {
                         if (wide) {
                             items(group.rows.size, key = { "c${group.id}${group.rows[it].id}" }, contentType = { "card" }) { i ->
                                 val inv = group.rows[i]
-                                Box(Modifier.animateItem()) { InvoiceCard(
+                                Box(Modifier.animateItem().appearOnce(if (group === groups.first()) i else Int.MAX_VALUE, "invoices")) { InvoiceCard(
                                     inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, canPay = canPay,
                                     actions = ::actions, open = { navigator.open(InvoiceFacts.path(inv.id)) }, take = { paying = inv },
                                     onPrint = ::print, printing = printing,
@@ -263,7 +263,7 @@ fun InvoicesList() {
                                     topStart = if (first) Radius.card else Radius.joint, topEnd = if (first) Radius.card else Radius.joint,
                                     bottomStart = if (last) Radius.card else Radius.joint, bottomEnd = if (last) Radius.card else Radius.joint,
                                 )
-                                Column(Modifier.animateItem().appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
+                                Column(Modifier.animateItem().appearOnce(if (group === groups.first()) i else Int.MAX_VALUE, "invoices").padding(horizontal = 16.dp).readableColumn().padding(bottom = if (last) 0.dp else 2.dp).clip(shape)) {
                                     SwipeActions(
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
                                         start = RowAction("Send on WhatsApp", Symbols.Message, Tone.credit) { sending = inv },
@@ -290,7 +290,7 @@ fun InvoicesList() {
 
     paying?.let { inv ->
         InvoicePaymentSheet(inv, onDismiss = { paying = null }, recorded = { paid, amount ->
-            note.show(Note("Payment recorded", InvoiceFacts.recordedDetail(paid, amount)))
+            note.show(Note("Payment recorded", InvoiceFacts.recordedDetail(paid, amount), peak = true))
         })
     }
     pdf?.let { InvoicePdfDialog(it, onDismiss = { pdf = null }) }

@@ -38,4 +38,23 @@ class ErpMotionTests {
         assertEquals(30, ErpMotion.AXIS_DP)
         assertEquals(0.92f, ErpMotion.FADE_THROUGH_SCALE)
     }
+
+    @Test fun a_list_plays_its_rows_on_its_first_showing_only() {
+        FirstShow.reset()
+        assertTrue(FirstShow.plays("invoices", now = 10_000))
+        // The rest of the first rows, laid out a few frames later, still play.
+        assertTrue(FirstShow.plays("invoices", now = 10_150))
+        // A row scrolled into view later, or the list shown again: none.
+        assertFalse(FirstShow.plays("invoices", now = 10_000 + FirstShow.WINDOW_MILLIS))
+        assertFalse(FirstShow.plays("invoices", now = 90_000))
+        // Another list has its own first showing.
+        assertTrue(FirstShow.plays("customers", now = 90_000))
+    }
+
+    @Test fun the_tick_is_two_strokes_inside_its_box() {
+        assertEquals(3, TickPoints.size)
+        assertTrue(TickPoints.all { it.x in 1f..23f && it.y in 1f..23f })
+        // The elbow is the lowest point: the short stroke goes down to it and the long one up.
+        assertTrue(TickPoints[1].y > TickPoints[0].y && TickPoints[1].y > TickPoints[2].y)
+    }
 }
