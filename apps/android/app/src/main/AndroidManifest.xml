@@ -92,6 +92,16 @@
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
 
+        <!-- "Add expense" without opening the app: a small translucent window over what is on screen (the launcher shortcut and the tile start it) -->
+        <activity
+            android:name=".device.QuickExpenseActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Erp.Dialog"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
         <!-- Notifications: a refreshed token, and an alert that arrives while the app is open (lib/push/fcm.ts sends channelId = kind) -->
         <service
             android:name=".device.ErpMessagingService"
@@ -113,6 +123,18 @@
             android:exported="true"
             android:icon="@drawable/ic_voice"
             android:label="@string/voice_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Quick Settings tile "Add expense": opens the small expense window -->
+        <service
+            android:name=".device.QuickExpenseTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_expense"
+            android:label="@string/expense_tile_label"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

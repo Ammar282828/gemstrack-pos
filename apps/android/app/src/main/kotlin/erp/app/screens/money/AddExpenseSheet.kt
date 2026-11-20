@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import erp.app.ui.SegmentedButton
@@ -56,7 +57,13 @@ fun AddExpenseSheet(categories: List<String>, partnership: Boolean, onDismiss: (
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partnership: Boolean, onDismiss: () -> Unit, onSaved: (Note) -> Unit) {
+internal fun ExpenseFormSheet(
+    editing: Expense?, categories: List<String>, partnership: Boolean, onDismiss: () -> Unit, onSaved: (Note) -> Unit,
+    /** The ERP this files to: the open business's, or the one Quick expense chose (QuickExpenseActivity). */
+    api: ErpApi = ErpApi.shared,
+    /** Above the first field (Quick expense says which business it files to). */
+    header: @Composable ColumnScope.() -> Unit = {},
+) {
     val book = LocalBook.current
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
@@ -127,7 +134,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
         if (filed != null) fields["batchId"] = filed
         scope.launch {
             try {
-                ErpApi.shared.write(if (editing != null) "updateExpense" else "addExpense", fields)
+                api.write(if (editing != null) "updateExpense" else "addExpense", fields)
                 onSaved(
                     if (editing != null) Note("Saved", "Expense updated.")
                     else Note("Expense added", filedLabel?.let { "Filed to hisaab “$it”." } ?: "Recorded."),
@@ -146,6 +153,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
 
     MoneySheet(if (editing != null) "Edit expense" else "Add expense", onDismiss, busy = saving, confirmText = "Save", confirmEnabled = canSave, onConfirm = ::save) {
         erp.app.ui.UpdateBanner()
+        header()
         SheetHeading("When and what")
         DayRow("Date", picked.atZone(phoneZone).toLocalDate(), { picked = pickedInstant(it, picked) }, latest = LocalDate.now())
         PickerRow(

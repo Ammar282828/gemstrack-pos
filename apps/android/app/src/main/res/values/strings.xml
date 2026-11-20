@@ -6,4 +6,9 @@
     <string name="voice_shortcut_long">Talk to ERP: say what you need</string>
     <string name="voice_tile_label">Talk to ERP</string>
     <string name="voice_tile_subtitle">Opens listening</string>
+    <!-- "Add expense": the launcher shortcut and the Quick Settings tile (the iPhone's Shortcuts widget and Control Center control) -->
+    <string name="expense_shortcut_short">Add expense</string>
+    <string name="expense_shortcut_long">Add an expense without opening the app</string>
+    <string name="expense_tile_label">Add expense</string>
+    <string name="expense_tile_subtitle">Amount and what for</string>
 </resources>

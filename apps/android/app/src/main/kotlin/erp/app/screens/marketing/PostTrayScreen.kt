@@ -27,7 +27,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import erp.app.ui.AlertDialog
 import erp.app.ui.Button
@@ -507,7 +509,14 @@ private fun CaptionSection(card: PostTrayCard, model: PostTrayModel, locked: Boo
             minLines = 6, maxLines = 16, enabled = !locked, placeholder = { Text("Caption") },
             textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         )
-        ActionRow("Write with AI", onAI, Symbols.AutoAwesome, enabled = !locked)
+        // What to change, or how to write it: the AI writes the line and the facts to it; the frame stays the house's (owner, 2026-11-19).
+        TextField(
+            card.ask, { card.ask = PostTrayLogic.clampAsk(it) }, Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            singleLine = true, enabled = !locked, placeholder = { Text("Tell the AI (optional), e.g. shorter, call it a bridal set, the stones are amethyst") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { if (!locked) onAI() }),
+            trailingIcon = if (card.ask.isEmpty()) null else ({ IconButton(onClick = { card.ask = "" }) { Icon(Symbols.Close, "Clear", tint = ErpColors.quiet) } }),
+        )
+        ActionRow(PostTrayLogic.writeLabel(card.ask), onAI, Symbols.AutoAwesome, enabled = !locked)
         if (card.edited || card.aiLine != null) ActionRow("The house's caption", { scope.launch { model.houseWords(card) } }, Symbols.Undo, enabled = !locked)
     }
 }

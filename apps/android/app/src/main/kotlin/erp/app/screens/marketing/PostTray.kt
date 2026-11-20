@@ -41,6 +41,25 @@ object PostTrayLogic {
 
     fun noun(n: Int): String = if (n == 1) "piece" else "pieces"
 
+    /** The most the "Tell the AI" box takes (site-caption.ts CAPTION_ASK_MAX). */
+    const val ASK_MAX = 500
+
+    /** The AI button's words: it rewrites once there is something to tell it (piece-card.tsx). */
+    fun writeLabel(ask: String): String = if (ask.isBlank()) "Write with AI" else "Rewrite with AI"
+
+    /** What the box keeps as typed, cut to the limit. */
+    fun clampAsk(typed: String): String = typed.take(ASK_MAX)
+
+    /**
+     * The body of POST /api/website/site-pieces/caption: the piece, the weight, what was asked and the words the caption carries now
+     * (the AI's if used, else the site's own), so a change is made to them and not to a blank page (piece-card.tsx writeWithAi).
+     */
+    fun captionBody(id: String, grams: String, ask: String, aiLine: String?, aiFacts: String?, about: String, facts: List<String>): Map<String, Any?> = mapOf(
+        "id" to id, "weight" to grams, "ask" to ask.trim(),
+        "current" to if (aiLine != null || aiFacts != null) mapOf("line" to (aiLine ?: ""), "facts" to (aiFacts ?: ""))
+        else mapOf("line" to about, "facts" to facts.joinToString(" · ")),
+    )
+
     /** The weight as the caption takes it: Number(typed), as the web's card passes it. */
     fun typedGrams(typed: String): Double = ShopNumber.parse(typed) ?: 0.0
 
@@ -145,6 +164,9 @@ class PostTrayCard(val piece: PostPiece) {
     /** The AI's line and facts, in the house's frame in place of the site's own, while they are used. */
     var aiLine by mutableStateOf<String?>(null)
     var aiFacts by mutableStateOf<String?>(null)
+
+    /** What to tell the AI (optional; kept after writing, to say more and write again). */
+    var ask by mutableStateOf("")
 
     /** Typed over: a new weight then leaves the caption as it is. */
     var edited by mutableStateOf(false)
@@ -384,7 +406,10 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
 
     /** The AI's line and facts for the piece (/api/website/site-pieces/caption), put in the house's frame. */
     suspend fun writeWithAI(card: PostTrayCard) {
-        val d = MarketingRequest.send("/api/website/site-pieces/caption", mapOf("id" to card.id, "weight" to if (card.weightOK) card.grams else ""))
+        val d = MarketingRequest.send(
+            "/api/website/site-pieces/caption",
+            PostTrayLogic.captionBody(card.id, if (card.weightOK) card.grams else "", card.ask, card.aiLine, card.aiFacts, card.piece.about, card.piece.facts),
+        )
         card.aiLine = d.s("line")
         card.aiFacts = d.s("facts")
         card.edited = false

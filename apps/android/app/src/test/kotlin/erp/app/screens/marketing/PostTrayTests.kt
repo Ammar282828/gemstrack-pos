@@ -326,4 +326,30 @@ class PostTrayTests {
         assertTrue(none.startsWith("On example.test:\n• Name: “Solitaire”"))
         assertEquals("The photo is replaced. The original is kept.", WebsiteEditLogic.confirmWords(WebsiteEditLogic.Confirm.Save, p, form, "x", WebsiteEditLogic.PhotoChange(false, "", emptyList())).lines()[1].removePrefix("• "))
     }
+
+    // MARK: Tell the AI (piece-card.tsx, 2026-11-19)
+
+    @Test fun theAiButtonReadsRewriteOnceThereIsSomethingToTellIt() {
+        assertEquals("Write with AI", PostTrayLogic.writeLabel(""))
+        assertEquals("Write with AI", PostTrayLogic.writeLabel("   "))
+        assertEquals("Rewrite with AI", PostTrayLogic.writeLabel("shorter"))
+    }
+
+    @Test fun theBoxStopsAtTheServersLimit() {
+        assertEquals(500, PostTrayLogic.clampAsk("x".repeat(900)).length)
+        assertEquals("shorter", PostTrayLogic.clampAsk("shorter"))
+    }
+
+    @Test fun theCaptionCallCarriesTheRequestAndTheSitesOwnWordsUntilTheAiHasWritten() {
+        val body = PostTrayLogic.captionBody("Rings/R-101.webp", "4.2g", "  make it shorter ", null, null, "A quiet solitaire.", listOf("18K", "Diamond"))
+        assertEquals("make it shorter", body["ask"])
+        assertEquals("4.2g", body["weight"])
+        assertEquals(mapOf("line" to "A quiet solitaire.", "facts" to "18K · Diamond"), body["current"])
+    }
+
+    @Test fun onceTheAiHasWrittenItsWordsAreTheCurrentOnes() {
+        val body = PostTrayLogic.captionBody("a", "", "", "Its line.", "Its facts.", "A quiet solitaire.", listOf("18K"))
+        assertEquals(mapOf("line" to "Its line.", "facts" to "Its facts."), body["current"])
+        assertEquals("", body["ask"])
+    }
 }

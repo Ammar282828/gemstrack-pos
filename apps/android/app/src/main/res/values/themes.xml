@@ -11,4 +11,12 @@
         <item name="android:windowBackground">@color/house_ground</item>
         <item name="android:colorAccent">@color/house_accent</item>
     </style>
+
+    <!-- The small windows over the Home Screen (Add expense): see-through, the sheet draws its own scrim -->
+    <style name="Theme.Erp.Dialog" parent="Theme.Erp">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

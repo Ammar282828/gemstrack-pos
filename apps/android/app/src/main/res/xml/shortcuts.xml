@@ -26,4 +26,16 @@
             <parameter-binding android:key="feature" android:value="@array/voice_feature_names" />
         </capability-binding>
     </shortcut>
+    <!-- Add expense: the small expense window, not the app (QuickExpenseActivity) -->
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@drawable/ic_expense"
+        android:shortcutShortLabel="@string/expense_shortcut_short"
+        android:shortcutLongLabel="@string/expense_shortcut_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="@string/erp_package"
+            android:targetClass="erp.app.device.QuickExpenseActivity" />
+    </shortcut>
 </shortcuts>
