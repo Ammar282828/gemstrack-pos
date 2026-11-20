@@ -56,7 +56,6 @@ import erp.app.ui.rememberErpMotion
 import erp.app.ui.EntryStep
 import erp.app.ui.LocalReduceMotion
 import erp.app.ui.Motion
-import erp.app.ui.MoneyFeedback
 import erp.app.ui.NotAvailableState
 import erp.app.ui.Radius
 import erp.app.ui.SkeletonLoading
@@ -150,8 +149,11 @@ fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst:
     }
     DisposableEffect(Unit) { onDispose { s.disappeared() } }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { erp.app.screens.sale.SaleStore.flush() }
-    // The sale made: a tick felt as it lands.
-    MoneyFeedback(success = s.made, failure = null)
+    // The sale made: the banner says it with the landing tick and the success tap (NoteHost), over its invoice too.
+    val said = erp.app.ui.LocalNoteState.current
+    LaunchedEffect(s.made) {
+        s.made?.let { said.show(erp.app.ui.Note(if (edit == null) "Invoice created" else "Invoice updated", it, peak = true)) }
+    }
 
     val motion = rememberErpMotion()
     val crossFade = motion.crossFade()

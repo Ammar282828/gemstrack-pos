@@ -309,7 +309,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     }
 
     paying?.let { picked ->
-        InvoicePaymentSheet(picked, onDismiss = { paying = null }, recorded = { paid, amount -> note.show(Note("Payment recorded", InvoiceFacts.recordedDetail(paid, amount))) })
+        InvoicePaymentSheet(picked, onDismiss = { paying = null }, recorded = { paid, amount -> note.show(Note("Payment recorded", InvoiceFacts.recordedDetail(paid, amount), peak = true)) })
     }
     safepay?.let { SafepayLinkSheet(it, onDismiss = { safepay = null }) }
     if (settingCustomer) InvoiceCustomerSheet(inv, onDismiss = { settingCustomer = false }, onSaved = { say(it) })

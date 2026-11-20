@@ -335,7 +335,7 @@ private fun Detail(shelfOrder: Order) {
             onDismiss = { advancing = false },
             onSave = { entry ->
                 OrderAdvance.record(order, entry.amount, entry.method, entry.note, entry.exchanges)
-                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges)))
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges), peak = true))
                 // PaymentSheet plays the success tap itself.
             },
             owed = if (owesMoney(balance)) balance else null,
@@ -343,7 +343,7 @@ private fun Detail(shelfOrder: Order) {
             // Settle gives a remainder under 5,000 off the order's discount (OrderAdvance.settle).
             settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder ->
                 OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder)
-                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList())))
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList()), peak = true))
             } else null,
         )
     }

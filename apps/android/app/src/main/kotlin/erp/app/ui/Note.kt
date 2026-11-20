@@ -58,6 +58,11 @@ data class Note(
     val action: (() -> Unit)? = null,
     /** How long it stays; an undo gets [UNDO_MILLIS] so there is time to read it and reach for the button. */
     val millis: Long = NOTE_MILLIS,
+    /**
+     * The end of something that matters (a sale, an order, a payment: peak-end, docs/decisions.md "Motion"): the tick is drawn
+     * stroke by stroke and lands with a slight overshoot ([PeakTick]). A failed note never peaks.
+     */
+    val peak: Boolean = false,
 ) {
     /** What TalkBack says when it appears. */
     val spoken: String get() = if (detail.isEmpty()) title else "$title. $detail"
@@ -161,7 +166,9 @@ fun NoteBanner(note: Note, modifier: Modifier = Modifier, onAction: () -> Unit =
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            if (note.peak && !note.failed) {
+                PeakTick(MaterialTheme.colorScheme.inversePrimary, MaterialTheme.colorScheme.inverseSurface)
+            } else Icon(
                 if (note.failed) Symbols.Warning else Symbols.CheckCircle,
                 contentDescription = null,
                 tint = if (note.failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.inversePrimary,

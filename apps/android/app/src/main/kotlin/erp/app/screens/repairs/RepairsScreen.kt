@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.appearOnce
 import erp.app.ui.groupRowFill
 import erp.app.ui.glassRow
 import erp.app.ui.animatedItem
@@ -177,7 +178,7 @@ fun RepairsScreen(path: String) {
                     items(g.rows.size, key = { i -> g.id + "/" + g.rows[i].id }) { i ->
                         val r = g.rows[i]
                         val firstInCard = !g.folded && i == 0
-                        Column(Modifier.animateItem().padding(horizontal = 16.dp)) {
+                        Column(Modifier.animateItem().appearOnce(i, "repairs").padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = firstInCard, last = i == g.rows.lastIndex)) {
                                 RepairRow(desk.shown(r), now, desk, context, isOwner = session.isOwner, shopName = session.shop.name) {
                                     sheetSeed = null

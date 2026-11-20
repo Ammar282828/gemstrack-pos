@@ -56,7 +56,8 @@ import erp.app.ui.EntryStep
 import erp.app.ui.EntrySteps
 import erp.app.ui.EntryStepContent
 import erp.app.ui.FailureAlert
-import erp.app.ui.MoneyFeedback
+import erp.app.ui.LocalNoteState
+import erp.app.ui.Note
 import erp.app.ui.MoneyText
 import erp.app.ui.NotAvailableState
 import erp.app.ui.RecentCustomers
@@ -301,7 +302,9 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Bo
     LaunchedEffect(holder.stamp, loaded) { changed() }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { keepNow() }
     DisposableEffect(Unit) { onDispose { keepNow() } }
-    MoneyFeedback(success = created, failure = null)
+    // The order made: the banner says it with the landing tick and the success tap (NoteHost), over the order's own page too.
+    val said = LocalNoteState.current
+    LaunchedEffect(created) { created?.let { said.show(Note("Order created", it, peak = true)) } }
     BackHandler(enabled = saving) { /* a save is on its way: the screen stays */ }
 
     // Sizes on the order that the customer's profile doesn't hold are offered once, over the order's own page.
