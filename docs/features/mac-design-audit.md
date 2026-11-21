@@ -83,12 +83,10 @@ failure class (tiny unlabelled icon buttons) and one contrast miss (Taheri's lig
   access to all the commands they need". **Fixed:** View › as List / as Cards / as Board for every place
   (`Mac/MacCommands.swift`; no key, as 2.7.9 dropped Control-key shortcuts), and each place's Filter menu as View
   submenus: Taken By, Payment, Source, Sort By (`MacViewFilter`, `Mac/Kit/MacActions.swift`).
-- **Medium: Taheri's light accent on the page ground is 4.03:1** (`#8A6B42` on `#ECE8E1`), under `accessibility.md`'s "Up to 17
-  pts … 4.5:1" for text. It passes on cards (4.93:1, white) and in dark mode (10.27:1); Mina passes everywhere (15.02:1 light).
-  Most accent text sits inside cards, so few places fail, but any accent link or caption drawn straight on the ground does.
-  ERP 2.7.9 answers Increase Contrast with a darker gold (`#765832`); the everyday light gold is unchanged. Open (the house's
-  palette is the owner's call, decision "Web matches the app"): `#80633D` reaches 4.56:1 on the ground with almost no
-  visible change; or keep accent text on cards only.
+- **Medium: Taheri's light accent on the page ground was 4.03:1** (`#8A6B42` on `#ECE8E1`), under `accessibility.md`'s "Up to 17
+  pts … 4.5:1" for text; it passed on cards and in dark mode, and Mina everywhere. **Resolved 2026-11-20** by the palette re-cut
+  ([Palette](../decisions.md#palette), the owner's call): `#85652A` on `#F4F1EB` is 4.79:1 on the ground and 5.40:1 on cards;
+  dark 8.70:1; Increase Contrast `#6E521F` 6.73:1; Mina 8.10:1 light, 9.63:1 dark (computed from the asset catalogue).
 - **Low: brand type in controls.** The ERP reads in Inter everywhere, the sidebar and controls included (decision "Fonts",
   2026-11-06). `typography.md`: system fonts are "designed for optimized legibility"; the skill's craft lens keeps system type
   for navigation and controls and brand type in content. Recorded, not reopened.
