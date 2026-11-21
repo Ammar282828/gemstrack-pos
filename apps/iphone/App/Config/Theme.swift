@@ -5,10 +5,11 @@ import AppKit
 
 /// The business's colours, as the ERP's own palettes have them (src/app/globals.css, docs/features/two-houses.md):
 ///
-/// - Taheri: champagne gold (#D3B47F) on a near-black green ground (#030606) in dark; in light, a deeper cut of
-///   the gold, so a link or a button's word still reads on white (4.9:1), on a warm #ECE8E1 ground.
-/// - House of Mina: its wordmark's maroon in light (`.brand-mina.theme-default`) on #F2E9E4, a lifted rose
-///   (#EBA9B3) on near-black wine (#090405) in dark (`.dark .brand-mina`).
+/// Re-cut 2026-11-20 from each house's brand (owner: "the overall colour palette … is pretty off"; docs/decisions.md#palette):
+/// - Taheri: the brand gold (#CFAA62) on taheri.shop's own teal-black (#0A1111, cards #132020) in dark; in light a deep,
+///   saturated gold (#85652A, 4.6:1 on the ground, 5.3:1 on white) on a warm ivory #F4F1EB, every neutral warm.
+/// - House of Mina: its button red (#8B1E2D, brand.ts) on ivory #F8F1EE in light; dusty rose (#E8A5AE) on its maroon-black
+///   (#140B0B, cards #241416) in dark.
 ///
 /// Separation (owner, 2026-10-25, decision "Light and dark"): light cards are pure white on a deeper ground
 /// and carry a very soft shadow; dark cards are clearly lifted off a near-black ground and carry a 0.5 pt

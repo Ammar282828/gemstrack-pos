@@ -8,7 +8,7 @@ const MINA = {
   NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER: '0', NEXT_PUBLIC_STORE_WORKSHOP_START: 'anyone',
   NEXT_PUBLIC_STORE_LOGO_URL: '/house-of-mina-logo.png', NEXT_PUBLIC_STORE_LOGO_LIGHT_URL: '/house-of-mina-logo-light.png',
   NEXT_PUBLIC_STORE_LOGO_ASPECT: '4.9458',
-  NEXT_PUBLIC_STORE_PALETTE: '{"light":{"accent":"#380000","ground":"#F2E9E4","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FBF9F9"},"dark":{"accent":"#EBA9B3","ground":"#090405","card":"#22131A","elevated":"#2C1A21","onAccent":"#251318"}}',
+  NEXT_PUBLIC_STORE_PALETTE: '{"light":{"accent":"#8B1E2D","ground":"#F8F1EE","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#E8A5AE","ground":"#140B0B","card":"#241416","elevated":"#2E1B1E","onAccent":"#2A1416"}}',
   APP_ANDROID_FIREBASE_APP_ID: 'none', APP_ANDROID_GOOGLE_WEB_CLIENT_ID: 'none',
   NEXT_PUBLIC_FIREBASE_API_KEY: 'mina-web-key',
   APP_IOS_GOOGLE_CLIENT_ID: 'mina-client', APP_IOS_FIREBASE_API_KEY: 'mina-key', APP_IOS_FIREBASE_APP_ID: '1:2:ios:3',
@@ -38,8 +38,8 @@ describe('/api/app/business', () => {
       version: 1, id: 'taheri', name: 'TAHERI', shortName: 'Taheri ERP', serverURL: 'https://erp.taheri.shop', metal: 'gold',
       margin: { kind: 'rattiLess', ratti: 6 },
       palette: {
-        light: { accent: '#8A6B42', ground: '#ECE8E1', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
-        dark: { accent: '#D3B47F', ground: '#030606', card: '#172020', elevated: '#202A29', onAccent: '#0B1414' },
+        light: { accent: '#85652A', ground: '#F4F1EB', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
+        dark: { accent: '#CFAA62', ground: '#0A1111', card: '#132020', elevated: '#1A2828', onAccent: '#0A1111' },
       },
       logo: { light: 'https://erp.taheri.shop/taheri-logo.png', dark: 'https://erp.taheri.shop/taheri-logo-light.png' },
       icon: 'https://erp.taheri.shop/icons/taheri/icon-512.png',
@@ -59,8 +59,8 @@ describe('/api/app/business', () => {
       id: 'mina', name: 'House of Mina', shortName: 'Mina ERP', serverURL: 'https://erp.houseofmina.store', metal: 'silver',
       margin: { kind: 'percent', percent: 40 },
       palette: {
-        light: { accent: '#380000', ground: '#F2E9E4', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FBF9F9' },
-        dark: { accent: '#EBA9B3', ground: '#090405', card: '#22131A', elevated: '#2C1A21', onAccent: '#251318' },
+        light: { accent: '#8B1E2D', ground: '#F8F1EE', card: '#FFFFFF', elevated: '#FFFFFF', onAccent: '#FFFFFF' },
+        dark: { accent: '#E8A5AE', ground: '#140B0B', card: '#241416', elevated: '#2E1B1E', onAccent: '#2A1416' },
       },
       logo: { light: 'https://erp.houseofmina.store/house-of-mina-logo.png', dark: 'https://erp.houseofmina.store/house-of-mina-logo-light.png', aspect: 4.9458 },
       icon: 'https://erp.houseofmina.store/icons/mina/icon-512.png',
@@ -107,7 +107,7 @@ describe('/api/app/business', () => {
 
   it('falls back to Taheri\'s colours for a malformed palette', async () => {
     const { body } = await get({ NEXT_PUBLIC_STORE_PALETTE: '{"light":{"accent":"red"}' });
-    expect(body.palette.light.accent).toBe('#8A6B42');
+    expect(body.palette.light.accent).toBe('#85652A');
   });
 
   it('sends PDFs from the line only where one is connected', async () => {

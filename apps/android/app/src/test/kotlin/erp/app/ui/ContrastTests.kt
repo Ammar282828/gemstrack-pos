@@ -17,8 +17,8 @@ import kotlin.test.assertTrue
 // the shapes that carry information. Dark mode is where it slipped (owner, 2026-11-14), so a failure names the house and scheme.
 
 class ContrastTests {
-    private val taheri = Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414", "#202A29"))
-    private val mina = Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9", "#FFFFFF"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318", "#2C1A21"))
+    private val taheri = Business.Palette(Business.Side("#85652A", "#F4F1EB", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#CFAA62", "#0A1111", "#132020", "#0A1111", "#1A2828"))
+    private val mina = Business.Palette(Business.Side("#8B1E2D", "#F8F1EE", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#E8A5AE", "#140B0B", "#241416", "#2A1416", "#2E1B1E"))
 
     private class Case(val house: String, val dark: Boolean, val s: ColorScheme) {
         override fun toString() = "$house/${if (dark) "dark" else "light"}"

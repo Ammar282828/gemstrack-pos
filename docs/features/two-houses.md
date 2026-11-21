@@ -6,7 +6,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   default metal, margin, **brand**, logo, its aspect and its height in the sidebar (`NEXT_PUBLIC_STORE_LOGO_SIDEBAR_HEIGHT`, Mina 18 — its
   spaced capitals fill their file, so Taheri's 26 px was a banner; 2026-09-28), **counter staff** for "Taken by"); `globals.css`
   (`.dark .brand-mina:not(.theme-default)` is Mina's dark palette — muted burgundy with the catalogue's dusty rose
-  #E8A5AE as the accent, 2026-09-25 (since 2026-10-25 a near-black wine ground #090405 and the rose #EBA9B3; values in web-matches-app.md a.1) — and `.brand-mina.theme-default` gives its light theme Mina's maroon #380000; Taheri's
+  #E8A5AE as the accent, 2026-09-25 (since 2026-10-25 a near-black wine ground #140B0B and the rose #E8A5AE; values in web-matches-app.md a.1) — and `.brand-mina.theme-default` gives its light theme Mina's maroon #8B1E2D; Taheri's
   dark is the plain `.dark`. A palette block on <body> must re-declare the `--sidebar-*` vars, which otherwise resolve on
   <html> to Taheri's colours. Each house's logo has a white cut for dark grounds, `NEXT_PUBLIC_STORE_LOGO_LIGHT_URL`:
   `taheri-logo-light.png` by default, Mina's `house-of-mina-logo-light.png`); `layout.tsx`

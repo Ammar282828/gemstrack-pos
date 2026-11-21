@@ -15,8 +15,8 @@ import kotlin.test.assertTrue
 // Plain Kotlin, no device: the contrast every word is read at is the thing that must not slip when a palette changes.
 
 class SchemeTests {
-    private val taheri = Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414", "#202A29"))
-    private val mina = Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9", "#FFFFFF"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318", "#2C1A21"))
+    private val taheri = Business.Palette(Business.Side("#85652A", "#F4F1EB", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#CFAA62", "#0A1111", "#132020", "#0A1111", "#1A2828"))
+    private val mina = Business.Palette(Business.Side("#8B1E2D", "#F8F1EE", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#E8A5AE", "#140B0B", "#241416", "#2A1416", "#2E1B1E"))
 
     private fun contrast(a: Color, b: Color): Double {
         val hi = maxOf(a.luminance(), b.luminance()).toDouble()

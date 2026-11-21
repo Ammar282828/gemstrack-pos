@@ -124,6 +124,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`; the ERP reads in Inter, headings and figures too (2026-11-06)
 - [Feel of the app](docs/decisions.md#feel-of-the-app) — hidden screens do no work, non-money saves leave at once, failing parts show a Retry card, pressed states everywhere, tokens only; the web's service worker caches static files and keeps pages network-first
 - [Loading](docs/decisions.md#loading) — a skeleton shaped like the content when its shape is known; the spinning circle only for an action; a busy button keeps its size
+- [Palette](docs/decisions.md#palette) — each house's from its brand, one hue family per house (2026-11-20): Taheri ivory #F4F1EB + gold #85652A / teal-black #0A1111 + gold #CFAA62; Mina ivory #F8F1EE + red #8B1E2D / maroon-black #140B0B + rose #E8A5AE; web, asset catalogue, businesses.json, STORE_PALETTE together
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
 - [Motion](docs/decisions.md#motion) — three curves; dialogs linger; Reduce Motion; menus and dialogs grow from the press, rows stagger on a page's first showing, a drawn tick at the end of a sale/order/payment, 44 px under a finger (2026-11-19)
 - [Recent picks](docs/decisions.md#recent-picks) — last five per device

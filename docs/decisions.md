@@ -142,6 +142,29 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
   professional sans serif font". Tailwind's `sans` and `serif` are both `var(--font-inter)` with the system sans behind it
   (`tailwind.config.ts`), so the `font-serif` headings and money figures that wore the app's New York read in Inter.)
 
+### Palette
+
+- **Each house's palette re-cut from its brand** (2026-11-20, owner: "the overall colour palette for both light and dark modes
+  is pretty off for both houses. do some research, keep brand colours in mind and make changes across erp, ios, mac"). What
+  was off, measured: Taheri's light ground was warm while its chips, fields and dividers were iOS's cool greys (two
+  temperatures on one screen), and its gold a desaturated brown (#8A6B42, 35% saturation); its dark ground was near pure black
+  (#030606), not taheri.shop's teal-black. Mina's light accent was the wordmark's #380000, which reads as black-brown on
+  buttons, over beige chips on a blush ground (three warm hues); its dark cards leaned purple (hue 332), not maroon.
+  The method (as Material 3's tonal palettes and Radix's scales): one hue family per house, so ground, card, chip, divider and
+  quiet text are all tints of it; the brand colour as the accent at the tone that passes 4.5:1 for words; dark surfaces lift
+  by lightness, never by a new hue; every pair checked (`lib/contrast.test.ts`).
+  - **Taheri light:** ivory ground #F4F1EB, white cards, warm chips #ECE7DE, borders #E2DCD1, quiet text #6A6358, ink
+    #1C1915; the gold #85652A (saturated, 4.6:1 on the ground, 5.3:1 on white; white on it 5.3:1).
+  - **Taheri dark:** taheri.shop's teal-black #0A1111, cards #132020 (the brand's ground2), raised #1A2828; the brand gold
+    #CFAA62 with the ground's colour on it; bone text #F4F2ED.
+  - **Mina light:** its brand ivory #F8F1EE, white cards, rose-tinted chips #F2E6E2; the brand's button red #8B1E2D (9:1 on
+    white). Red for delete stays the bright system red, lighter and more orange than the wine, so the two never look alike.
+  - **Mina dark:** the brand's maroon-black #140B0B, cards #241416, raised #2E1B1E; dusty rose #E8A5AE with maroon on it.
+  - Everywhere the colours live: web `globals.css` (four blocks), the apps' asset catalogue (iPhone, iPad, Mac; high-contrast
+    variants too), `businesses.json` (iPhone and Android), the server's palette (`STORE_PALETTE`: code defaults for Taheri,
+    `apphosting.mina.yaml` for Mina), Android's built-ins, widget and picker, the browser bar colour, the AI sign-in page.
+    Tones (late, owed, settled, credit, working) are unchanged: they mean things, not the brand.
+
 ### Light and dark
 
 - **Light / dark is per device** (owner, 2026-09-25: "switching is buggy"): the sun/moon in the top bar sets this device's

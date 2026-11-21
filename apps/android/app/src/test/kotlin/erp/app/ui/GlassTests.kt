@@ -12,8 +12,8 @@ import kotlin.test.assertTrue
 // smeared by the blur) and the ground's washes stacked at their strongest.
 
 class GlassTests {
-    private val taheri = Business.Palette(Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#D3B47F", "#030606", "#172020", "#0B1414", "#202A29"))
-    private val mina = Business.Palette(Business.Side("#380000", "#F2E9E4", "#FFFFFF", "#FBF9F9", "#FFFFFF"), Business.Side("#EBA9B3", "#090405", "#22131A", "#251318", "#2C1A21"))
+    private val taheri = Business.Palette(Business.Side("#85652A", "#F4F1EB", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#CFAA62", "#0A1111", "#132020", "#0A1111", "#1A2828"))
+    private val mina = Business.Palette(Business.Side("#8B1E2D", "#F8F1EE", "#FFFFFF", "#FFFFFF", "#FFFFFF"), Business.Side("#E8A5AE", "#140B0B", "#241416", "#2A1416", "#2E1B1E"))
 
     private fun contrast(a: Color, b: Color): Double {
         val hi = maxOf(a.luminance(), b.luminance()).toDouble()
@@ -48,7 +48,7 @@ class GlassTests {
     }
 
     @Test fun theBrandCardsKeepTheirInk() {
-        // Taheri's champagne on #0B1414 and Mina's maroon on blush, at the picker's tint, over the same heavy backdrop in either theme.
+        // Taheri's champagne on #0A1111 and Mina's maroon on blush, at the picker's tint, over the same heavy backdrop in either theme.
         for ((ground, ink) in listOf(Color(0xFF0B1414) to Color(0xFFD3B47F), Color(0xFFF2E9E4) to Color(0xFF380000))) for (dark in listOf(false, true)) {
             val s = ErpScheme.colors(ErpScheme.seedOf(taheri), dark)
             val backdrop = lerp(s.surface, s.onSurface, 0.5f)

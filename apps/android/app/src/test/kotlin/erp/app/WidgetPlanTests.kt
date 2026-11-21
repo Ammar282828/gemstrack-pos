@@ -21,8 +21,8 @@ import kotlin.test.assertTrue
 
 // The widget's two-business layout and what its faces show (WidgetSummary.kt): the same plan draws the Glance widget and the preview.
 
-private val SIDE = Business.Side("#8A6B42", "#ECE8E1", "#FFFFFF", "#FFFFFF", "#FFFFFF")
-private val PALETTE = Business.Palette(SIDE, SIDE.copy(accent = "#D3B47F", ground = "#030606", card = "#172020", elevated = "#202A29"))
+private val SIDE = Business.Side("#85652A", "#F4F1EB", "#FFFFFF", "#FFFFFF", "#FFFFFF")
+private val PALETTE = Business.Palette(SIDE, SIDE.copy(accent = "#CFAA62", ground = "#0A1111", card = "#132020", elevated = "#1A2828"))
 
 private fun link(id: String, brand: String? = id) = WidgetLinkData(id, id.uppercase() + " ERP", "https://erp.$id.example", "key-$id", PALETTE, brand)
 

@@ -326,7 +326,7 @@ class OfflineTests {
     @Test fun theNextBusinessGoesRoundAndNeedsTwo() {
         fun b(id: String) = erp.app.config.Business.decode(
             """{"version":1,"id":"$id","name":"$id","shortName":"$id ERP","serverURL":"https://erp.$id.example","metal":"gold","margin":{"kind":"percent","percent":10},
-               "palette":{"light":{"accent":"#8A6B42","ground":"#ECE8E1","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#D3B47F","ground":"#030606","card":"#172020","elevated":"#202A29","onAccent":"#0B1414"}},
+               "palette":{"light":{"accent":"#85652A","ground":"#F4F1EB","card":"#FFFFFF","elevated":"#FFFFFF","onAccent":"#FFFFFF"},"dark":{"accent":"#CFAA62","ground":"#0A1111","card":"#132020","elevated":"#1A2828","onAccent":"#0A1111"}},
                "logo":{"light":"https://erp.$id.example/l.png","dark":"https://erp.$id.example/d.png","aspect":4.5},"icon":"https://erp.$id.example/i.png","android":null,"flags":{}}""",
         )!!
         val list = listOf(b("a"), b("b"), b("c"))
