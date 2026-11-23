@@ -65,7 +65,7 @@ export interface SitePiece {
   newArrival: boolean;
   /** The photograph's path under catalog-full/ (or the drop folder's, same key), which a re-made one replaces. */
   imagePath: string | null;
-  /** Still in taheri.shop's drop folder: on the site, not yet in its attributes; its page is served by the site's api/piece.php. */
+  /** Still in the site's drop folder: on taheri.shop not yet in its attributes (its page is api/piece.php's); on the catalogue not yet in catalog-pieces.json. */
   drop?: boolean;
   /** Which list it came from: the catalogue's pieces (paragraphs, facts) or taheri.shop's photographs (tags, counter weights). */
   source: 'pieces' | 'attributes';
@@ -168,7 +168,7 @@ const tag = (v: unknown) => (typeof v === 'string' && v.trim() && !/^none$/i.tes
 type Drop = { p: string; t?: number; thumb: string; full: string };
 
 
-/** taheri.shop's drop folder (api/catalog.php): photographs on the site that its attributes don't list until they are adopted. */
+/** A site's drop folder (api/catalog.php): photographs on the site that its own list leaves out until the next rebuild or adoption. */
 async function dropsOf(site: string): Promise<Drop[]> {
   const res = await fetch(`${site}/api/catalog.php`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
   if (!res?.ok) return [];
@@ -187,6 +187,49 @@ export async function listDrops(site: string): Promise<{ key: string; name: stri
     const key = dr.p.replace(/\.[^./]+$/, '.webp');
     return { key, name: key.split('/').pop()!.replace(/\.webp$/i, ''), thumb: abs(dr.thumb), added: typeof dr.t === 'number' && dr.t > 0 ? dr.t * 1000 : null };
   });
+}
+
+/** The catalogue's slug rule (mina-catalogue src/lib/catalog.js `slugify`): keep the two in step. */
+const catalogueSlug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const CAMERA_NAME = /^(img|dsc|dscn|pxl|photo|image|whatsapp image|screenshot)[\s_-]*\d/i;
+
+/**
+ * House of Mina's drops (2026-11-23, the owner on new pieces missing from the hub: "figure it out"): photographs uploaded
+ * straight to the catalogue's drop folder are on the site at once (its `dropPiece`), but catalog-pieces.json lists them only
+ * after a rebuild. Each is listed here under the key and address the catalogue itself gives it — `mina/piece/new-<name>-<t>`
+ * at `/<collection>/new-<name>-<t>`, the collection's address from its catalog-tree.json — so the counter's words and hide
+ * (keyed the same) apply, and a link posted now keeps working (a drop taken off is redirected to the piece it became).
+ */
+export function parseCatalogueDrops(site: string, drops: Drop[], tree: { folder?: string; path?: string; collection?: string }[], known: Set<string> = new Set()): Listed[] {
+  const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
+  const pathOf = new Map(tree.filter(c => typeof c?.folder === 'string' && typeof c.path === 'string').map(c => [c.folder!, c]));
+  return drops.flatMap(dr => {
+    const [cat, col, file] = dr.p.split('/');
+    const home = file ? pathOf.get(`${cat}/${col}`) : undefined;
+    if (!home || !dr.t) return [];
+    const stem = file.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+\d+$/, '').trim();
+    const named = !!stem && !CAMERA_NAME.test(stem) && !/^\d+$/.test(stem);
+    const handle = `new-${catalogueSlug(stem || 'piece')}-${dr.t}`;
+    const id = `mina/piece/${handle}`;
+    if (known.has(id)) return [];
+    const name = named ? stem.replace(/[_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : `New in ${home.collection || col}`;
+    return [{
+      id, name, url: `${site}${home.path}/${handle}`, image: abs(dr.full), thumb: abs(dr.thumb), collection: home.collection || col,
+      weightGrams: null, weightOnPhoto: false, facts: [], about: '',
+      added: dr.t * 1000, newArrival: false, imagePath: null, drop: true, source: 'pieces' as const,
+      photoSource: null, sourceMarked: false, own: { name, about: '', facts: [] },
+    }];
+  });
+}
+
+async function catalogueDropsOf(site: string, known: Set<string>): Promise<Listed[]> {
+  try {
+    const [drops, res] = await Promise.all([dropsOf(site), fetch(`${site}/catalog-tree.json`, { cache: 'no-store', signal: AbortSignal.timeout(8000) })]);
+    if (!drops.length || !res.ok) return [];
+    const tree = ((await res.json()) as { collections?: { folder?: string; path?: string; collection?: string }[] }).collections ?? [];
+    return parseCatalogueDrops(site, drops, tree, known);
+  } catch { return []; } // the drops are extra: never cost the catalogue's own list
 }
 
 /** taheri.shop's name addresses for named drops (drop-slugs.json, written by its `npm run slugs`); none → file-name addresses. */
@@ -359,7 +402,7 @@ async function readSite(site: string): Promise<Listed[]> {
   const read = await fromCatalogPieces(site);
   const host = site.replace(/^https?:\/\//, '');
   let all: Listed[];
-  if (read.kind === 'ok') all = read.pieces;
+  if (read.kind === 'ok') all = [...read.pieces, ...(await catalogueDropsOf(site, new Set(read.pieces.map(p => p.id))))];
   else if (read.kind === 'failed') throw new Error(`${host} did not give its list of pieces just now (${read.why}). Try again in a minute.`);
   else {
     try { all = await fromAttributes(site); }

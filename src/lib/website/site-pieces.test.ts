@@ -69,7 +69,7 @@ const minaFile = {
     null,
   ],
 };
-const { parseCatalogPieces, getSitePieces, forgetSitePieces } = await import('./site-pieces');
+const { parseCatalogPieces, parseCatalogueDrops, getSitePieces, forgetSitePieces } = await import('./site-pieces');
 
 describe('parseCatalogPieces (Mina-shaped catalogue)', () => {
   const out = parseCatalogPieces('https://catalogue.houseofmina.store', minaFile as never);
@@ -111,7 +111,8 @@ describe('getSitePieces on the catalogue when its host blips', () => {
   it('asks again once when the host answers 503 mid-deploy', async () => {
     const f = await run([reply(503), reply(200, minaFile)]);
     expect((await getSitePieces()).pieces.length).toBe(3);
-    expect(f).toHaveBeenCalledTimes(2);
+    // The catalogue's own list is asked for this often (its drop folder and tree are read beside it).
+    expect((f.mock.calls as unknown[][]).filter(c => String(c[0]).endsWith('/catalog-pieces.json'))).toHaveLength(2);
   });
 
   it('says what happened instead of asking taheri.shop\'s attributes file', async () => {
@@ -157,7 +158,8 @@ describe('getSitePieces when the catalogue is slow (owner, 2026-11-12)', () => {
     const f = vi.fn(async () => reply(200, minaFile));
     vi.stubGlobal('fetch', f);
     await Promise.all([getSitePieces(), getSitePieces(), getSitePieces()]);
-    expect(f).toHaveBeenCalledTimes(1);
+    // The catalogue's own list is asked for this often (its drop folder and tree are read beside it).
+    expect((f.mock.calls as unknown[][]).filter(c => String(c[0]).endsWith('/catalog-pieces.json'))).toHaveLength(1);
   });
 
   it('finds a piece this server has not heard of yet by asking the site', async () => {
@@ -184,5 +186,30 @@ describe('leanPiece', () => {
     expect(lean.thumb).toBe(full[0].thumb);
     expect(lean.photos).toEqual(full[0].photos);
     expect(lean.hidden).toBe(false);
+  });
+});
+
+describe('parseCatalogueDrops (House of Mina drops not yet on catalog-pieces.json)', () => {
+  const site = 'https://catalogue.houseofmina.store';
+  const tree = [
+    { folder: 'Rings & Bands/Rings & Bands', path: '/rings-and-bands', collection: 'Rings & Bands' },
+    { folder: 'Wristwear/Bangle & Ring Sets', path: '/bangle-and-ring-sets', collection: 'Bangle & Ring Sets' },
+  ];
+  const drop = (p: string, t: number) => ({ p, t, thumb: `/api/img.php/thumb/${encodeURI(p)}`, full: `/api/img.php/full/${encodeURI(p)}` });
+  const out = parseCatalogueDrops(site, [
+    drop('Rings & Bands/Rings & Bands/Pearl Solitaire Pavé Ring.png', 1795442113),
+    drop('Wristwear/Bangle & Ring Sets/Fluted Gold Pavé Bangle and Ring Set.png', 1795442102),
+    drop('Rings & Bands/Rings & Bands/DSC09001.png', 1795442000),
+    drop('Nowhere/Nowhere/Lost Ring.png', 1795442001),
+  ], tree, new Set(['mina/piece/new-dsc09001-1795442000']));
+
+  it('keys and addresses each drop as the catalogue does', () => {
+    expect(out.map(p => [p.id, p.url, p.name])).toEqual([
+      ['mina/piece/new-pearl-solitaire-pave-ring-1795442113', `${site}/rings-and-bands/new-pearl-solitaire-pave-ring-1795442113`, 'Pearl Solitaire Pavé Ring'],
+      ['mina/piece/new-fluted-gold-pave-bangle-and-ring-set-1795442102', `${site}/bangle-and-ring-sets/new-fluted-gold-pave-bangle-and-ring-set-1795442102`, 'Fluted Gold Pavé Bangle And Ring Set'],
+    ]);
+  });
+  it('marks them drops, dated by the upload, with the server-sized photographs', () => {
+    expect(out[0]).toMatchObject({ drop: true, added: 1795442113000, collection: 'Rings & Bands', thumb: `${site}/api/img.php/thumb/Rings%20&%20Bands/Rings%20&%20Bands/Pearl%20Solitaire%20Pav%C3%A9%20Ring.png` });
   });
 });
