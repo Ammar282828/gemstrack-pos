@@ -74,6 +74,22 @@ The settings page gives each of these with the key filled in.
 - **Gemini CLI** (`~/.gemini/settings.json`): `{"mcpServers": {"<house>-erp": {"httpUrl": "https://<erp>/api/agent/mcp", "headers": {"Authorization": "Bearer tk_…"}}}}`.
 - **Cursor** (`~/.cursor/mcp.json`): the same with `"url"`.
 
+### One key, one AI (2026-11-23)
+
+The owner: "if I create a key, it can only be used with one thing. It cannot be reused for other things … if I use it in Muse,
+it cannot be used anywhere else because it's been used in Muse." A key's first use binds it (`boundTo` on the record, set in a
+transaction and never changed; `lib/agent/keys.ts`):
+- **A connector signing in** (claude.ai, ChatGPT, Meta Muse…): the key binds to that connector — its registered name and where
+  its answers go — when its token is made (`addToken`). The same connector may sign in again (a new token); any other is refused
+  on the ERP's page, before the redirect, and again at the token. From then on **the key itself stops working on its own**:
+  only that connector's tokens do. A sign-in takes the key, never a token.
+- **A program calling with the key** (Claude Code, Gemini CLI, a script, the Studio's MCP): the key binds to the program's name,
+  the first word of its User-Agent ("claude-code/1.0 …" → claude-code). Another program, or any connector sign-in, is refused.
+  This one is weaker than a connector's: a program can say any name, so it stops a key being reused in another AI by
+  mistake, not a deliberate copy; the connector binding is the strong one.
+- Refusals say who has the key and to make a new one. Settings → Connect an AI shows "Locked to …" on each key, or that the first
+  AI to use it keeps it. Keys made before 2026-11-23 bind on their next use. Revoke still stops the key and every token at once.
+
 ### Signing a connector in (no header)
 
 claude.ai's and ChatGPT's connectors speak OAuth 2.1, so the ERP is its own small authorization server (`agent/oauth.ts`):

@@ -49,7 +49,32 @@ export interface KeyRecord {
   calls: number;
   /** Tokens given to an AI's connector through the sign-in page (oauth.ts), as hashes. */
   tokens?: { hash: string; at: string }[];
+  /**
+   * One key, one AI (owner, 2026-11-23: "if I create a key, it can only be used with one thing … if I use it in Muse, it
+   * cannot be used anywhere else"). Set by the first use and never changed: a connector signed in through the ERP's
+   * page (its name and where its answers go), or a program calling with the key itself (its User-Agent's name).
+   */
+  boundTo?: KeyBinding;
 }
+
+export type KeyBinding =
+  | { kind: 'connector'; name: string; host: string; at: string }
+  | { kind: 'direct'; app: string; at: string };
+
+/** How a key is being used just now: the sign-in page (the key pasted), or a call carrying it (and from what). */
+export type KeyUse = { use: 'signin' } | { use: 'direct'; app: string };
+
+/** What a binding is called on screen and in refusals. */
+export const bindingName = (b: KeyBinding): string => (b.kind === 'connector' ? b.name : b.app);
+
+/** The calling program, from its User-Agent: the first product name ("claude-code/1.2 …" → "claude-code"). */
+export function appFromUserAgent(ua: string | null | undefined): string {
+  const first = String(ua ?? '').trim().split(/\s+/)[0] ?? '';
+  const name = first.split('/')[0].replace(/[^\w.@-]/g, '').slice(0, 40);
+  return name || 'an unnamed program';
+}
+
+const sameConnector = (b: KeyBinding | undefined, name: string, host: string) => b?.kind === 'connector' && b.name === name && b.host === host;
 
 /** What the screens see: everything but the hashes. */
 export type KeyInfo = Omit<KeyRecord, 'hash' | 'tokens' | 'kind'> & { connectors: number };
@@ -57,7 +82,7 @@ export type KeyInfo = Omit<KeyRecord, 'hash' | 'tokens' | 'kind'> & { connectors
 /** A checked key: who it acts as and what it may do. */
 export interface AgentKey { id: string; label: string; scopes: Scope[]; email: string; role: ReturnType<typeof roleForEmail>; expiresAt: string | null }
 
-export type KeyCheck = { ok: true; key: AgentKey } | { ok: false; reason: 'missing' | 'malformed' | 'house' | 'unknown' | 'expired' | 'orphaned' | 'paused'; message: string };
+export type KeyCheck = { ok: true; key: AgentKey } | { ok: false; reason: 'missing' | 'malformed' | 'house' | 'unknown' | 'expired' | 'orphaned' | 'paused' | 'bound'; message: string };
 
 const now = () => new Date().toISOString();
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -138,7 +163,7 @@ export async function revokeKey(id: string): Promise<boolean> {
 }
 
 /** Is this the key (or a connector's token for it), still good, for someone who still may? */
-export async function checkKey(raw: string | null | undefined, at = new Date()): Promise<KeyCheck> {
+export async function checkKey(raw: string | null | undefined, at = new Date(), how?: KeyUse): Promise<KeyCheck> {
   const text = String(raw ?? '').trim();
   if (!text) return { ok: false, reason: 'missing', message: 'An AI key is needed: Settings → Connect an AI makes one.' };
   const parts = text.length <= 120 ? parseKey(text) : null;
@@ -150,12 +175,26 @@ export async function checkKey(raw: string | null | undefined, at = new Date()):
   const s = await ref(parts.id).get();
   const r = s.exists ? (s.data() as KeyRecord) : null;
   const h = sha256(parts.secret);
-  const matches = !!r && (sameHash(h, r.hash) || (r.tokens ?? []).some(t => sameHash(h, t.hash)));
+  const isKey = !!r && sameHash(h, r.hash);
+  const isToken = !!r && !isKey && (r.tokens ?? []).some(t => sameHash(h, t.hash));
+  const matches = isKey || isToken;
   if (!r || !matches) return { ok: false, reason: 'unknown', message: 'That key is not known here — it may have been revoked. Make a new one in Settings → Connect an AI.' };
   if (r.expiresAt && Date.parse(r.expiresAt) <= at.getTime()) return { ok: false, reason: 'expired', message: `That key expired on ${r.expiresAt.slice(0, 10)}. Make a new one in Settings → Connect an AI.` };
   const role = roleForEmail(r.createdBy);
   const scopes = scopesFor(role, r.scopes);
   if (!scopes.length) return { ok: false, reason: 'orphaned', message: 'The person who made that key no longer has access, so the key stopped.' };
+  // One key, one AI.
+  const b = r.boundTo;
+  const elsewhere = (name: string) => `This key is already in use by ${name}, and a key works with one AI only. Make a new key for this one in Settings → Connect an AI.`;
+  if (how?.use === 'signin') {
+    // A connector signs in with the key itself, and only if the key is new or already this connector's (checked again, by name, when its token is made).
+    if (!isKey) return { ok: false, reason: 'unknown', message: 'Paste the key itself (from Settings → Connect an AI), not a connector’s token.' };
+    if (b?.kind === 'direct') return { ok: false, reason: 'bound', message: elsewhere(b.app) };
+  } else if (how?.use === 'direct' && isKey) {
+    if (b?.kind === 'connector') return { ok: false, reason: 'bound', message: `This key belongs to ${b.name}, which signed in with it; it works only there. Make a new key for anything else.` };
+    if (b?.kind === 'direct' && b.app !== how.app) return { ok: false, reason: 'bound', message: elsewhere(b.app) };
+    if (!b && !(await bindDirect(r.id, how.app))) return { ok: false, reason: 'bound', message: elsewhere('another program') };
+  }
   return { ok: true, key: { id: r.id, label: r.label, scopes, email: r.createdBy, role, expiresAt: r.expiresAt } };
 }
 
@@ -164,15 +203,41 @@ export async function noteUse(id: string): Promise<void> {
   await ref(id).update({ lastUsedAt: now(), calls: FieldValue.increment(1) });
 }
 
-/** A token for an AI's connector, standing for this key (oauth.ts); revoking the key stops it too. */
-export async function addToken(id: string): Promise<string> {
+/** The key's first program, set only while the key is unbound; false when something else bound it first. */
+async function bindDirect(id: string, app: string): Promise<boolean> {
+  const r = ref(id);
+  return adminDb.runTransaction(async tx => {
+    const s = await tx.get(r);
+    const b = s.exists ? (s.data() as KeyRecord).boundTo : undefined;
+    if (b) return b.kind === 'direct' && b.app === app;
+    tx.update(r, { boundTo: { kind: 'direct', app, at: now() } satisfies KeyBinding });
+    return true;
+  });
+}
+
+/**
+ * A token for an AI's connector, standing for this key (oauth.ts); revoking the key stops it too. The first connector to
+ * sign in owns the key from then on (`boundTo`); the same connector signing in again is let through, any other refused.
+ */
+export async function addToken(id: string, by: { name: string; host: string }): Promise<string> {
   const secret = randomBytes(30).toString('base64url');
   const r = ref(id);
   await adminDb.runTransaction(async tx => {
     const s = await tx.get(r);
     if (!s.exists) throw Object.assign(new Error('That key has been revoked.'), { status: 400 });
-    const tokens = [...(((s.data() as KeyRecord).tokens) ?? []), { hash: sha256(secret), at: now() }].slice(-MAX_TOKENS);
-    tx.update(r, { tokens });
+    const rec = s.data() as KeyRecord;
+    if (rec.boundTo && !sameConnector(rec.boundTo, by.name, by.host)) {
+      throw Object.assign(new Error(`This key is already in use by ${bindingName(rec.boundTo)}, and a key works with one AI only. Make a new key for ${by.name}.`), { status: 400 });
+    }
+    const tokens = [...(rec.tokens ?? []), { hash: sha256(secret), at: now() }].slice(-MAX_TOKENS);
+    tx.update(r, { tokens, ...(rec.boundTo ? {} : { boundTo: { kind: 'connector', name: by.name, host: by.host, at: now() } satisfies KeyBinding }) });
   });
   return `tk_${houseHint()}_${id}_${secret}`;
+}
+
+/** Who a key belongs to, if anyone yet. */
+export async function boundOf(id: string): Promise<KeyBinding | null> {
+  if (!/^[a-f0-9]{16}$/.test(id)) return null;
+  const s = await ref(id).get();
+  return s.exists ? ((s.data() as KeyRecord).boundTo ?? null) : null;
 }

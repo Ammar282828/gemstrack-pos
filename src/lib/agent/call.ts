@@ -10,7 +10,7 @@ import type { NextRequest } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { rateLimit } from '@/lib/website/ratelimit';
 import { mediaOrigin, publicOrigin } from '@/lib/social/gate';
-import { checkKey, noteUse, type AgentKey, type KeyCheck } from './keys';
+import { appFromUserAgent, checkKey, noteUse, type AgentKey, type KeyCheck } from './keys';
 import { runTool, type AgentCtx, type AgentTool, type RunResult } from './registry';
 
 /** Calls a key may make an hour. */
@@ -24,7 +24,8 @@ export function keyFrom(req: Pick<NextRequest, 'headers'>): string {
 }
 
 export async function authenticate(req: Pick<NextRequest, 'headers'>): Promise<KeyCheck> {
-  return checkKey(keyFrom(req)).catch((e): KeyCheck => {
+  // A key used directly locks to the first program that calls with it (keys.ts, one key one AI).
+  return checkKey(keyFrom(req), new Date(), { use: 'direct', app: appFromUserAgent(req.headers.get('user-agent')) }).catch((e): KeyCheck => {
     console.error('[agent] key check failed:', e instanceof Error ? e.message : e);
     return { ok: false, reason: 'unknown', message: 'The key could not be checked just now. Try again.' };
   });

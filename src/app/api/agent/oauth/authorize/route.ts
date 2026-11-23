@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { STORE_CONFIG } from '@/lib/store-config';
-import { checkKey } from '@/lib/agent/keys';
+import { bindingName, boundOf, checkKey } from '@/lib/agent/keys';
 import { authorizePage, getClient, issueCode } from '@/lib/agent/oauth';
 import { callerKey, rateLimit } from '@/lib/website/ratelimit';
 
@@ -44,8 +44,13 @@ export async function POST(req: NextRequest) {
   const page = (error: string, status: number) => html(authorizePage({ house: STORE_CONFIG.name, client: r.client.name, redirectHost: r.redirect.host, hidden: hiddenOf(p), error }), status);
   const limit = await rateLimit('ai-oauth-authorize', callerKey(req.headers), 20, 900);
   if (!limit.ok) return page('Too many tries. Wait a few minutes.', 429);
-  const check = await checkKey(String(form?.get('key') ?? ''));
+  const check = await checkKey(String(form?.get('key') ?? ''), new Date(), { use: 'signin' });
   if (!check.ok) return page(check.message, 401);
+  // One key, one AI: say so here, on the page, rather than in the connector's error after the redirect.
+  const owner = await boundOf(check.key.id);
+  if (owner && !(owner.kind === 'connector' && owner.name === r.client.name && owner.host === r.redirect.host)) {
+    return page(`This key is already in use by ${bindingName(owner)}, and a key works with one AI only. Make a new key for ${r.client.name} in Settings → Connect an AI.`, 403);
+  }
   const code = await issueCode({ keyId: check.key.id, clientId: r.client.id, redirectUri: p.redirect_uri!, challenge: p.code_challenge! });
   r.redirect.searchParams.set('code', code);
   if (p.state) r.redirect.searchParams.set('state', p.state);

@@ -14,6 +14,7 @@ import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { checkAgentKey } from '@/lib/ads/studio/board';
 import { INSTRUCTIONS, PROTOCOL_VERSIONS, SERVER_INFO, TOOLS, callTool } from '@/lib/ads/studio/board-agent';
 import { rateLimit } from '@/lib/website/ratelimit';
+import { appFromUserAgent } from '@/lib/agent/keys';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -53,7 +54,7 @@ async function handle(m: Rpc, who: string): Promise<object | null> {
 export async function POST(req: NextRequest) {
   if (!STORE_AD_STUDIO) return NextResponse.json({ error: 'Not part of this shop.' }, { status: 404 });
   const key = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
-  const who = await checkAgentKey(key).catch(() => null);
+  const who = await checkAgentKey(key, appFromUserAgent(req.headers.get('user-agent'))).catch(() => null);
   if (!who) return NextResponse.json(error(null, -32001, 'A Studio key is needed: Ads → Studio → Board → Connect an agent.'), { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } });
   const limit = await rateLimit('studio-mcp', key.slice(-12), 600, 3_600);
   if (!limit.ok) return NextResponse.json(error(null, -32002, 'Too many calls this hour (600). Try again shortly.'), { status: 429 });

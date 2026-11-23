@@ -29,6 +29,8 @@ interface ScopeRow { id: Scope; label: string; detail: string; byDefault: boolea
 interface KeyRow {
   id: string; label: string; scopes: Scope[]; tail: string; createdBy: string; createdAt: string;
   expiresAt: string | null; lastUsedAt: string | null; calls: number; connectors: number;
+  /** The one AI the key belongs to, from its first use (lib/agent/keys.ts). */
+  boundTo?: { kind: 'connector'; name: string; host: string; at: string } | { kind: 'direct'; app: string; at: string } | null;
 }
 
 const EXPIRY = [
@@ -195,7 +197,7 @@ export default function ConnectAiPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" /> {fresh.info.label}’s key</CardTitle>
-              <CardDescription>Shown only now — copy it into the AI. The ERP keeps only a fingerprint of it.</CardDescription>
+              <CardDescription>Shown only now — copy it into the AI. The ERP keeps only a fingerprint of it. One key works with one AI: it locks to the first one that uses it, so make a new key for each.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <CopyBlock text={fresh.key} />
@@ -265,6 +267,12 @@ export default function ConnectAiPage() {
                     Made {when(k.createdAt)}{k.expiresAt && !expired(k) ? ` · until ${new Date(k.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                     {' · '}{k.lastUsedAt ? `used ${when(k.lastUsedAt)} · ${k.calls} call${k.calls === 1 ? '' : 's'}` : 'not used yet'}
                     {k.connectors ? ` · ${k.connectors} connector${k.connectors === 1 ? '' : 's'} signed in` : ''}
+                  </p>
+                  {/* One key, one AI: who it belongs to, or that the first use will decide. */}
+                  <p className="text-ios-foot text-muted-foreground">
+                    {k.boundTo
+                      ? <>Locked to <span className="font-medium text-foreground">{k.boundTo.kind === 'connector' ? `${k.boundTo.name} (${k.boundTo.host})` : k.boundTo.app}</span> since {when(k.boundTo.at)}</>
+                      : 'Not locked yet: the first AI to use it keeps it'}
                   </p>
                 </div>
                 <Button size="sm" variant="ghost" className="text-destructive shrink-0" onClick={() => setRevoking(k)}><Trash2 className="h-4 w-4 mr-1" /> Revoke</Button>

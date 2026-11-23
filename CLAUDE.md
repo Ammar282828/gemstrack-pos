@@ -224,7 +224,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Retouch](docs/features/post-a-piece.md#retouch) — Magnific (GPT Image) + Precision, then the same-piece check
 
 **AI keys** (`docs/features/ai-keys.md`)
-- [AI keys](docs/decisions.md#ai-keys) — Settings → Connect an AI: scoped, hashed, revocable keys; MCP + REST + OpenAPI from one registry; an AI's posts wait for the owner's OK
+- [AI keys](docs/decisions.md#ai-keys) — Settings → Connect an AI: scoped, hashed, revocable keys; MCP + REST + OpenAPI from one registry; an AI's posts wait for the owner's OK; one key, one AI: a key locks to the first connector or program that uses it (`boundTo`, 2026-11-23)
 
 **WhatsApp reports and the monthly PDF** (`docs/features/notifications.md`)
 - [WhatsApp reports](docs/features/notifications.md#whatsapp-reports) — `app_settings/global` by name; daily; [PDFs only](docs/features/notifications.md#pdfs-only)

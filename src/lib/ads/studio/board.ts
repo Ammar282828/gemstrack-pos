@@ -127,9 +127,10 @@ export async function revokeAgentKey(tail: string): Promise<void> {
 }
 
 /** The key's label when it may use the Studio (and its last use is noted, at most once a minute); null otherwise. */
-export async function checkAgentKey(key: string): Promise<string | null> {
+export async function checkAgentKey(key: string, app = 'the Studio board'): Promise<string | null> {
   if (key.startsWith('tk_')) {
-    const c = await checkKey(key);
+    // An ERP AI key here is one use like any other: it locks to the first program (keys.ts, one key one AI).
+    const c = await checkKey(key, new Date(), { use: 'direct', app });
     return c.ok && c.key.scopes.includes('studio') ? c.key.label : null;
   }
   if (!key || !key.startsWith('tstudio_') || key.length > 80) return null;

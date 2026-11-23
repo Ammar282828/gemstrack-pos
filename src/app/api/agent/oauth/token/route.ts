@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { addToken } from '@/lib/agent/keys';
-import { pkceOk, takeCode } from '@/lib/agent/oauth';
+import { getClient, pkceOk, takeCode } from '@/lib/agent/oauth';
 import { keysAllowed } from '@/lib/agent/rules-guard';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
   if (f.redirect_uri && f.redirect_uri !== grant.redirectUri) return refuse('invalid_grant', 'The redirect address does not match.');
   if (!pkceOk(f.code_verifier || '', grant.challenge)) return refuse('invalid_grant', 'The PKCE verifier does not match.');
   try {
-    const token = await addToken(grant.keyId);
+    const client = await getClient(grant.clientId);
+    const token = await addToken(grant.keyId, { name: client?.name ?? 'An AI', host: new URL(grant.redirectUri).host });
     return NextResponse.json({ access_token: token, token_type: 'Bearer', scope: 'erp' }, { headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } });
   } catch (e) {
     return refuse('invalid_grant', e instanceof Error ? e.message : 'That key has been revoked.');

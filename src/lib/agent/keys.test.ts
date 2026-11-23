@@ -9,7 +9,7 @@ vi.mock('@/lib/roles', () => ({ roleForEmail: (e: string) => roles[e] ?? 'none' 
 const rules = { ok: true as boolean };
 vi.mock('./rules-guard', () => ({ keysAllowed: async () => (rules.ok ? { ok: true } : { ok: false, state: 'open', message: 'AI keys are paused: publish firestore.rules' }) }));
 
-const { createKey, checkKey, listKeys, revokeKey, noteUse, addToken, parseKey, sameHash, scopesFor } = await import('./keys');
+const { createKey, checkKey, listKeys, revokeKey, noteUse, addToken, parseKey, sameHash, scopesFor, appFromUserAgent, boundOf } = await import('./keys');
 
 beforeEach(() => { fake.reset(); rules.ok = true; });
 
@@ -38,7 +38,7 @@ describe('AI keys', () => {
 
   it('a revoked key stops at once, with the connectors’ tokens for it', async () => {
     const { key, info } = await make();
-    const token = await addToken(info.id);
+    const token = await addToken(info.id, { name: 'ChatGPT', host: 'chatgpt.com' });
     expect((await checkKey(token)).ok).toBe(true);
     expect(await revokeKey(info.id)).toBe(true);
     expect(await checkKey(key)).toMatchObject({ ok: false, reason: 'unknown' });
@@ -90,5 +90,38 @@ describe('AI keys', () => {
     expect(sameHash('ab'.repeat(32), 'ab'.repeat(32))).toBe(true);
     expect(sameHash('ab'.repeat(32), 'ac'.repeat(32))).toBe(false);
     expect(sameHash('ab', 'ab'.repeat(32))).toBe(false);
+  });
+});
+
+describe('one key, one AI', () => {
+  const muse = { name: 'Meta Muse', host: 'muse.meta.com' };
+  it('a connector that signs in first owns the key: no other connector, and not the key itself', async () => {
+    const { key, info } = await make();
+    expect((await checkKey(key, new Date(), { use: 'signin' })).ok).toBe(true);
+    const token = await addToken(info.id, muse);
+    expect((await checkKey(token, new Date(), { use: 'direct', app: 'whatever' })).ok).toBe(true);
+    // Muse signing in again is fine.
+    expect(await addToken(info.id, muse)).toMatch(/^tk_/);
+    // Another connector is refused, and so is the key used on its own.
+    await expect(addToken(info.id, { name: 'ChatGPT', host: 'chatgpt.com' })).rejects.toThrow(/already in use by Meta Muse/);
+    expect(await checkKey(key, new Date(), { use: 'direct', app: 'claude-code' })).toMatchObject({ ok: false, reason: 'bound' });
+    expect(await boundOf(info.id)).toMatchObject({ kind: 'connector', name: 'Meta Muse' });
+  });
+  it('a key used directly locks to that program; another program and any sign-in are refused', async () => {
+    const { key, info } = await make();
+    expect((await checkKey(key, new Date(), { use: 'direct', app: 'claude-code' })).ok).toBe(true);
+    expect((await checkKey(key, new Date(), { use: 'direct', app: 'claude-code' })).ok).toBe(true);
+    expect(await checkKey(key, new Date(), { use: 'direct', app: 'gemini-cli' })).toMatchObject({ ok: false, reason: 'bound' });
+    expect(await checkKey(key, new Date(), { use: 'signin' })).toMatchObject({ ok: false, reason: 'bound' });
+    await expect(addToken(info.id, muse)).rejects.toThrow(/already in use by claude-code/);
+  });
+  it('a sign-in takes the key itself, never a connector’s token', async () => {
+    const { info } = await make();
+    const token = await addToken(info.id, muse);
+    expect(await checkKey(token, new Date(), { use: 'signin' })).toMatchObject({ ok: false });
+  });
+  it('names the program from its User-Agent', () => {
+    expect(appFromUserAgent('claude-code/1.0.3 (linux)')).toBe('claude-code');
+    expect(appFromUserAgent('')).toBe('an unnamed program');
   });
 });
