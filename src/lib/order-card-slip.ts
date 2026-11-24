@@ -29,7 +29,15 @@ const LABEL = [85, 85, 85] as const;   // the card's grey
 const INK = [26, 26, 26] as const;     // what is written on the lines
 const RULE = [120, 120, 120] as const;
 
-const money = (n: number) => `PKR ${Math.round(n || 0).toLocaleString('en-PK')}`;
+/** The slip's currency: the shop's rupees, or another for a customer abroad at a stated rate (owner, 2026-11-24). */
+export interface SlipCurrency { code: string; /** Rupees to one of it, e.g. 277 for USD. */ pkrPerUnit: number }
+let cur: SlipCurrency | null = null;
+const money = (n: number, perGram = false) => {
+  if (!cur) return `PKR ${Math.round(n || 0).toLocaleString('en-PK')}`;
+  const v = (n || 0) / cur.pkrPerUnit;
+  // Whole units for amounts; a rate per gram keeps its cents, or it would read 112 for 111.91.
+  return `${cur.code} ${v.toLocaleString('en-US', perGram ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
+};
 
 /** "21K · PKR 34,000/g" for each karat the order's gold is in; the silver rate for silver. Nothing when the rates are hidden. */
 export function cardRates(order: Order): string {
@@ -38,16 +46,28 @@ export function cardRates(order: Order): string {
   const out: string[] = [];
   for (const k of ['24k', '22k', '21k', '18k']) {
     if (order.items.some(i => i.metalType === 'gold' && i.karat === k) && rates[`goldRatePerGram${k}`]) {
-      out.push(`${k.toUpperCase()} · ${money(rates[`goldRatePerGram${k}`])}/g`);
+      out.push(`${k.toUpperCase()} · ${money(rates[`goldRatePerGram${k}`], true)}/g`);
     }
   }
-  if (order.items.some(i => i.metalType === 'silver') && rates.silverRatePerGram) out.push(`Silver · ${money(rates.silverRatePerGram)}/g`);
+  if (order.items.some(i => i.metalType === 'silver') && rates.silverRatePerGram) out.push(`Silver · ${money(rates.silverRatePerGram, true)}/g`);
   return out.join('   ');
 }
 
-/** One line per piece: what it is, then its metal, weight and size (the detailed slip's spec, shortened to fit a line). */
+/**
+ * One short line per piece: what it is (the customer's words, else its kind), its karat or metal, its estimated weight
+ * — "Meena Jhumki · 21K · Est. 5.52g". The detailed slip's long spec ("Bangle · Meena Kara · Gold (21K) · Est. 15.7g")
+ * wrapped every piece onto two lines, so a three-piece order ran out of room and its third piece became "and more
+ * pieces" (ORD-000124's jhumki, 2026-11-24). Size and stones go on the detailed slip and the order page.
+ */
 export function cardItems(order: Order): string[] {
-  return buildOrderItemBlocks(order).map(b => [b.name, b.spec].filter(Boolean).join(' · ').replace(/\s+·\s+/g, ' · '));
+  const blocks = buildOrderItemBlocks(order);
+  return order.items.map((it, i) => {
+    const name = (it.description || '').trim() || blocks[i]?.name || 'Piece';
+    const metal = it.metalType === 'gold' && it.karat ? it.karat.toUpperCase()
+      : it.metalType ? it.metalType.charAt(0).toUpperCase() + it.metalType.slice(1) : '';
+    const weight = !it.isManualPrice && it.estimatedWeightG ? `Est. ${it.estimatedWeightG}g` : '';
+    return [name, metal, weight].filter(Boolean).join(' · ');
+  });
 }
 
 /** What was paid ahead: the cash advances, and gold or stones taken in exchange. */
@@ -61,6 +81,8 @@ export interface CardSlipOptions {
   dates?: PdfDates;
   /** The wordmark (the page's or the server's, pdf-inputs.ts); without one the slip goes without a logo. */
   images?: PdfImages;
+  /** Amounts in another currency at a stated rate (a customer abroad); rupees when absent. */
+  currency?: SlipCurrency;
 }
 
 /** Everyone the customer may call: the documents' five contacts that have both a name and a number. */
@@ -73,6 +95,11 @@ export const cardContacts = (): [string, string][] => ([
 ] as [string, string][]).filter(([n, v]) => n && v);
 
 export function drawCardOrderSlip(order: Order, opts: CardSlipOptions = {}): jsPDF {
+  cur = opts.currency ?? null;
+  try { return drawCard(order, opts); } finally { cur = null; }
+}
+
+function drawCard(order: Order, opts: CardSlipOptions): jsPDF {
   const day = opts.dates?.medium ?? ((iso: string) => format(parseISO(iso), 'd MMM yyyy'));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
   doc.addFileToVFS('FuturaLT-Light.ttf', FUTURA_LIGHT_TTF);
@@ -106,9 +133,10 @@ export function drawCardOrderSlip(order: Order, opts: CardSlipOptions = {}): jsP
   const rule = (yy: number, from = lineFrom) => {
     doc.setDrawColor(...RULE).setLineWidth(0.25).line(from, yy, right, yy);
   };
+  let itemSize = 11;
   const value = (text: string, yy: number, from = lineFrom) => {
     if (!text) return;
-    doc.setFont(FACE, 'normal').setFontSize(11).setTextColor(...INK);
+    doc.setFont(FACE, 'normal').setFontSize(itemSize).setTextColor(...INK);
     const fitted = doc.splitTextToSize(text, right - from - 2)[0] as string;
     doc.text(fitted, from + 1.5, yy - 1.6);
   };
@@ -126,20 +154,29 @@ export function drawCardOrderSlip(order: Order, opts: CardSlipOptions = {}): jsP
 
   // Items: the first piece on its own line, each further piece on a line below; at least the card's one spare line.
   // A long piece runs on to the next line rather than being cut.
-  doc.setFont(FACE, 'normal').setFontSize(11);
-  // At most seven lines, so the page holds everything below them; more than that, the last says how many more.
-  const wrapped = cardItems(order).flatMap(t => (doc.splitTextToSize(t, right - lineFrom - 2) as string[]).map(l => l.replace(/^\s*·\s*/, '')));
-  // As many as fit above the four rows still to come (Advance, Rate, Sample, Sales Rep) and the contacts.
-  const MAX = Math.max(2, 1 + Math.floor((footRule - 8 - 3 * step - 4 - (y + step)) / extraStep));
+  // As many lines as fit above the four rows still to come (Advance, Rate, Sample, Sales Rep) and the contacts. Every
+  // piece is printed if it can be: first at the card's size, then smaller and closer; only past that does the last line
+  // point to the order.
+  const lay = (size: number, gap: number) => {
+    doc.setFont(FACE, 'normal').setFontSize(size);
+    const lines = cardItems(order).flatMap(t => (doc.splitTextToSize(t, right - lineFrom - 2) as string[]).map(l => l.replace(/^\s*·\s*/, '')));
+    return { size, gap, lines, max: Math.max(2, 1 + Math.floor((footRule - 8 - 3 * step - 4 - (y + step)) / gap)) };
+  };
+  let fit = lay(11, extraStep);
+  if (fit.lines.length > fit.max) fit = lay(9.5, 7.5);
+  itemSize = fit.size;
+  const wrapped = fit.lines, MAX = fit.max, itemStep = fit.gap;
   const items = wrapped.length > MAX ? [...wrapped.slice(0, MAX - 1), `and more pieces — see ${order.id}`] : wrapped;
   row('Items', items[0] ?? '');
+  itemSize = fit.size;
   const more = Math.max(1, items.length - 1);
   for (let i = 0; i < more; i++) {
     const yy = y - 3;
     rule(yy);
     value(items[i + 1] ?? '', yy);
-    y += extraStep;
+    y += itemStep;
   }
+  itemSize = 11;
   y += 2;
 
   row('Advance', cardAdvance(order));
