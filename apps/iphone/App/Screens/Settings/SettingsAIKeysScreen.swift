@@ -60,8 +60,33 @@ struct AIKey: Decodable, Identifiable, Hashable {
     let lastUsedAt: String?
     let calls: Int
     let connectors: Int
+    /// The one AI this key works with (lib/agent/keys.ts `boundTo`, 2026-11-23): the first connector or program to use it.
+    let boundTo: KeyLock?
 
-    private enum K: String, CodingKey { case id, label, scopes, tail, createdBy, createdAt, expiresAt, lastUsedAt, calls, connectors }
+    /// A connector by name and host, or a program by its User-Agent; nil until first used.
+    struct KeyLock: Decodable, Hashable {
+        let kind: String
+        let name: String
+        let host: String
+        let app: String
+        let at: String
+        private enum K: String, CodingKey { case kind, name, host, app, at }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: K.self)
+            kind = c.string(.kind, default: "")
+            name = c.string(.name, default: "")
+            host = c.string(.host, default: "")
+            app = c.string(.app, default: "")
+            at = c.string(.at, default: "")
+        }
+        /// "Claude (claude.ai)" or the program's name, as the web's Settings says it.
+        var who: String {
+            if kind == "connector" { return host.isEmpty ? name : "\(name) (\(host))" }
+            return app.isEmpty ? "a program" : app
+        }
+    }
+
+    private enum K: String, CodingKey { case id, label, scopes, tail, createdBy, createdAt, expiresAt, lastUsedAt, calls, connectors, boundTo }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -75,6 +100,13 @@ struct AIKey: Decodable, Identifiable, Hashable {
         lastUsedAt = c.string(.lastUsedAt)
         calls = c.int(.calls) ?? 0
         connectors = c.int(.connectors) ?? 0
+        boundTo = (try? c.decodeIfPresent(KeyLock.self, forKey: .boundTo)) ?? nil
+    }
+
+    /// "Locked to Claude (claude.ai) since 23 Nov", or that the first AI to use it keeps it.
+    var lockLine: String {
+        guard let b = boundTo else { return "Not locked yet: the first AI to use it keeps it" }
+        return "Locked to \(b.who)" + (b.at.isEmpty ? "" : " since " + ShopDate.say(b.at, withTime: true))
     }
 
     var expired: Bool {
@@ -232,6 +264,7 @@ private struct AIKeysPage: View {
             parts.append("not used yet")
         }
         if k.connectors > 0 { parts.append("\(k.connectors) connector\(k.connectors == 1 ? "" : "s") signed in") }
+        parts.append(k.lockLine)
         return parts.joined(separator: " · ")
     }
 
@@ -471,6 +504,10 @@ extension AIKeysPage {
                     Text(k.connectors == 0 ? "" : "\(k.connectors) signed in").lineLimit(1).foregroundStyle(.secondary)
                 }
                 .width(min: 70, ideal: 100)
+                TableColumn("Locked to") { (k: AIKey) in
+                    Text(k.boundTo?.who ?? "Not yet").lineLimit(1).foregroundStyle(.secondary).help(k.lockLine)
+                }
+                .width(min: 90, ideal: 150)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if !ids.isEmpty {

@@ -84,3 +84,4 @@ app archived for TestFlight's "Shop" group, and the iPhone app built beside it a
 - 2026-11-19: ERP 2.8.7 — motion: lists' rows come in one after another the first time a list is shown; a finished sale, order or payment lands with a bouncing tick.
 - 2026-11-19: On the Mac, after 2.8.7: Orders, Invoices, Customers, Repairs and Stock's own lists and cards come in one after another the first time each shows its records in a launch, as the iPhone's lists do (2.8.7's reached only the screens the Mac shares with the iPhone); a payment or an advance taken in those places lands with the same bouncing tick.
 - 2026-11-20: ERP 2.8.8 — Posts: tell the AI what to change in a piece's caption (shorter, call it bridal, the stones are amethyst); Rewrite with AI keeps the house's caption layout.
+- 2026-11-24: ERP 2.8.9 — Settings › Connect an AI says which AI each key is locked to (a key works with one AI only).
