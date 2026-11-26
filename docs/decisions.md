@@ -1420,6 +1420,11 @@ taheri. Keep the old one as backup if we don't like this new one."
 - **Restored the same day** (owner: "I tried printing the order slip, but it was printing the old format, not the new format
   I gave you"): `card` again. If the slip is to change again, ask which one before flipping it.
 
+- **Every piece on the card** (2026-11-24, owner: "this one doesn't include jhumki explicitly"). ORD-000124's three pieces
+  each wrapped onto two lines, so the third became "and more pieces". A piece is now one short line — its own words, karat
+  or metal, estimated weight ("Meena Jhumki · 21K · Est. 5.52g"); when they still don't fit the type steps down (11 → 9.5 pt,
+  closer lines) before anything is cut. `drawCardOrderSlip` also takes `currency` ({ code, pkrPerUnit }) for a customer
+  abroad: amounts in whole units, a rate per gram to the cent (first used: ORD-000124 in USD at 277).
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
