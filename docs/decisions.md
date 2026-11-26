@@ -859,6 +859,16 @@ karigar's name is kept. Cancelled or returned sales are left as they are. No app
   bracelet options change back"): its picker offers 4.5" to 9" in quarter inches; Bracelets and a set's bracelet keep
   1.1–3.0, the scale they share with bangles (`SIZE_SCALES`, store.ts). The profile check reads 7, 7" and 7 in as one size.
 
+### Customer rename carries
+
+- **A customer's corrected name reaches their records** (2026-11-26, owner: "Once I make an order with a customer, and then I
+  realize the name is wrong and I edit the customer name in the customer base, it should also then update the name in the
+  orders because it's the same customer"). `updateCustomer` (lib/writes/people.ts, the one write for web, iPhone and Android)
+  carries a changed name to every order, invoice and repair with that `customerId`, and to the customer's khata entries
+  (`entityType` customer); a changed number replaces the old one (or an empty one) there, never a different number typed on
+  one record. Linked by id, never by matching names. One activity line says how many records changed. Before this, a rename
+  left them as written (kept from the old store, not a decision).
+
 ### Walk-ins
 
 - **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the

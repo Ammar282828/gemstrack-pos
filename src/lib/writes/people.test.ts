@@ -20,7 +20,7 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
       writes.forEach((w) => w());
       return out;
     },
-    async queryEquals() { return []; },
+    async queryEquals(c, f, v) { return Object.entries(col(c)).filter(([, d]) => d[f] === v).map(([id, d]) => ({ ...d, id }) as never); },
     async get(c, id) { const d = col(c)[id]; return d ? ({ ...d, id } as never) : null; },
     async add() { return 'x'; },
     async update(c, id, d) { apply(c, id, d, true); },
@@ -62,15 +62,17 @@ describe('updateCustomer', () => {
     expect(data.customers['cust-1'].phone).toBe('+923002223333');
   });
 
-  it('does not touch any other document: a rename leaves the invoices as they were written', async () => {
+  // Was "a rename leaves the invoices as they were written" (kept from the old store when the write was moved here); the owner,
+  // 2026-11-26, wants the corrected name on the customer's records: see 'a renamed customer, everywhere' below.
+  it('a rename reaches the customer\'s invoice and khata entry too', async () => {
     const { db, data } = fakeDb({
       customers: { 'cust-1': { ...CUSTOMER } },
       invoices: { 'INV-1': { customerId: 'cust-1', customerName: 'Demo Customer' } },
       hisaab: { h1: { entityId: 'cust-1', entityName: 'Demo Customer' } },
     });
     await updateCustomer(db, 'cust-1', { name: 'Demo Renamed' });
-    expect(data.invoices['INV-1'].customerName).toBe('Demo Customer');
-    expect(data.hisaab.h1.entityName).toBe('Demo Customer');
+    expect(data.invoices['INV-1'].customerName).toBe('Demo Renamed');
+    expect(data.hisaab.h1.entityName).toBe('Demo Customer'); // no entityType: not known to be the customer, left alone
   });
 
   it('drops an undefined field rather than failing the whole save', async () => {
@@ -226,5 +228,42 @@ describe('cleanKarigarEdit', () => {
     expect(cleanKarigarEdit(null, 'update').ok).toBe(false);
     expect(cleanKarigarEdit({ id: 'x' }, 'update')).toEqual({ ok: false, error: 'Nothing to save.' });
     expect(cleanKarigarEdit({ name: 7 }, 'add')).toEqual({ ok: false, error: 'Name must be text.' });
+  });
+});
+
+describe('a renamed customer, everywhere', () => {
+  const seed = () => ({
+    customers: { c1: { name: 'Tahir Kanch', phone: '+923001112222' } },
+    orders: { o1: { customerId: 'c1', customerName: 'Tahir Kanch', customerContact: '+923001112222' }, o2: { customerId: 'c2', customerName: 'Someone' }, o3: { customerId: 'c1', customerName: 'Tahir Kanch', customerContact: '+923339998888' } },
+    invoices: { i1: { customerId: 'c1', customerName: 'Tahir Kanch' } },
+    repairs: { r1: { customerId: 'c1', customerName: 'tahir' } },
+    hisaab: { h1: { entityId: 'c1', entityType: 'customer', entityName: 'Tahir Kanch' }, h2: { entityId: 'c1', entityType: 'karigar', entityName: 'Karigar c1' } },
+  });
+  it('carries the new name to every order, invoice, repair and khata entry linked by id, and nothing else', async () => {
+    const { db, data } = fakeDb(seed());
+    const { lines, fx } = logger();
+    await updateCustomer(db, 'c1', { name: 'Tahir Kaanch' }, fx);
+    expect(data.orders.o1.customerName).toBe('Tahir Kaanch');
+    expect(data.orders.o3.customerName).toBe('Tahir Kaanch');
+    expect(data.orders.o2.customerName).toBe('Someone');
+    expect(data.invoices.i1.customerName).toBe('Tahir Kaanch');
+    expect(data.repairs.r1.customerName).toBe('Tahir Kaanch');
+    expect(data.hisaab.h1.entityName).toBe('Tahir Kaanch');
+    expect(data.hisaab.h2.entityName).toBe('Karigar c1');
+    expect(lines.at(-1)?.[1]).toBe('Carried the name "Tahir Kaanch" to 5 records');
+  });
+  it('a new number replaces the old one, never a different number typed on one order', async () => {
+    const { db, data } = fakeDb(seed());
+    await updateCustomer(db, 'c1', { phone: '0300 4445555' });
+    expect(data.orders.o1.customerContact).toBe('+923004445555');
+    expect(data.orders.o3.customerContact).toBe('+923339998888');
+    expect(data.orders.o1.customerName).toBe('Tahir Kanch');
+  });
+  it('touches nothing when the name and number did not change', async () => {
+    const { db, data } = fakeDb(seed());
+    const { lines, fx } = logger();
+    await updateCustomer(db, 'c1', { name: 'Tahir Kanch', city: 'Karachi' }, fx);
+    expect(data.repairs.r1.customerName).toBe('tahir');
+    expect(lines).toHaveLength(1);
   });
 });

@@ -144,15 +144,59 @@ export function cleanKarigarEdit(input: unknown, mode: 'add' | 'update'): Cleane
  * is not on file, or has been removed, is refused rather than made out of a patch.
  */
 export async function updateCustomer(db: DbPort, id: string, patch: CustomerWrite, fx: SideEffects = {}, opts: { mustExist?: boolean } = {}): Promise<void> {
-  if (opts.mustExist) {
-    const held = await db.get<{ deletedAt?: string }>(CUSTOMERS, id);
-    if (!held || held.deletedAt) throw new Error('No such customer.');
-  }
+  const held = await db.get<{ deletedAt?: string; name?: string; phone?: string }>(CUSTOMERS, id);
+  if (opts.mustExist && (!held || held.deletedAt)) throw new Error('No such customer.');
   const data = patch.phone !== undefined ? { ...patch, phone: normalizePhoneNumber(patch.phone) } : patch;
   const b = db.batch();
   b.set(CUSTOMERS, id, cleanObject(data) as Record<string, unknown>, true);
   await b.commit();
   log(fx, 'customer.update', `Updated customer: ${patch.name || id}`, `ID: ${id}`, id);
+  // The same customer everywhere (owner, 2026-11-26: "I edit the customer name in the customer base, it should also then
+  // update the name in the orders because it's the same customer").
+  const name = typeof data.name === 'string' ? data.name.trim() : '';
+  const phone = typeof data.phone === 'string' ? data.phone : '';
+  const renamed = !!name && name !== (held?.name ?? '').trim();
+  const renumbered = !!phone && phone !== (held?.phone ?? '');
+  if (held && (renamed || renumbered)) {
+    const n = await carryCustomer(db, id, { name: renamed ? name : null, phone: renumbered ? phone : null, oldPhone: held.phone ?? '' });
+    if (n) log(fx, 'customer.update', `Carried ${renamed ? `the name "${name}"` : 'the new number'} to ${n} record${n === 1 ? '' : 's'}`, `Orders, invoices, repairs and the khata of ID: ${id}`, id);
+  }
+}
+
+/** Records that copy a customer's name and number when they are made, by the field that links them back. */
+const CARRIED = [
+  { col: 'orders', link: 'customerId', name: 'customerName', phone: 'customerContact' },
+  { col: 'invoices', link: 'customerId', name: 'customerName', phone: 'customerContact' },
+  { col: 'repairs', link: 'customerId', name: 'customerName', phone: 'customerContact' },
+  { col: 'hisaab', link: 'entityId', name: 'entityName', phone: null },
+] as const;
+
+/**
+ * A customer's new name onto every order, invoice, repair and khata entry linked to them (by id, never by matching
+ * names: two Fatimas stay two). The number moves only where the record held the old one or none, so a delivery number
+ * typed on one order stays. Returns how many records changed. Chunked: a Firestore batch takes 500 writes.
+ */
+export async function carryCustomer(db: DbPort, id: string, to: { name: string | null; phone: string | null; oldPhone: string }): Promise<number> {
+  const changes: { col: string; id: string; patch: Record<string, unknown> }[] = [];
+  for (const c of CARRIED) {
+    const rows = await db.queryEquals<Record<string, unknown>>(c.col, c.link, id);
+    for (const r of rows) {
+      if (c.col === 'hisaab' && r.entityType !== 'customer') continue;
+      const patch: Record<string, unknown> = {};
+      if (to.name && r[c.name] !== to.name) patch[c.name] = to.name;
+      if (to.phone && c.phone && r[c.phone] !== to.phone) {
+        const had = String(r[c.phone] ?? '');
+        if (!had || normalizePhoneNumber(had) === normalizePhoneNumber(to.oldPhone)) patch[c.phone] = to.phone;
+      }
+      if (Object.keys(patch).length) changes.push({ col: c.col, id: r.id, patch });
+    }
+  }
+  for (let i = 0; i < changes.length; i += 400) {
+    const b = db.batch();
+    for (const ch of changes.slice(i, i + 400)) b.update(ch.col, ch.id, ch.patch);
+    await b.commit();
+  }
+  return changes.length;
 }
 
 /** A new karigar, under an id made as the store makes it. */

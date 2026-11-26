@@ -161,6 +161,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
 - [Sizes to the profile](docs/decisions.md#sizes-to-the-profile) — order sizes, offered once
+- [Customer rename carries](docs/decisions.md#customer-rename-carries) — a renamed customer's name (and changed number) reaches their orders, invoices, repairs and khata by `customerId` (`carryCustomer`, 2026-11-26)
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere
 - [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`; several reference photos per piece (`extraPhotos`, one doc each, the first stays in the old field), opened full screen
 
