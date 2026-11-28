@@ -46,4 +46,14 @@ Claude Code runs these repos in the cloud too, with no Mac.
 
 ## Cloud Build token maintenance
 
-The owner configured `github-deploy-token` in Google Secret Manager on 2026-10-25. Its fine-grained GitHub token is limited to `taheri-pos` and `gemstrack-pos`, with Contents, Workflows and Commit statuses set to Read and write. The initial token expires on 2026-11-24; replace it with a new Secret Manager version before expiry. Never commit or print the token.
+The owner configured `github-deploy-token` in Google Secret Manager on 2026-10-25. Its fine-grained GitHub token is limited to `taheri-pos` and `gemstrack-pos`, with Contents, Workflows and Commit statuses set to Read and write. The first token expired on 2026-11-24; the owner saved a new version on 2026-11-28. Replace it with a new Secret Manager version before it expires (the owner, from the Mac: `printf '%s' 'TOKEN' | gcloud secrets versions add github-deploy-token --project gemstrack-pos --data-file=-`; a cloud session's account may read it but not write it, by design). Never commit or print the token.
+
+**What its expiry looks like (2026-11-24 to 2026-11-28).** From 2026-11-24 03:49 UTC every deploy, from every chat, failed at
+the first step with `remote: Invalid username or token` and `Authentication failed`, before any of the change was built: the
+token had stopped being accepted for git and expired that day. Nothing reached either house until the owner saved a new version.
+Signs to read it by: three or more `claude/…` deploys in a row red at step 0 with that line, whatever they changed. The fix is
+only a new Secret Manager version of `github-deploy-token`, pasted with nothing before or after it (git reads it as the password
+as stored); a pushed commit then deploys whatever waited.
+
+A cloud session cannot test this token by calling GitHub itself: its network proxy attaches the session's own GitHub login, so
+a call answers 200 (and the session token's expiry) whatever the secret holds. Only a deploy tells: its step 0 clones with it.

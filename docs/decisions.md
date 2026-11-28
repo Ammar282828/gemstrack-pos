@@ -859,6 +859,16 @@ karigar's name is kept. Cancelled or returned sales are left as they are. No app
   bracelet options change back"): its picker offers 4.5" to 9" in quarter inches; Bracelets and a set's bracelet keep
   1.1–3.0, the scale they share with bangles (`SIZE_SCALES`, store.ts). The profile check reads 7, 7" and 7 in as one size.
 
+### Customer rename carries
+
+- **A customer's corrected name reaches their records** (2026-11-26, owner: "Once I make an order with a customer, and then I
+  realize the name is wrong and I edit the customer name in the customer base, it should also then update the name in the
+  orders because it's the same customer"). `updateCustomer` (lib/writes/people.ts, the one write for web, iPhone and Android)
+  carries a changed name to every order, invoice and repair with that `customerId`, and to the customer's khata entries
+  (`entityType` customer); a changed number replaces the old one (or an empty one) there, never a different number typed on
+  one record. Linked by id, never by matching names. One activity line says how many records changed. Before this, a rename
+  left them as written (kept from the old store, not a decision).
+
 ### Walk-ins
 
 - **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the
@@ -1410,6 +1420,11 @@ taheri. Keep the old one as backup if we don't like this new one."
 - **Restored the same day** (owner: "I tried printing the order slip, but it was printing the old format, not the new format
   I gave you"): `card` again. If the slip is to change again, ask which one before flipping it.
 
+- **Every piece on the card** (2026-11-24, owner: "this one doesn't include jhumki explicitly"). ORD-000124's three pieces
+  each wrapped onto two lines, so the third became "and more pieces". A piece is now one short line — its own words, karat
+  or metal, estimated weight ("Meena Jhumki · 21K · Est. 5.52g"); when they still don't fit the type steps down (11 → 9.5 pt,
+  closer lines) before anything is cut. `drawCardOrderSlip` also takes `currency` ({ code, pkrPerUnit }) for a customer
+  abroad: amounts in whole units, a rate per gram to the cent (first used: ORD-000124 in USD at 277).
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
