@@ -8,8 +8,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
-import { printOrderSlip, printOrderPdf, printShippingSlip } from '@/lib/pdf-lazy';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
+import { printOrderSlip, printOrderEnvelope, printOrderPdf, printShippingSlip } from '@/lib/pdf-lazy';
+import { STORE_CONFIG, STORE_ORDER_ENVELOPE, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { SendToKarigarDialog } from '@/components/karigar/send-to-karigar';
@@ -799,6 +799,11 @@ export default function OrderDetailPage() {
                               <DropdownMenuItem onClick={handlePrintOrderSlip}>
                                 <Printer className="mr-2 h-4 w-4" />Print slip
                               </DropdownMenuItem>
+                              {STORE_ORDER_ENVELOPE && (
+                                <DropdownMenuItem onClick={() => { void printOrderEnvelope(order).catch(e => toast({ title: 'Could not create the envelope', description: e instanceof Error ? e.message : 'Something went wrong while drawing it.', variant: 'destructive' })); }}>
+                                  <Printer className="mr-2 h-4 w-4" />Print envelope
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => setIsSendKarigarOpen(true)}>
                                 <Send className="mr-2 h-4 w-4" />Send to karigar
                               </DropdownMenuItem>

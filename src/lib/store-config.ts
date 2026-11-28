@@ -334,6 +334,9 @@ export const STORE_SITE_MARK_INK = process.env.NEXT_PUBLIC_STORE_SITE_MARK_INK?.
  * Back to the old one: set it to `classic` in apphosting.taheri.yaml.
  */
 export const STORE_ORDER_SLIP: 'card' | 'classic' = process.env.NEXT_PUBLIC_STORE_ORDER_SLIP === 'card' ? 'card' : 'classic';
+/** A second page after the order slip for the paper envelope: the order in full in a 3.5 × 4.5 in box, to cut and staple
+ * (lib/order-envelope.ts; owner, 2026-11-28). On unless the house says "0" (House of Mina). */
+export const STORE_ORDER_ENVELOPE = process.env.NEXT_PUBLIC_STORE_ORDER_ENVELOPE?.trim() !== '0';
 
 export const STORE_INVESTMENTS = process.env.NEXT_PUBLIC_STORE_INVESTMENTS !== '0';
 

@@ -1435,14 +1435,17 @@ taheri. Keep the old one as backup if we don't like this new one."
   closing 11), the customer and details block 9, the full-width Payment History 9/8. The narrow table beside the totals
   keeps 6.5/7: its columns are measured to fit and larger it cuts the notes. Repair receipts and reports unchanged.
 
-- **The envelope's sheet, page 2** (2026-11-28, owner: "when we print the order slip, it also prints all of the important
-  details on another paper … half the size … so we can then just fold it and staple it onto the envelope"). Every card slip
-  prints a second A5 page: the full details on its top half (148 × 105 mm) above a dashed "fold here" line, so folded it is
-  the envelope's size. Order number, customer and number, taken and ready-by dates and who took it; then each piece in full
-  (what it is, metal and karat, estimated weight, size, reference, diamonds, stones, stone weight, finish, sample, bench
-  notes) and the order's notes. No money: the envelope goes to the bench. 12 pt, stepping down to 6.5 pt for a long order;
-  past that it runs below the fold and says not to fold. `drawEnvelopeSheet` / `envelopeLines` in `lib/order-card-slip.ts`;
-  the apps print the server's slip, so they have it too.
+- **The envelope's sheet** (2026-11-28, owner: "when we print the order slip, it also prints all of the important details on
+  another paper … so we can then just fold it and staple it onto the envelope"; "the paper envelope is h4.5xw3.5 inches";
+  "All the important details, the advance amounts, the remaining payments, the estimates, the advance, the rates, the sizes,
+  the items, the if there's any special instructions. I want all of it on there"; "Also allow for separate printing of this
+  if needed"). A page after whichever slip the house prints (`STORE_ORDER_ENVELOPE`, on in code, "0" for House of Mina): on
+  A5, its words in a box the envelope's size (3.5 × 4.5 in, 88.9 × 114.3 mm) in the top-left corner with dashed cut lines
+  on its two inner edges. Order number, customer and number; taken, ready-by and who took it; estimate, advance (each, with
+  date and method, when several), gold taken in exchange, balance, rates; every piece in full (what it is, metal and karat,
+  estimated weight, size, reference, diamonds, stones, stone weight, finish, bench notes, its own estimate, sample); the
+  order's instructions. 10 pt stepping down to 6; past that it says to staple the whole page. **Print envelope** prints it
+  alone (order page ⋯ and the Orders card menu; `/api/app/pdf/order-slip/<id>?envelope=1` for the apps). `lib/order-envelope.ts`.
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).

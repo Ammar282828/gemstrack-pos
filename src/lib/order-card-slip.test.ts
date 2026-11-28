@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { cardAdvance, cardItems, cardRates, drawCardOrderSlip, envelopeLines } from './order-card-slip';
+import { cardAdvance, cardItems, cardRates, drawCardOrderSlip } from './order-card-slip';
+import { envelopeLines } from './order-envelope';
 
 const item = (o: Record<string, unknown> = {}) => ({
   description: 'Bypass ring', metalType: 'gold', karat: '21k', estimatedWeightG: 6.4, stoneWeightG: 0, hasStones: false, wastagePercentage: 0,
@@ -22,20 +23,19 @@ describe('the card order slip', () => {
   it('gives a line per piece and fits on one A5 page however many pieces', () => {
     expect(cardItems(order())[0]).toMatch(/Bypass ring/);
     const doc = drawCardOrderSlip(order({ items: Array.from({ length: 12 }, () => item()) }));
-    // The card is one A5 page however many pieces; the envelope's sheet follows as page 2.
-    expect(doc.getNumberOfPages()).toBe(2);
+    // The card is one A5 page however many pieces (the envelope's sheet is added by order-slip-pdf.ts, after either slip).
+    expect(doc.getNumberOfPages()).toBe(1);
   });
 
-  it('the envelope sheet carries every piece in full, and no money', () => {
-    const o = order({ customerContact: '+923001234567', items: [item({ description: 'Meena Jhumki', size: '7', stoneDetails: 'Rubies, pear', sampleGiven: true })] } as never);
-    const e = envelopeLines(o);
-    expect(e.head[0]).toContain('+923001234567');
-    expect(e.pieces[0].title).toMatch(/^1\. /);
+  it('the envelope sheet carries the money and every piece in full', () => {
+    const o = order({ customerContact: '+923001234567', notes: 'Polish before handing over', items: [item({ description: 'Meena Jhumki', size: '7', stoneDetails: 'Rubies, pear', sampleGiven: true, totalEstimate: 208788 })] } as never);
+    const e = envelopeLines(o, d => d.slice(0, 10));
+    expect(e.head).toContain('+923001234567');
+    expect(e.money.join(' | ')).toMatch(/Estimate PKR .*\| Advance PKR 20,000 .*Balance PKR/);
+    expect(e.money.join(' | ')).toMatch(/Rate 21K · PKR/);
     const all = [e.pieces[0].title, ...e.pieces[0].lines].join(' | ');
-    expect(all).toMatch(/Meena Jhumki/);
-    expect(all).toMatch(/Size 7/);
-    expect(all).toMatch(/Stones: Rubies, pear/);
-    expect(all).toMatch(/Sample given/);
-    expect(all).not.toMatch(/PKR|Rs/);
+    expect(e.pieces[0].title).toMatch(/^1\. /);
+    for (const want of [/Meena Jhumki/, /Size 7/, /Stones: Rubies, pear/, /Est\. PKR 208,788/, /Sample given/]) expect(all).toMatch(want);
+    expect(e.notes).toBe('Polish before handing over');
   });
 });

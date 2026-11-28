@@ -17,7 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (who instanceof NextResponse) return who;
   const { id } = await params;
   try {
-    const pdf = await orderSlipPdf(id, who.role);
+    // ?envelope=1: the envelope's sheet alone (lib/order-envelope.ts).
+    const pdf = await orderSlipPdf(id, who.role, req.nextUrl.searchParams.get('envelope') === '1' ? 'envelope' : undefined);
     if (!pdf) return NextResponse.json({ error: `No order ${id}. It may have been deleted.` }, { status: 404 });
     return pdfResponse(pdf);
   } catch (e) {

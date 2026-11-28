@@ -21,7 +21,7 @@ import {
   MoreHorizontal, Phone, MessageCircle, ExternalLink, SlidersHorizontal, RefreshCw,
 } from 'lucide-react';
 import QRCode from 'qrcode.react';
-import { printOrderSlip, drawOrderSlipLazy } from '@/lib/pdf-lazy';
+import { printOrderSlip, printOrderEnvelope, drawOrderSlipLazy } from '@/lib/pdf-lazy';
 import { browserPdfImages } from '@/lib/pdf-inputs';
 import { QuickPrintButton } from '@/components/shared/quick-print-button';
 import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
@@ -55,7 +55,7 @@ import {
   contactHrefs, toneClasses, type SwipeAction, type Tone,
 } from '@/components/ledger';
 import { owesMoney } from '@/lib/money';
-import { STORE_SHOPIFY_SECTION } from '@/lib/store-config';
+import { STORE_ORDER_ENVELOPE, STORE_SHOPIFY_SECTION } from '@/lib/store-config';
 import { convertBlocker, isShopifyInvoice, isToConfirm } from '@/lib/shopify-orders';
 import { whatsappOrderChip } from '@/lib/shopify-whatsapp';
 import { deliveryLabel, deliveryTone } from '@/lib/shopify-delivery';
@@ -186,6 +186,7 @@ function useStatusChange(order: Order) {
  * most: the status badge went, the stage word says it.
  */
 const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ order, owed, mine }) => {
+  const { toast } = useToast();
   const { print, busy: printing } = usePrintSlip(order);
   const status = useStatusChange(order);
   const [advanceOpen, setAdvanceOpen] = useState(false);
@@ -290,6 +291,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuItem onSelect={() => { void print(); }}><Printer className="mr-2 h-4 w-4" />Print slip</DropdownMenuItem>
+              {STORE_ORDER_ENVELOPE && <DropdownMenuItem onSelect={() => { void printOrderEnvelope(order).catch(e => toast({ title: 'Could not create the envelope', description: e instanceof Error ? e.message : 'Something went wrong while drawing it.', variant: 'destructive' })); }}><Printer className="mr-2 h-4 w-4" />Print envelope</DropdownMenuItem>}
               {hrefs && (
                 <>
                   <DropdownMenuSeparator />

@@ -28,6 +28,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The envelope's sheet after the order slip (lib/order-envelope.ts) is Taheri's paper envelope; Mina has none.
+  - variable: NEXT_PUBLIC_STORE_ORDER_ENVELOPE
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
   # The native app's colours for this house (GET /api/app/business; lib/store-config.ts STORE_PALETTE): the iPhone
   # app's Accent/Ground/Card/Elevated/OnAccent colour sets. Taheri's are the code's defaults.
   - variable: NEXT_PUBLIC_STORE_PALETTE

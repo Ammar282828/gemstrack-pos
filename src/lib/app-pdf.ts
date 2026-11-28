@@ -16,7 +16,7 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { staffView } from '@/lib/staff-view';
 import { drawInvoicePdf, invoicePdfFileName } from '@/lib/invoice-pdf';
-import { drawOrderSlipPdf, orderSlipFileName } from '@/lib/order-slip-pdf';
+import { drawEnvelopePdf, drawOrderSlipPdf, orderEnvelopeFileName, orderSlipFileName } from '@/lib/order-slip-pdf';
 import { drawOrderPdf, orderPdfFileName } from '@/lib/order-pdf';
 import { drawRepairPdf, repairPdfFileName } from '@/lib/repair-pdf';
 import { drawShippingSlipPdf, shippingSlipFileName } from '@/lib/shipping-slip-pdf';
@@ -81,9 +81,14 @@ export async function invoicePdf(id: string, viewer: PdfViewer, opts: { perPiece
 }
 
 /** The workshop order slip, as Print slip saves it; null when there is no such order. */
-export async function orderSlipPdf(id: string, viewer: PdfViewer): Promise<ServerPdf | null> {
+export async function orderSlipPdf(id: string, viewer: PdfViewer, only?: 'envelope'): Promise<ServerPdf | null> {
   const order = (await read('orders', id, viewer)) as Order | null;
   if (!order) return null;
+  if (only === 'envelope') {
+    // The envelope's sheet alone (?envelope=1), for an app's Print envelope.
+    const doc = drawEnvelopePdf(order, { dates: KARACHI_DATES });
+    return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: orderEnvelopeFileName(order) };
+  }
   const doc = drawOrderSlipPdf(order, { images: await serverPdfImages(), dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: orderSlipFileName(order) };
 }

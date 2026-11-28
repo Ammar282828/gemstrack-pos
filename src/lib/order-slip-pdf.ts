@@ -21,7 +21,8 @@ import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label } from '@
 import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { drawItemCell, itemCellHeight } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
-import { STORE_LOGO_ASPECT, STORE_ORDER_SLIP } from '@/lib/store-config';
+import { STORE_LOGO_ASPECT, STORE_ORDER_ENVELOPE, STORE_ORDER_SLIP } from '@/lib/store-config';
+import { drawEnvelopeSheet } from '@/lib/order-envelope';
 import { drawCardOrderSlip } from '@/lib/order-card-slip';
 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
@@ -50,8 +51,21 @@ export const orderSlipFileName = (order: Pick<Order, 'id'>) => `OrderSlip-${orde
  */
 export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
   // The printed card's shape where the house asks for it (Taheri); the detailed slip below stays as the backup.
-  if (STORE_ORDER_SLIP === 'card') return drawCardOrderSlip(order, { dates: opts.dates, images: opts.images });
-  return drawDetailedOrderSlip(order, opts);
+  const doc = STORE_ORDER_SLIP === 'card' ? drawCardOrderSlip(order, { dates: opts.dates, images: opts.images }) : drawDetailedOrderSlip(order, opts);
+  // The envelope's sheet after it, where the house writes its envelopes (Taheri): lib/order-envelope.ts.
+  if (STORE_ORDER_ENVELOPE) drawEnvelopeSheet(doc, order, opts.dates?.medium ?? ((iso: string) => format(parseISO(iso), 'd MMM yyyy')));
+  return doc;
+}
+
+/** "Envelope-ORD-000123.pdf". */
+export const orderEnvelopeFileName = (order: Pick<Order, 'id'>) => `Envelope-${order.id}.pdf`;
+
+/** The envelope's sheet alone (owner, 2026-11-28: "Also allow for separate printing of this if needed"). */
+export function drawEnvelopePdf(order: Order, opts: Pick<OrderSlipOptions, 'dates'> = {}): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  doc.setProperties({ title: `Envelope ${order.id}` });
+  drawEnvelopeSheet(doc, order, opts.dates?.medium ?? ((iso: string) => format(parseISO(iso), 'd MMM yyyy')), true);
+  return doc;
 }
 
 /** The detailed slip: the estimate's header, every piece with its settings and bench notes, the totals, the codes. */
@@ -159,6 +173,13 @@ export function drawDetailedOrderSlip(order: Order, opts: OrderSlipOptions): jsP
 }
 
 /** The browser's Print slip: the page's logo and codes, then the share sheet or a download. */
+/** Print envelope: the envelope's sheet on its own, saved or opened like the slip. */
+export async function generateEnvelopePDF(order: Order, preOpened?: Window | null) {
+  if (typeof window === 'undefined') return;
+  const iOSWin = preOpened !== undefined ? preOpened : openPDFWindowForIOS();
+  await savePDF(drawEnvelopePdf(order), orderEnvelopeFileName(order), iOSWin);
+}
+
 export async function generateOrderSlipPDF(order: Order, _settings?: Settings, preOpened?: Window | null) {
   if (typeof window === 'undefined') return;
   // Opened before any await, or iOS treats the later open as a pop-up (lib/pdf-lazy.ts opens it before it loads this file).

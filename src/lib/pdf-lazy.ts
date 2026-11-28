@@ -20,6 +20,19 @@ export async function printOrderSlip(order: Order, settings?: Settings): Promise
   }
 }
 
+/** The envelope's sheet alone (lib/order-envelope.ts). */
+export async function printOrderEnvelope(order: Order): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const win = openPDFWindowForIOS();
+  try {
+    const { generateEnvelopePDF } = await import('@/lib/order-slip-pdf');
+    await generateEnvelopePDF(order, win);
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
+}
+
 export async function printOrderPdf(order: Order): Promise<void> {
   if (typeof window === 'undefined') return;
   const win = openPDFWindowForIOS();
