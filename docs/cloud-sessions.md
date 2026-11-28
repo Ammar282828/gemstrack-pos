@@ -47,3 +47,10 @@ Claude Code runs these repos in the cloud too, with no Mac.
 ## Cloud Build token maintenance
 
 The owner configured `github-deploy-token` in Google Secret Manager on 2026-10-25. Its fine-grained GitHub token is limited to `taheri-pos` and `gemstrack-pos`, with Contents, Workflows and Commit statuses set to Read and write. The initial token expires on 2026-11-24; replace it with a new Secret Manager version before expiry. Never commit or print the token.
+
+**What its expiry looks like (2026-11-24 to 2026-11-28).** From 2026-11-24 03:49 UTC every deploy, from every chat, failed at
+the first step with `remote: Invalid username or token` and `Authentication failed`, before any of the change was built: the
+token had stopped being accepted for git and expired that day. Nothing reached either house until the owner saved a new version.
+Signs to read it by: three or more `claude/…` deploys in a row red at step 0 with that line, whatever they changed. The fix is
+only a new Secret Manager version of `github-deploy-token`, pasted with nothing before or after it (git reads it as the password
+as stored); a pushed commit then deploys whatever waited.
