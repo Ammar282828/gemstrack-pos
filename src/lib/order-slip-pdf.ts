@@ -80,7 +80,7 @@ export function drawDetailedOrderSlip(order: Order, opts: OrderSlipOptions): jsP
   label(pdfDoc, 'Bill to', margin, infoY);
   label(pdfDoc, 'Order details', pageWidth / 2, infoY);
   infoY += 5;
-  pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+  pdfDoc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(0);
   const halfW = pageWidth / 2 - margin - 2;
   const customer = [order.customerName || 'Walk-in Customer', ...(order.customerContact ? [`Phone: ${order.customerContact}`] : [])]
     .map(line => pdfDoc.splitTextToSize(line, halfW)[0] as string);
@@ -107,7 +107,7 @@ export function drawDetailedOrderSlip(order: Order, opts: OrderSlipOptions): jsP
   // Under the details block, as the estimate places it (one line lower when a promised date is printed).
   const extra = details.length > 2 ? 4 : 0;
   if (ratesApplied.length > 0) {
-    pdfDoc.setFontSize(6.5).setTextColor(150);
+    pdfDoc.setFontSize(7.5).setTextColor(150);
     pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10 + extra, { lineHeightFactor: 1.4 });
   }
   // The table starts where the estimate's does (its startY is infoBottom + 7).
@@ -126,7 +126,7 @@ export function drawDetailedOrderSlip(order: Order, opts: OrderSlipOptions): jsP
     head: [['#', 'Piece & Instructions', 'Est. Price']],
     body: tableRows,
     startY: infoBottom + 7,
-    ...tableStyles(margin),
+    ...tableStyles(margin, { large: true }),
     columnStyles: SLIP_COLUMNS,
     didParseCell: (data: any) => {
       alignHeadCell(data, SLIP_COLUMNS);

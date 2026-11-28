@@ -140,7 +140,9 @@ export function drawDocHeader(doc: jsPDF, o: HeaderOpts): number {
  * own ~14.11mm, which silently invalidates any column arithmetic the caller
  * has done — that is what put the specification line under the Qty figure.
  */
-export function tableStyles(margin: number) {
+export function tableStyles(margin: number, o: { large?: boolean } = {}) {
+  // A point larger on the invoice and the order documents (owner, 2026-11-28).
+  const up = o.large ? 1 : 0;
   return {
     theme: 'plain' as const,
     margin: { left: margin, right: margin },
@@ -148,11 +150,11 @@ export function tableStyles(margin: number) {
       fillColor: false as unknown as undefined,
       textColor: BRAND as unknown as number[],
       fontStyle: 'bold' as const,
-      fontSize: 6.5,
+      fontSize: 6.5 + up,
       cellPadding: { top: 1.6, bottom: 2.2, left: 2, right: 2 },
     },
     styles: {
-      fontSize: 7.5,
+      fontSize: 7.5 + up,
       cellPadding: { top: 2.4, bottom: 2.4, left: 2, right: 2 },
       valign: 'top' as const,
       textColor: INK as unknown as number[],
@@ -241,7 +243,12 @@ export interface TotalsOpts {
    * footer that is not on this page.
    */
   bottomReserve?: number;
+  /** A point larger throughout: the invoice and the order documents (owner, 2026-11-28: "increase font size a little in invoice and order"). */
+  large?: boolean;
 }
+
+/** The totals' sizes: rows, the bold total, the banded closing figure. */
+const totalSizes = (o: { large?: boolean }) => (o.large ? { row: 9, total: 10, closing: 11 } : { row: 8, total: 9, closing: 10 });
 
 /**
  * The totals column, shared by the three invoice builders and the workshop
@@ -254,6 +261,7 @@ export const FOOTER_HEIGHT = 34;
 
 /** How tall the block will be, measured as it will be drawn (labels wrap), so callers can place it. */
 export function totalsHeight(doc: jsPDF, o: TotalsOpts): number {
+  const sz = totalSizes(o);
   const { pageWidth, margin, rows, after = [], closing } = o;
   const totalsX = pageWidth - margin;
   const labelX = totalsX - 44;
@@ -277,8 +285,8 @@ export function totalsHeight(doc: jsPDF, o: TotalsOpts): number {
   const extra = (r: TotalRow, size: number, bold: boolean) =>
     Math.max(0, Math.min(linesOf(r, size, bold).length, MAX_LABEL_LINES) - 1) * LABEL_LINE_H;
   const height =
-    rows.length * 5 + rows.reduce((h, r) => h + extra(r, 8, false), 0) + 6 + 5.5 +
-    after.length * 5 + after.reduce((h, r) => h + extra(r, 8, false), 0) + (closing ? 11 : 0) + 2;
+    rows.length * 5 + rows.reduce((h, r) => h + extra(r, sz.row, false), 0) + 6 + 5.5 +
+    after.length * 5 + after.reduce((h, r) => h + extra(r, sz.row, false), 0) + (closing ? 11 : 0) + 2;
   return height;
 }
 
@@ -288,6 +296,7 @@ export function totalsHeight(doc: jsPDF, o: TotalsOpts): number {
  * clear of this x.
  */
 export function totalsLeftEdge(doc: jsPDF, o: TotalsOpts): number {
+  const sz = totalSizes(o);
   const { pageWidth, margin, rows, total, after = [], closing } = o;
   const labelX = pageWidth - margin - 44;
   const wrapW = Math.min(Math.max(0, labelX - margin), LABEL_WRAP);
@@ -297,14 +306,15 @@ export function totalsLeftEdge(doc: jsPDF, o: TotalsOpts): number {
     doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
     for (const l of doc.splitTextToSize(r.label, wrapW) as string[]) edge = Math.min(edge, labelX - doc.getTextWidth(l));
   };
-  rows.forEach(r => widest(r, 8, false));
-  widest(total, 9, true);
-  after.forEach(r => widest(r, 8, false));
-  if (closing) edge = Math.min(edge, bandFor(doc, closing.label, labelX, pageWidth - margin, 10).x);
+  rows.forEach(r => widest(r, sz.row, false));
+  widest(total, sz.total, true);
+  after.forEach(r => widest(r, sz.row, false));
+  if (closing) edge = Math.min(edge, bandFor(doc, closing.label, labelX, pageWidth - margin, sz.closing).x);
   return edge;
 }
 
 export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
+  const sz = totalSizes(o);
   const { pageWidth, pageHeight, margin, startY, rows, total, after = [], closing, onNewPage, bottomReserve = FOOTER_HEIGHT } = o;
   const totalsX = pageWidth - margin;
   const labelX = totalsX - 44;
@@ -340,22 +350,22 @@ export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
     return Math.max(0, shown.length - 1) * LABEL_LINE_H;
   };
 
-  rows.forEach(r => { y += line(r, false, 8, r.tone === 'ink' ? INK : MUTED) + 5; });
+  rows.forEach(r => { y += line(r, false, sz.row, r.tone === 'ink' ? INK : MUTED) + 5; });
 
   hairline(doc, labelX - 16, y, totalsX, 'rule');
   y += 6;
-  line(total, true, 9, INK);
+  line(total, true, sz.total, INK);
   y += 5.5;
 
-  after.forEach(r => { y += line(r, false, 8, r.tone === 'ink' ? INK : MUTED) + 5; });
+  after.forEach(r => { y += line(r, false, sz.row, r.tone === 'ink' ? INK : MUTED) + 5; });
 
   if (closing) {
     y += 1;
-    const band = bandFor(doc, closing.label, labelX, totalsX, 10);
+    const band = bandFor(doc, closing.label, labelX, totalsX, sz.closing);
     doc.setFillColor(BAND[0], BAND[1], BAND[2]);
     doc.rect(band.x, y, band.w, 9, 'F');
     y += 6;
-    line(closing, true, 10, BRAND);
+    line(closing, true, sz.closing, BRAND);
     y += 4;
   }
 

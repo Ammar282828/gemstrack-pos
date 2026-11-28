@@ -58,10 +58,12 @@ export const wastageLine = (item: Parameters<typeof wastageGrams>[0]): string | 
 const PT_MM = 0.3528;
 const line = (pt: number) => pt * PT_MM * 1.2;
 
-const NAME_PT = 8.4;
-const SPEC_PT = 6.8;
-const SET_PT = 7;
-const BRK_PT = 6.6;
+// A point larger since 2026-11-28 (owner: "increase font size a little in invoice and order"); the cell measures itself
+// from these, so rows grow with them. Used only by the invoice, the order PDF and the order slip.
+const NAME_PT = 9.4;
+const SPEC_PT = 7.6;
+const SET_PT = 7.8;
+const BRK_PT = 7.4;
 /** Space above the breakdown rule. */
 const RULE_GAP = 1.1;
 

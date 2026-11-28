@@ -308,11 +308,10 @@ env:
   - variable: META_ADS_INSTAGRAM
     value: "collectionstaheri"
     availability: [RUNTIME]
-  # The order slip: "card", the shop card on A5 (lib/order-card-slip.ts; the owner's redesign of 2026-11-10). Reverted to
-  # "classic" the morning of 2026-11-18, then back to the card the same day (the owner: "I tried printing the order slip,
-  # but it was printing the old format, not the new format I gave you"). "classic" is the detailed slip, kept as the backup.
+  # The order slip: House of Mina's (the detailed "classic" slip) in both houses (owner, 2026-11-28: "change taheri order
+  # slip to the same as minas across every platform everywhere"). "card" brings back the A5 shop card (lib/order-card-slip.ts).
   - variable: NEXT_PUBLIC_STORE_ORDER_SLIP
-    value: "card"
+    value: "classic"
     availability:
       - BUILD
       - RUNTIME

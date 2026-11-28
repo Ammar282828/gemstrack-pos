@@ -141,7 +141,7 @@ export function drawOrderTotals(
   }
 
   return drawTotals(doc, {
-    pageWidth, pageHeight, margin, startY, onNewPage,
+    pageWidth, pageHeight, margin, startY, onNewPage, large: true,
     rows,
     total: { label: 'Estimated Total', value: money(agreed) },
     after,

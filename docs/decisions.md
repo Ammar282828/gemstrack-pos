@@ -1425,6 +1425,16 @@ taheri. Keep the old one as backup if we don't like this new one."
   or metal, estimated weight ("Meena Jhumki · 21K · Est. 5.52g"); when they still don't fit the type steps down (11 → 9.5 pt,
   closer lines) before anything is cut. `drawCardOrderSlip` also takes `currency` ({ code, pkrPerUnit }) for a customer
   abroad: amounts in whole units, a rate per gram to the cent (first used: ORD-000124 in USD at 277).
+- **Back to Mina's slip, 2026-11-28** (owner: "change taheri order slip to the same as minas across every platform
+  everywhere"): `classic` in `apphosting.taheri.yaml`, so both houses print the detailed slip. Every surface follows: the
+  web draws it, and the iPhone, iPad, Mac and Android apps print the server's (`/api/app/pdf/order-slip`). The card stays
+  in the code behind `card`.
+- **A point larger, 2026-11-28** (owner: "increase font size a little in invoice and order"): the invoice, the order PDF
+  and the order slip, both houses. The piece cell (`invoice-item-cell.ts`: name 9.4, specs 7.6, settings 7.8, breakdown
+  7.4), the table (`tableStyles(margin, { large: true })`: head 7.5, body 8.5), the totals (`large`: rows 9, total 10,
+  closing 11), the customer and details block 9, the full-width Payment History 9/8. The narrow table beside the totals
+  keeps 6.5/7: its columns are measured to fit and larger it cuts the notes. Repair receipts and reports unchanged.
+
 ### Shop outage
 
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).

@@ -108,7 +108,12 @@ async function calibrate() {
   const title = h9.texts.find(t => t.text === 'Payment History')!;
   const adv = (k: number) => h9.texts.find(t => t.text === `Advance ${k}`)!.y;
   const histRowH = adv(2) - adv(1);
-  const histHeadH = h9.tables[h9.tables.length - 1].finalY - (title.y + 4) - 9 * histRowH;
+  // Measured on the page the table ends on (a taller row can carry it over; 2026-11-28 the type grew a point): that page's
+  // table starts under the title, or at the continuation top (TOP) when it ran over.
+  const last = h9.tables[h9.tables.length - 1];
+  const rowsOnLast = Array.from({ length: 9 }, (_, i) => h9.texts.find(t => t.text === `Advance ${i + 1}`)!).filter(t => t.page === last.pages).length;
+  const lastTop = last.pages === title.page ? title.y + 4 : TOP;
+  const histHeadH = last.finalY - lastTop - rowsOnLast * histRowH;
   const h3 = await render(make(1, { payments: 3 }), 'cal-h3');
   // The narrow table beside the totals (up to 8 payments): its own row and head heights.
   const besideTitle = (r: typeof h3) => r.texts.find(t => t.text === 'Payment History')!;

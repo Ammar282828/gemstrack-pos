@@ -195,7 +195,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   label(doc, 'Bill to', margin, infoY);
   label(doc, 'Estimate details', pageWidth / 2, infoY);
   infoY += 5;
-  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+  doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(0);
 
   const customerInfo = customerLines(inv, customer);
   doc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
@@ -207,7 +207,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   if (deliveryLines.length) {
     const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
     label(doc, 'Deliver to', margin, dy);
-    doc.setFont('helvetica', 'normal').setFontSize(8);
+    doc.setFont('helvetica', 'normal').setFontSize(9);
     doc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
   }
 
@@ -232,7 +232,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   // Under the details block, which is one line taller on a piece page.
   const ratesY = infoY + 10 + (inv.piece ? 4 : 0);
   if (ratesApplied.length > 0) {
-    doc.setFontSize(6.5).setTextColor(150);
+    doc.setFontSize(7.5).setTextColor(150);
     doc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, ratesY, { lineHeightFactor: 1.4 });
   }
 
@@ -311,6 +311,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   const history = inv.paymentHistory || [];
   const settleLine = balanceLine(inv.balanceDue, inv.status);
   const totalsOpts = {
+    large: true,
     pageWidth, pageHeight, margin, onNewPage: drawHeader,
     rows: totalRows,
     total: { label: 'Grand Total', value: pkr(inv.grandTotal) },
@@ -332,7 +333,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   const drawItems = (target: jsPDF, from: number, to: number, startY: number, real: boolean) => {
     const basePage = target.getNumberOfPages();
     target.autoTable({
-      ...tableStyles(margin),
+      ...tableStyles(margin, { large: true }),
       // A continuation page starts under the header (the head row once drew over it).
       margin: { left: margin, right: margin, top: 28 },
       head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
@@ -408,6 +409,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     pkr(p.amount).replace(/^PKR\s*/, ''),
   ]);
   // Date and Amount are as wide as their widest entry (measured), Notes takes the rest.
+  // The narrow table beside the totals keeps its size: its column is measured to fit, and larger it cuts the notes.
   doc.setFont('helvetica', 'normal').setFontSize(6.5);
   const fitCol = (i: number, head: string) => Math.ceil((Math.max(...besideBody.map(r => doc.getTextWidth(String(r[i]))), doc.getTextWidth(head) + 0.8) + 2.4 + 0.6) * 2) / 2;
   const dateW = fitCol(0, 'Date'), amountW = fitCol(2, 'Amount');
@@ -439,7 +441,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     }
     const top = y;
     const totalsEnd = drawTotals(doc, { ...totalsOpts, startY: top });
-    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
+    doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(0);
     doc.text('Payment History', margin, top + 0.5);
     besideTable(doc, top + BESIDE_TITLE);
     contentEnd = Math.max(totalsEnd, doc.lastAutoTable.finalY || 0);
@@ -454,7 +456,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
         y = 24;
       }
       y += 6;
-      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
+      doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(0);
       doc.text('Payment History', margin, y);
       y += 4;
       const histPage = doc.getNumberOfPages();
@@ -470,8 +472,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
         ]),
         startY: y, theme: 'striped',
         margin: { left: margin, right: margin, top: 28, bottom: margin },
-        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
-        styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
+        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 9 },
+        styles: { fontSize: 8, overflow: 'linebreak', valign: 'top' },
         columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
         didDrawPage: (data: { pageNumber: number }) => {
           if (data.pageNumber > histPage) { doc.setPage(data.pageNumber); drawHeader(data.pageNumber); }

@@ -94,7 +94,7 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
   label(doc, 'Bill to', margin, infoY);
   label(doc, 'Order details', pageWidth / 2, infoY);
   infoY += 5;
-  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+  doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(0);
   const halfW = pageWidth / 2 - margin - 2;
   const customer = [order.customerName || 'Walk-in Customer', ...(order.customerContact ? [`Phone: ${order.customerContact}`] : [])]
     .map(line => doc.splitTextToSize(line, halfW)[0] as string);
@@ -118,7 +118,7 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
   }
   const extra = details.length > 2 ? 4 : 0;
   if (ratesApplied.length > 0) {
-    doc.setFontSize(6.5).setTextColor(150);
+    doc.setFontSize(7.5).setTextColor(150);
     doc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10 + extra, { lineHeightFactor: 1.4 });
   }
   // The table starts where the estimate's and the slip's do (startY infoBottom + 7).
@@ -130,7 +130,7 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
   });
   const descWidth = pageWidth - margin * 2 - 7 - 28;
   doc.autoTable({
-    ...tableStyles(margin),
+    ...tableStyles(margin, { large: true }),
     head: [['#', 'Piece', 'Est. price']],
     body: order.items.map((item, i) => [i + 1, '', pkr(orderPiecePrice(item))]),
     startY: infoBottom + 7,
@@ -163,7 +163,7 @@ export function drawOrderPdf(order: Order, { images, dates }: OrderPdfOptions): 
   // What an estimate is, once, above the footer when there is room.
   const noteY = Math.min(after + 6, pageHeight - FOOTER_HEIGHT - 4);
   if (noteY > after) {
-    doc.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(110);
+    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(110);
     doc.text('Weights and prices are estimates; the invoice is made from the finished piece.', margin, noteY, { maxWidth: pageWidth - margin * 2 });
   }
 
