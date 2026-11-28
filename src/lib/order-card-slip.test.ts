@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardAdvance, cardItems, cardRates, drawCardOrderSlip } from './order-card-slip';
+import { cardAdvance, cardItems, cardRates, drawCardOrderSlip, envelopeLines } from './order-card-slip';
 
 const item = (o: Record<string, unknown> = {}) => ({
   description: 'Bypass ring', metalType: 'gold', karat: '21k', estimatedWeightG: 6.4, stoneWeightG: 0, hasStones: false, wastagePercentage: 0,
@@ -22,6 +22,20 @@ describe('the card order slip', () => {
   it('gives a line per piece and fits on one A5 page however many pieces', () => {
     expect(cardItems(order())[0]).toMatch(/Bypass ring/);
     const doc = drawCardOrderSlip(order({ items: Array.from({ length: 12 }, () => item()) }));
-    expect(doc.getNumberOfPages()).toBe(1);
+    // The card is one A5 page however many pieces; the envelope's sheet follows as page 2.
+    expect(doc.getNumberOfPages()).toBe(2);
+  });
+
+  it('the envelope sheet carries every piece in full, and no money', () => {
+    const o = order({ customerContact: '+923001234567', items: [item({ description: 'Meena Jhumki', size: '7', stoneDetails: 'Rubies, pear', sampleGiven: true })] } as never);
+    const e = envelopeLines(o);
+    expect(e.head[0]).toContain('+923001234567');
+    expect(e.pieces[0].title).toMatch(/^1\. /);
+    const all = [e.pieces[0].title, ...e.pieces[0].lines].join(' | ');
+    expect(all).toMatch(/Meena Jhumki/);
+    expect(all).toMatch(/Size 7/);
+    expect(all).toMatch(/Stones: Rubies, pear/);
+    expect(all).toMatch(/Sample given/);
+    expect(all).not.toMatch(/PKR|Rs/);
   });
 });
